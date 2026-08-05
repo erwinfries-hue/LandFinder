@@ -26,7 +26,9 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   budget: {
     maxEquityChf: 3_000_000,
     maxLandPriceChf: 5_000_000,
-    maxTotalProjectVolumeChf: 15_000_000,
+    // War inkonsistent (15 Mio.): bei 3 Mio. Eigenkapital und 70% Fremdfinanzierung
+    // sind max. 3'000'000 / 0.3 = 10 Mio. Projektvolumen finanzierbar.
+    maxTotalProjectVolumeChf: 10_000_000,
     liquidityReserveChf: 200_000,
     debtRatioTargetPercent: 70,
     projectDurationMonths: 30,
@@ -34,13 +36,16 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   },
   objektart: {
     baulandEnabled: true,
-    abbruchobjektEnabled: false,
+    abbruchobjektEnabled: true,
     baurecht: "MANUAL_REVIEW",
   },
   grundstueck: {
     minAreaM2: 800,
     maxAreaM2: 5000,
-    maxPricePerM2Chf: 2500,
+    // Baden liegt laut data/wuest/ bereits beim Median (50%) bei 2'500 CHF/m²
+    // (hohe Ausnützung); ein Deckel auf diesem Niveau würde teurere ZG/ZH-Lagen
+    // systematisch ausschliessen.
+    maxPricePerM2Chf: 3500,
     erschliessungRequired: true,
     hanglageAllowed: true,
     zufahrtRequired: true,
@@ -60,7 +65,7 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
     constructionType: "Massivbau",
   },
   eigennutzung: {
-    enabled: false,
+    enabled: true,
     unitCount: undefined,
     targetSizeM2: undefined,
     roomCount: undefined,
@@ -72,7 +77,9 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   marktannahmen: {
     netRentChfPerM2Month: 22,
     parkingRentChfPerMonth: 120,
-    vacancyRatePercent: 3,
+    // 3% war zu pessimistisch — Baden 0.8%, Wohlen 1.8%, Kanton AG 1.4% laut
+    // data/wuest/. 2% behält trotzdem eine Sicherheitsmarge über den realen Werten.
+    vacancyRatePercent: 2,
     collectionLossRatePercent: 1,
     managementCostPercent: 4,
     maintenanceCostPercent: 8,
@@ -103,7 +110,9 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   renditeziele: {
     minDscr: 1.2,
     minCashOnCashPercent: 3.5,
-    minYieldOnCostPercent: 4.2,
+    // 4.2% liess bei Exit-Cap 3.2% nur 100 Basispunkte Entwicklungsspanne — knapp
+    // für Bau-/Kostenrisiko. 4.5% gibt mehr Puffer.
+    minYieldOnCostPercent: 4.5,
     targetMarginPercent: 15,
   },
   risiken: {

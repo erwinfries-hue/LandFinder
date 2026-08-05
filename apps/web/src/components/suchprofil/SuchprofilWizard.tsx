@@ -24,6 +24,7 @@ import {
   QuellenSection,
 } from "./sections";
 import { AnnahmenRegister } from "./AnnahmenRegister";
+import { AlleWerteTabelle } from "./AlleWerteTabelle";
 
 const TABS = [
   "Regionen",
@@ -40,6 +41,7 @@ const TABS = [
   "Alerts",
   "Quellen",
   "Annahmen & Formeln",
+  "Alle Werte",
 ] as const;
 
 export function SuchprofilWizard() {
@@ -89,6 +91,7 @@ export function SuchprofilWizard() {
         {activeTab === 11 && <AlertsSection value={profile.alerts} onChange={(v) => setProfile({ ...profile, alerts: v })} />}
         {activeTab === 12 && <QuellenSection value={profile.quellen} onChange={(v) => setProfile({ ...profile, quellen: v })} />}
         {activeTab === 13 && <AnnahmenRegister />}
+        {activeTab === 14 && <AlleWerteTabelle />}
       </div>
 
       {activeTab < 13 && (
