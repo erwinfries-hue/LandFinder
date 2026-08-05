@@ -1,5 +1,25 @@
 # comparison-engine
 
-**Status:** Noch nicht implementiert — geplant für Phase 1.
+**Status:** Implementiert (Phase 1, Schritt 4 von 5 — siehe `docs/OPEN_DECISIONS.md`).
 
-Rollender Vergleich aktiver Objekte je Kanton: Rang, Perzentil, Vor-/Nachteile (Abschnitt 20).
+Rollender Vergleich aktiver Objekte je Kanton (Abschnitt 20). 12 Unit-Tests,
+`npm test` von der Repo-Wurzel.
+
+## Module
+
+| Datei | Inhalt |
+|---|---|
+| `metrics.ts` | Leitet die acht Vergleichskennzahlen aus `financial-engine`/`scoring-engine`-Ergebnissen ab; `METRIC_DIRECTION` benennt explizit, ob "höher" oder "tiefer" besser ist (im Masterdokument nicht spezifiziert, hier als Modellannahme sichtbar) |
+| `ranking.ts` | `rankAndCompare()` — Gesamtrang (alle aktiven Objekte), Kantonsrang/Perzentil (nur gleicher Kanton), Vergleich zum Kantons-Top-Objekt, grösster Vorteil/Nachteil pro Kennzahl |
+| `change.ts` | `computeChange()` für Preis- und Scoreveränderung |
+
+## Methodik grösster Vorteil/Nachteil
+
+Für jede der acht Kennzahlen wird das Perzentil des Objekts innerhalb der
+Kantons-Vergleichsgruppe berechnet (0–100, höher = besser, unabhängig von der
+Richtung der Kennzahl). Die Kennzahl mit dem höchsten Perzentil ist der grösste
+Vorteil, die mit dem tiefsten der grösste Nachteil. Auch dies ist eine explizite,
+dokumentierte Modellannahme — das Masterdokument gibt keine Berechnungsvorschrift vor.
+
+Offen: reale Anbindung an Suchprofil-Wizard/Objekt-Detailseite/Vergleichsseite
+(Schritt 5) und die Persistenz in der `comparisons`-Tabelle (Phase 2, Supabase).
