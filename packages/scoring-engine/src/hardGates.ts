@@ -3,9 +3,16 @@ import type { Listing, SearchProfile, HardGateReason, HardGateResult, HardGateOv
 export interface HardGateContext {
   listing: Pick<
     Listing,
-    "canton" | "objectType" | "baurecht" | "erschliessung" | "coordinates" | "municipalityBfsId" | "askingPriceChf"
+    | "canton"
+    | "objectType"
+    | "baurecht"
+    | "erschliessung"
+    | "coordinates"
+    | "municipalityBfsId"
+    | "askingPriceChf"
+    | "parcelAreaM2"
   >;
-  profile: Pick<SearchProfile, "regions" | "objektart" | "budget" | "projektziel" | "risiken">;
+  profile: Pick<SearchProfile, "regions" | "objektart" | "budget" | "projektziel" | "risiken" | "grundstueck">;
   totalDevelopmentCostChf: number;
   equityRequiredChf: number;
   achievedNraM2: number;
@@ -81,6 +88,17 @@ export function evaluateHardGates(ctx: HardGateContext, manualOverride?: HardGat
       reason: "PRICE_ABOVE_MAXIMUM",
       evidence: `Angebotspreis über dem maximalen Grundstückspreis (CHF ${ctx.profile.budget.maxLandPriceChf}).`,
       triggered: (ctx.listing.askingPriceChf ?? 0) > ctx.profile.budget.maxLandPriceChf,
+    },
+    {
+      reason: "PRICE_PER_M2_ABOVE_MAXIMUM",
+      evidence: `Preis/m² (CHF ${
+        ctx.listing.parcelAreaM2 ? Math.round((ctx.listing.askingPriceChf ?? 0) / ctx.listing.parcelAreaM2) : "?"
+      }) über dem maximalen Preis/m² des Suchprofils (CHF ${ctx.profile.grundstueck.maxPricePerM2Chf ?? "?"}).`,
+      triggered:
+        ctx.profile.grundstueck.maxPricePerM2Chf !== undefined &&
+        Boolean(ctx.listing.parcelAreaM2) &&
+        ctx.listing.parcelAreaM2! > 0 &&
+        (ctx.listing.askingPriceChf ?? 0) / ctx.listing.parcelAreaM2! > ctx.profile.grundstueck.maxPricePerM2Chf,
     },
     {
       reason: "TOTAL_PROJECT_ABOVE_MAXIMUM",

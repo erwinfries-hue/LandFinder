@@ -2,18 +2,17 @@
 
 Gebündelte Fragen, die kostenrelevant, rechtlich heikel oder scope-verändernd sind und daher nicht ohne Rückmeldung des Auftraggebers entschieden werden (siehe Masterprompt, Abschnitt 30, „Arbeitsweise“). Diese Liste wird laufend aktualisiert.
 
-## A. Portal-Scraping (Homegate, ImmoScout24, newhome) — offen
-Automatisiertes Auslesen dieser drei Portale kann unabhängig von der Technik gegen deren AGB verstossen. Vor Beginn von Phase 2 (Portaladapter) wird ein `PORTAL_ACCESS_REVIEW.md` mit einer Einschätzung pro Portal erstellt (offizielle API/Feed? RSS? ToS-Lage?) und die risikoärmste Variante vorgeschlagen — bevorzugt Suchabo-E-Mails/RSS statt HTML-Scraping. **Kein Scraping-Code läuft vor expliziter Freigabe.**
+## A. Portal-Scraping (Homegate, ImmoScout24, newhome) — Review liegt vor, Entscheid offen
+Automatisiertes Auslesen dieser drei Portale kann unabhängig von der Technik gegen deren AGB verstossen. Die Einschätzung pro Portal liegt jetzt vor: `docs/PORTAL_ACCESS_REVIEW.md` (Homegate/ImmoScout24 AGB deuten auf ein explizites Crawling-Verbot hin, beide Domains blockierten sogar automatisierte Lesezugriffe auf ihre eigenen Rechtstexte; newhome bestätigt ein kostenloses Suchabo per E-Mail und bietet zusätzlich einen "Business Connector" als B2B-Schnittstelle an). Empfehlung: **Tier 1 — Suchabo-/Alert-E-Mails per IMAP** als alleinige Datenquelle für den MVP, kein HTML-Scraping. Basiert auf Sekundärquellen (die AGB-Seiten selbst waren automatisiert nicht abrufbar) — vor dem finalen Entscheid bitte die drei AGB-Seiten einmal manuell im Browser lesen. **Kein Scraping-Code läuft vor expliziter Freigabe.**
 
 ## B. LLM-Provider — offen
 Empfehlung: Anthropic API (Claude), da bereits im Ökosystem vorhanden. Benötigt: Anthropic-API-Key als Secret. Bis zur Klärung läuft alles im Demo-Modus gegen die Mock-LLM-Implementierung.
 
-## C. Infrastruktur-Accounts — offen
-Benötigt vom Auftraggeber (keine kostenpflichtigen Dienste werden ohne Zustimmung angelegt):
-- Supabase-Projekt (EU-Region), Free Tier für den MVP ausreichend
-- Hosting für `apps/web` (Empfehlung: Vercel Free Tier)
-- E-Mail-Konto für IMAP-Polling (Suchabo-Mails, weitergeleitete Inserate)
-- SMTP/Versanddienst für ausgehende Alerts (Empfehlung: Resend)
+## C. Infrastruktur-Accounts — Hosting erledigt, Rest offen
+- ~~Hosting für `apps/web`~~ **erledigt**: Vercel-Projekt `land-finder-web` unter deinem bestehenden Account (Team AXIA4) eingerichtet, Production Branch `claude/landfinder-mvp-projekt-l9baa1`, feste URL `land-finder-web.vercel.app`, automatisches Deployment bei jedem Push.
+- Supabase-Projekt (EU-Region), Free Tier für den MVP ausreichend — offen
+- E-Mail-Konto für IMAP-Polling (Suchabo-Mails, weitergeleitete Inserate) — offen
+- SMTP/Versanddienst für ausgehende Alerts (Empfehlung: Resend) — offen
 
 ## D. Nutzerkreis — offen
 Private Web-App mit Login, aber einem globalen Suchprofil. Annahme bis auf Widerruf: 2–5 bekannte Nutzer mit gleichberechtigtem Zugriff, Einladung nur manuell durch den Auftraggeber (kein Self-Signup).
@@ -33,12 +32,16 @@ Abschnitt 6, vorbelegt mit Schweizer Marktannahmen (`apps/web/src/lib/searchProf
 klar als solche im UI gekennzeichnet), lokal im Browser gespeichert (noch keine
 Datenbank). Zusätzlich gibt es einen 13. Reiter "Annahmen & Formeln", der alle
 Parameter-Registries aus `financial-engine`/`scoring-engine` (71 Werte) direkt
-editierbar macht. Weiterhin offen: die eigentlichen Zahlenwerte sind
-unternehmerische Entscheidungen und noch nicht von dir bestätigt — bitte im Wizard
-durchgehen und anpassen, bevor damit echte Empfehlungen berechnet werden.
+editierbar macht. Die Startwerte wurden inzwischen gegen die echten Wüest-Partner-Daten
+kalibriert (Budget, Preis/m², Leerstand, Yield-on-Cost) und die Eigennutzungs-
+Detailwerte ergänzt. Der zuvor fehlende Hard Gate für den Preis/m²-Deckel im
+Grundstück-Bereich (`PRICE_PER_M2_ABOVE_MAXIMUM`) ist implementiert. Weiterhin offen:
+Dashboard und Objekt-Detailseite rechnen noch mit statischen Demo-Daten
+(`apps/web/src/lib/demo-data.ts`), nicht mit den echten Engines — die eigentliche
+Verdrahtung fehlt noch (siehe Vorschlag für die nächste Session).
 
-## G. Domain / Deployment-Ziel — offen
-Annahme bis auf Widerruf: Vercel-Subdomain für den MVP, echte Domain erst auf Wunsch.
+## G. Domain / Deployment-Ziel — Vercel-Subdomain aktiv
+Wie angenommen: `land-finder-web.vercel.app` ist die aktive MVP-Adresse (siehe Punkt C). Echte Domain erst auf Wunsch.
 
 ## H. Design-Sprache — entschieden
 "Vermessung/Kataster": kühles Vermessungspapier-Blau-Grün statt warmem Creme-Ton, Petrol-Akzent (`#0E6E68` / `#4FC2B4` dunkel), Newsreader (Display-Serife) + Public Sans (UI) + IBM Plex Mono (Zahlen/Daten). Umgesetzt in `packages/ui` und `apps/web`. Referenz-Mockups wurden iterativ abgenommen (Login, Dashboard, Objekt-Detail).

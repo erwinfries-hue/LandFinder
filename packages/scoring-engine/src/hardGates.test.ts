@@ -11,6 +11,7 @@ function baseContext(): HardGateContext {
       coordinates: { lat: 47.1, lon: 8.5 },
       municipalityBfsId: "1701",
       askingPriceChf: 3_000_000,
+      parcelAreaM2: 1_500,
     },
     profile: {
       regions: { cantons: ["ZG", "ZH"] },
@@ -18,6 +19,14 @@ function baseContext(): HardGateContext {
       budget: { maxEquityChf: 2_000_000, maxLandPriceChf: 4_000_000, maxTotalProjectVolumeChf: 10_000_000, negativeRampUpAllowed: true },
       projektziel: { parkingRequired: true, liftRequired: true, accessibilityRequired: true, balconiesRequired: true, minNraM2: 500 },
       risiken: { excludedContamination: true, excludedNaturalHazards: true },
+      grundstueck: {
+        maxPricePerM2Chf: 3_500,
+        erschliessungRequired: true,
+        hanglageAllowed: true,
+        zufahrtRequired: true,
+        altlastenAllowed: false,
+        naturgefahrAllowed: false,
+      },
     },
     totalDevelopmentCostChf: 8_000_000,
     equityRequiredChf: 1_800_000,
@@ -88,6 +97,19 @@ describe("evaluateHardGates (Abschnitt 17)", () => {
     const ctx = baseContext();
     ctx.listing.askingPriceChf = 5_000_000;
     expect(evaluateHardGates(ctx).reason).toBe("PRICE_ABOVE_MAXIMUM");
+  });
+
+  it("PRICE_PER_M2_ABOVE_MAXIMUM, wenn Preis/Fläche über dem Deckel im Suchprofil liegt", () => {
+    const ctx = baseContext();
+    ctx.listing.askingPriceChf = 3_000_000;
+    ctx.listing.parcelAreaM2 = 600; // CHF 5'000/m² > Deckel 3'500
+    expect(evaluateHardGates(ctx).reason).toBe("PRICE_PER_M2_ABOVE_MAXIMUM");
+  });
+
+  it("PRICE_PER_M2_ABOVE_MAXIMUM greift nicht ohne bekannte Parzellenfläche", () => {
+    const ctx = baseContext();
+    ctx.listing.parcelAreaM2 = undefined;
+    expect(evaluateHardGates(ctx)).toEqual({ status: "PASSED" });
   });
 
   it("TOTAL_PROJECT_ABOVE_MAXIMUM", () => {
