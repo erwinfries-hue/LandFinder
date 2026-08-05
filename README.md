@@ -26,6 +26,7 @@ npm install
 npm run dev     # startet apps/web auf http://localhost:3000
 npm run build
 npm run lint
+npm test        # vitest über alle packages/*
 ```
 
 Die App läuft aktuell im **Demo-Modus** mit statischen Beispieldaten
@@ -33,4 +34,8 @@ Die App läuft aktuell im **Demo-Modus** mit statischen Beispieldaten
 ohne LLM-Anbindung. Diese Anbindungen folgen in Phase 1–2, siehe
 `docs/OPEN_DECISIONS.md`.
 
-Verfügbare Seiten: `/login`, `/` (Dashboard), `/objekte/[slug]` (Objekt-Detail).
+Verfügbare Seiten: `/login`, `/` (Dashboard), `/objekte/[slug]` (Objekt-Detail),
+`/suchprofil` (Wizard mit allen zwölf Bereichen aus Abschnitt 6 + einem
+"Annahmen & Formeln"-Register, das die Parameter-Registries aus
+`financial-engine`/`scoring-engine` editierbar macht — lokal im Browser
+gespeichert, noch ohne Datenbank).

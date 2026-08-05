@@ -956,4 +956,175 @@ table.sortable th {
   .subgrid {
     grid-template-columns: 1fr;
   }
+  .wizard-tabs {
+    flex-wrap: wrap;
+  }
+}
+
+/* ================= SUCHPROFIL-WIZARD ================= */
+.wizard-tabs {
+  display: flex;
+  gap: 0.3rem;
+  overflow-x: auto;
+  margin-bottom: 1.4rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+.wizard-tab {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.wizard-tab.current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.wizard-tab .n {
+  color: var(--ink-faint);
+  margin-right: 0.3rem;
+}
+.wizard-tab.current .n {
+  color: var(--on-accent);
+  opacity: 0.75;
+}
+
+.wizard-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1.4rem;
+  background: var(--warn-bg);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+.wizard-banner svg {
+  color: var(--warn);
+  flex: none;
+  margin-top: 0.15rem;
+}
+.wizard-banner strong {
+  color: var(--ink);
+}
+
+.wizard-section h2 {
+  font-size: 1.3rem;
+}
+.wizard-section .lede {
+  margin: 0.4rem 0 1.4rem;
+  max-width: 70ch;
+  font-size: 0.95rem;
+}
+
+.fieldgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1.1rem 1.6rem;
+}
+.fieldgrid .field {
+  margin-bottom: 0;
+}
+.field .fieldhelp {
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  margin-top: 0.35rem;
+  line-height: 1.4;
+}
+.field .unit-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.field .unit-input input {
+  flex: 1;
+}
+.field .unit-input .unit {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.field .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--ink);
+  font-weight: 500;
+}
+.field select {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.875rem;
+}
+
+.chipselect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.chipselect button {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.chipselect button.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.paramtable-source {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  color: var(--ink-faint);
+}
+.paramtable input {
+  width: 7rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  text-align: right;
+}
+.paramtable .reset-all {
+  font-size: 0.75rem;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.wizard-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.8rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
 }

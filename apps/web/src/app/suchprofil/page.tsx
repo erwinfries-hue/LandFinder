@@ -1,11 +1,16 @@
-import { PlaceholderPage } from "@/components/PlaceholderPage";
+import { SideNav } from "@/components/SideNav";
+import { SuchprofilWizard } from "@/components/suchprofil/SuchprofilWizard";
 
 export default function SuchprofilPage() {
   return (
-    <PlaceholderPage
-      current="suchprofil"
-      title="Suchprofil"
-      hinweis="Geführter Suchprofil-Assistent (Abschnitt 6) mit den zwölf Wizard-Bereichen — Teil von Phase 1, noch nicht implementiert."
-    />
+    <div className="shell">
+      <SideNav current="suchprofil" />
+      <main className="main">
+        <div className="pagehead">
+          <h1>Suchprofil</h1>
+        </div>
+        <SuchprofilWizard />
+      </main>
+    </div>
   );
 }

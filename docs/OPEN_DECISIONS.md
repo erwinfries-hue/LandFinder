@@ -27,8 +27,15 @@ ausserhalb des MVP-Scopes (Abschnitt 1.6/7); ob das E-Mail-Sharing-Flag für die
 gesetzt werden darf, ist ungeklärt (Lizenzvertrag prüfen, bevor Wüest-Werte in Alert-Mails
 erscheinen).
 
-## F. Echte Geschäftsannahmen im Suchprofil — offen
-Zahlen wie maximales Eigenkapital, maximaler Grundstückspreis, Zielrendite, Zinssatz Stress etc. sind unternehmerische Entscheidungen und werden nicht erfunden. Der Suchprofil-Wizard wird mit klar als `ASSUMPTION` markierten Schweizer Marktwerten vorbelegt, die beim ersten Login überschrieben werden müssen.
+## F. Echte Geschäftsannahmen im Suchprofil — Wizard steht, Werte offen
+Der Suchprofil-Wizard (`/suchprofil`) ist implementiert: alle zwölf Bereiche aus
+Abschnitt 6, vorbelegt mit Schweizer Marktannahmen (`apps/web/src/lib/searchProfile.ts`,
+klar als solche im UI gekennzeichnet), lokal im Browser gespeichert (noch keine
+Datenbank). Zusätzlich gibt es einen 13. Reiter "Annahmen & Formeln", der alle
+Parameter-Registries aus `financial-engine`/`scoring-engine` (71 Werte) direkt
+editierbar macht. Weiterhin offen: die eigentlichen Zahlenwerte sind
+unternehmerische Entscheidungen und noch nicht von dir bestätigt — bitte im Wizard
+durchgehen und anpassen, bevor damit echte Empfehlungen berechnet werden.
 
 ## G. Domain / Deployment-Ziel — offen
 Annahme bis auf Widerruf: Vercel-Subdomain für den MVP, echte Domain erst auf Wunsch.
