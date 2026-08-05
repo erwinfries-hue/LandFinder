@@ -1,0 +1,171 @@
+metric_key,metric_label,category,period,region_scope,region_name,value,unit,source_type,source_document,retrieval_date
+rent_median_chf_m2_year,"Mietwohnungen: Nettomiete, 50%-Quantil",PREISE,2026/2,GEMEINDE,Baden,286,CHF_M2_JAHR,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_median_chf_m2_year,"Mietwohnungen: Nettomiete, 50%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Baden,262,CHF_M2_JAHR,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_median_chf_m2_year,"Mietwohnungen: Nettomiete, 50%-Quantil",PREISE,2026/2,KANTON,Aargau,233,CHF_M2_JAHR,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_median_chf_m2_year,"Mietwohnungen: Nettomiete, 50%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,245,CHF_M2_JAHR,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_p90_chf_m2_year,"Mietwohnungen: Nettomiete, 90%-Quantil",PREISE,2026/2,GEMEINDE,Baden,391,CHF_M2_JAHR,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_p90_chf_m2_year,"Mietwohnungen: Nettomiete, 90%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Baden,356,CHF_M2_JAHR,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_p90_chf_m2_year,"Mietwohnungen: Nettomiete, 90%-Quantil",PREISE,2026/2,KANTON,Aargau,306,CHF_M2_JAHR,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_p90_chf_m2_year,"Mietwohnungen: Nettomiete, 90%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,399,CHF_M2_JAHR,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_median_chf_m2,"Eigentumswohnungen: Kaufpreis, 50%-Quantil",PREISE,2026/2,GEMEINDE,Baden,8300,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_median_chf_m2,"Eigentumswohnungen: Kaufpreis, 50%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Baden,9020,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_median_chf_m2,"Eigentumswohnungen: Kaufpreis, 50%-Quantil",PREISE,2026/2,KANTON,Aargau,7960,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_median_chf_m2,"Eigentumswohnungen: Kaufpreis, 50%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,7990,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_p90_chf_m2,"Eigentumswohnungen: Kaufpreis, 90%-Quantil",PREISE,2026/2,GEMEINDE,Baden,11500,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_p90_chf_m2,"Eigentumswohnungen: Kaufpreis, 90%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Baden,12300,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_p90_chf_m2,"Eigentumswohnungen: Kaufpreis, 90%-Quantil",PREISE,2026/2,KANTON,Aargau,10800,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_p90_chf_m2,"Eigentumswohnungen: Kaufpreis, 90%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,14900,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_median_chf_m2,"Einfamilienhäuser: Kaufpreis, 50%-Quantil",PREISE,2026/2,GEMEINDE,Baden,8360,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_median_chf_m2,"Einfamilienhäuser: Kaufpreis, 50%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Baden,9530,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_median_chf_m2,"Einfamilienhäuser: Kaufpreis, 50%-Quantil",PREISE,2026/2,KANTON,Aargau,8080,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_median_chf_m2,"Einfamilienhäuser: Kaufpreis, 50%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,7560,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_p90_chf_m2,"Einfamilienhäuser: Kaufpreis, 90%-Quantil",PREISE,2026/2,GEMEINDE,Baden,11400,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_p90_chf_m2,"Einfamilienhäuser: Kaufpreis, 90%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Baden,12400,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_p90_chf_m2,"Einfamilienhäuser: Kaufpreis, 90%-Quantil",PREISE,2026/2,KANTON,Aargau,11300,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_p90_chf_m2,"Einfamilienhäuser: Kaufpreis, 90%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,13900,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_price_change_3y_pct,Mietwohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,GEMEINDE,Baden,13.0,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_price_change_3y_pct,Mietwohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,MS_REGION,MS-Region Baden,17.0,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_price_change_3y_pct,Mietwohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,KANTON,Aargau,13.1,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rent_price_change_3y_pct,Mietwohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,SCHWEIZ,Schweiz,11.4,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_change_3y_pct,Eigentumswohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,GEMEINDE,Baden,3.1,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_change_3y_pct,Eigentumswohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,MS_REGION,MS-Region Baden,13.2,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_change_3y_pct,Eigentumswohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,KANTON,Aargau,14.9,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_price_change_3y_pct,Eigentumswohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,SCHWEIZ,Schweiz,7.2,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_change_3y_pct,Einfamilienhäuser: Preisveränderung über 3 Jahre,PREISE,2026/2,GEMEINDE,Baden,-2.0,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_change_3y_pct,Einfamilienhäuser: Preisveränderung über 3 Jahre,PREISE,2026/2,MS_REGION,MS-Region Baden,8.7,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_change_3y_pct,Einfamilienhäuser: Preisveränderung über 3 Jahre,PREISE,2026/2,KANTON,Aargau,8.6,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_price_change_3y_pct,Einfamilienhäuser: Preisveränderung über 3 Jahre,PREISE,2026/2,SCHWEIZ,Schweiz,4.4,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index,Eigentumswohnungen: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Baden,235.4,INDEX_2000_100,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index,Eigentumswohnungen: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,223.4,INDEX_2000_100,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index,Eigentumswohnungen: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,269.6,INDEX_2000_100,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index_qoq_pct,Eigentumswohnungen: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Baden,1.9,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index_qoq_pct,Eigentumswohnungen: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,1.7,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index_qoq_pct,Eigentumswohnungen: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,1.0,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index_yoy_pct,Eigentumswohnungen: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Baden,6.6,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index_yoy_pct,Eigentumswohnungen: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,6.5,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index_yoy_pct,Eigentumswohnungen: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,4.3,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index_3y_pct,Eigentumswohnungen: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Baden,13.0,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index_3y_pct,Eigentumswohnungen: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,15.6,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_transaction_index_3y_pct,Eigentumswohnungen: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,12.7,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index,Einfamilienhäuser: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Baden,237.6,INDEX_2000_100,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index,Einfamilienhäuser: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,223.2,INDEX_2000_100,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index,Einfamilienhäuser: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,243.8,INDEX_2000_100,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index_qoq_pct,Einfamilienhäuser: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Baden,1.9,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index_qoq_pct,Einfamilienhäuser: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,2.0,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index_qoq_pct,Einfamilienhäuser: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,1.5,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index_yoy_pct,Einfamilienhäuser: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Baden,4.7,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index_yoy_pct,Einfamilienhäuser: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,5.1,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index_yoy_pct,Einfamilienhäuser: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,4.3,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index_3y_pct,Einfamilienhäuser: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Baden,14.7,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index_3y_pct,Einfamilienhäuser: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,14.9,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_transaction_index_3y_pct,Einfamilienhäuser: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,12.7,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+population,Anzahl Einwohner,NACHFRAGE,2024,GEMEINDE,Baden,23853,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+population,Anzahl Einwohner,NACHFRAGE,2024,MS_REGION,MS-Region Baden,123527,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+population,Anzahl Einwohner,NACHFRAGE,2024,KANTON,Aargau,735808,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+population,Anzahl Einwohner,NACHFRAGE,2024,SCHWEIZ,Schweiz,9051029,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+population_growth_3y_pct,Bevölkerungsentwicklung über 3 Jahre,NACHFRAGE,2024,GEMEINDE,Baden,5.5,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+population_growth_3y_pct,Bevölkerungsentwicklung über 3 Jahre,NACHFRAGE,2024,MS_REGION,MS-Region Baden,4.6,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+population_growth_3y_pct,Bevölkerungsentwicklung über 3 Jahre,NACHFRAGE,2024,KANTON,Aargau,4.7,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+population_growth_3y_pct,Bevölkerungsentwicklung über 3 Jahre,NACHFRAGE,2024,SCHWEIZ,Schweiz,3.6,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+households,Anzahl Haushalte,NACHFRAGE,2024,GEMEINDE,Baden,11509,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+households,Anzahl Haushalte,NACHFRAGE,2024,MS_REGION,MS-Region Baden,54586,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+households,Anzahl Haushalte,NACHFRAGE,2024,KANTON,Aargau,320967,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+households,Anzahl Haushalte,NACHFRAGE,2024,SCHWEIZ,Schweiz,4063044,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_1p_households_pct,Anteil Einpersonenhaushalte,NACHFRAGE,2024,GEMEINDE,Baden,40.9,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_1p_households_pct,Anteil Einpersonenhaushalte,NACHFRAGE,2024,MS_REGION,MS-Region Baden,35.6,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_1p_households_pct,Anteil Einpersonenhaushalte,NACHFRAGE,2024,KANTON,Aargau,33.4,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_1p_households_pct,Anteil Einpersonenhaushalte,NACHFRAGE,2024,SCHWEIZ,Schweiz,37.3,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_2p_households_pct,Anteil Zweipersonenhaushalte,NACHFRAGE,2024,GEMEINDE,Baden,33.0,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_2p_households_pct,Anteil Zweipersonenhaushalte,NACHFRAGE,2024,MS_REGION,MS-Region Baden,32.6,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_2p_households_pct,Anteil Zweipersonenhaushalte,NACHFRAGE,2024,KANTON,Aargau,34.7,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_2p_households_pct,Anteil Zweipersonenhaushalte,NACHFRAGE,2024,SCHWEIZ,Schweiz,32.4,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_3plus_households_pct,Anteil Mehrpersonenhaushalte,NACHFRAGE,2024,GEMEINDE,Baden,26.1,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_3plus_households_pct,Anteil Mehrpersonenhaushalte,NACHFRAGE,2024,MS_REGION,MS-Region Baden,31.8,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_3plus_households_pct,Anteil Mehrpersonenhaushalte,NACHFRAGE,2024,KANTON,Aargau,31.9,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+share_3plus_households_pct,Anteil Mehrpersonenhaushalte,NACHFRAGE,2024,SCHWEIZ,Schweiz,30.3,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+pt_reachable_residents_30min,"Erreichbare Einwohner (ÖV, 30 Min.)",MOBILITAET,2025,GEMEINDE,Baden,813161,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+pt_reachable_residents_30min,"Erreichbare Einwohner (ÖV, 30 Min.)",MOBILITAET,2025,MS_REGION,MS-Region Baden,404646,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+pt_reachable_residents_30min,"Erreichbare Einwohner (ÖV, 30 Min.)",MOBILITAET,2025,KANTON,Aargau,149318,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+pt_reachable_residents_30min,"Erreichbare Einwohner (ÖV, 30 Min.)",MOBILITAET,2025,SCHWEIZ,Schweiz,120729,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+pt_reachable_jobs_30min,"Erreichbare Beschäftigte (ÖV, 30 Min.)",MOBILITAET,2025,GEMEINDE,Baden,782800,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+pt_reachable_jobs_30min,"Erreichbare Beschäftigte (ÖV, 30 Min.)",MOBILITAET,2025,MS_REGION,MS-Region Baden,377822,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+pt_reachable_jobs_30min,"Erreichbare Beschäftigte (ÖV, 30 Min.)",MOBILITAET,2025,KANTON,Aargau,116340,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+pt_reachable_jobs_30min,"Erreichbare Beschäftigte (ÖV, 30 Min.)",MOBILITAET,2025,SCHWEIZ,Schweiz,96526,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+car_reachable_residents_30min,"Erreichbare Einwohner (MIV, 30 Min.)",MOBILITAET,2025,GEMEINDE,Baden,1709479,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+car_reachable_residents_30min,"Erreichbare Einwohner (MIV, 30 Min.)",MOBILITAET,2025,MS_REGION,MS-Region Baden,1660670,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+car_reachable_residents_30min,"Erreichbare Einwohner (MIV, 30 Min.)",MOBILITAET,2025,KANTON,Aargau,1286384,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+car_reachable_residents_30min,"Erreichbare Einwohner (MIV, 30 Min.)",MOBILITAET,2025,SCHWEIZ,Schweiz,671419,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+car_reachable_jobs_30min,"Erreichbare Beschäftigte (MIV, 30 Min.)",MOBILITAET,2025,GEMEINDE,Baden,1267831,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+car_reachable_jobs_30min,"Erreichbare Beschäftigte (MIV, 30 Min.)",MOBILITAET,2025,MS_REGION,MS-Region Baden,1258214,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+car_reachable_jobs_30min,"Erreichbare Beschäftigte (MIV, 30 Min.)",MOBILITAET,2025,KANTON,Aargau,958152,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+car_reachable_jobs_30min,"Erreichbare Beschäftigte (MIV, 30 Min.)",MOBILITAET,2025,SCHWEIZ,Schweiz,471915,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+tax_burden_single_60k_pct,"Steuerbelastung natürliche Personen, Singles, 60'000 CHF",STEUERN,2025,GEMEINDE,Baden,7.8,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+tax_burden_single_60k_pct,"Steuerbelastung natürliche Personen, Singles, 60'000 CHF",STEUERN,2025,MS_REGION,MS-Region Baden,8.1,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+tax_burden_single_60k_pct,"Steuerbelastung natürliche Personen, Singles, 60'000 CHF",STEUERN,2025,KANTON,Aargau,8.3,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+tax_burden_single_60k_pct,"Steuerbelastung natürliche Personen, Singles, 60'000 CHF",STEUERN,2025,SCHWEIZ,Schweiz,8.8,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+tax_burden_couple_120k_pct,"Steuerbelastung natürliche Personen, Paare, 120'000 CHF",STEUERN,2025,GEMEINDE,Baden,8.0,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+tax_burden_couple_120k_pct,"Steuerbelastung natürliche Personen, Paare, 120'000 CHF",STEUERN,2025,MS_REGION,MS-Region Baden,8.2,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+tax_burden_couple_120k_pct,"Steuerbelastung natürliche Personen, Paare, 120'000 CHF",STEUERN,2025,KANTON,Aargau,8.4,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+tax_burden_couple_120k_pct,"Steuerbelastung natürliche Personen, Paare, 120'000 CHF",STEUERN,2025,SCHWEIZ,Schweiz,8.8,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+taxpayers_above_75k_income,Anzahl Steuerpflichtige mit steuerbarem Einkommen > 75'000 CHF,STEUERN,2022,GEMEINDE,Baden,4315,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+taxpayers_above_75k_income,Anzahl Steuerpflichtige mit steuerbarem Einkommen > 75'000 CHF,STEUERN,2022,MS_REGION,MS-Region Baden,19506,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+taxpayers_above_75k_income,Anzahl Steuerpflichtige mit steuerbarem Einkommen > 75'000 CHF,STEUERN,2022,KANTON,Aargau,112145,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+taxpayers_above_75k_income,Anzahl Steuerpflichtige mit steuerbarem Einkommen > 75'000 CHF,STEUERN,2022,SCHWEIZ,Schweiz,1253455,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rental_unit_stock,Mietwohnungsbestand,IMMOBILIENBESTAND,2024,GEMEINDE,Baden,8905,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rental_unit_stock,Mietwohnungsbestand,IMMOBILIENBESTAND,2024,MS_REGION,MS-Region Baden,36030,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rental_unit_stock,Mietwohnungsbestand,IMMOBILIENBESTAND,2024,KANTON,Aargau,182125,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+rental_unit_stock,Mietwohnungsbestand,IMMOBILIENBESTAND,2024,SCHWEIZ,Schweiz,2843003,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_unit_stock,Eigentumswohnungsbestand,IMMOBILIENBESTAND,2024,GEMEINDE,Baden,1930,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_unit_stock,Eigentumswohnungsbestand,IMMOBILIENBESTAND,2024,MS_REGION,MS-Region Baden,10645,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_unit_stock,Eigentumswohnungsbestand,IMMOBILIENBESTAND,2024,KANTON,Aargau,63381,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+condo_unit_stock,Eigentumswohnungsbestand,IMMOBILIENBESTAND,2024,SCHWEIZ,Schweiz,977638,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_stock,Einfamilienhausbestand,IMMOBILIENBESTAND,2024,GEMEINDE,Baden,1932,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_stock,Einfamilienhausbestand,IMMOBILIENBESTAND,2024,MS_REGION,MS-Region Baden,12257,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_stock,Einfamilienhausbestand,IMMOBILIENBESTAND,2024,KANTON,Aargau,103150,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+house_stock,Einfamilienhausbestand,IMMOBILIENBESTAND,2024,SCHWEIZ,Schweiz,1019455,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+new_units_per_year_avg3y,"Neu erstellte Wohnungen pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,GEMEINDE,Baden,133,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+new_units_per_year_avg3y,"Neu erstellte Wohnungen pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,MS_REGION,MS-Region Baden,501,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+new_units_per_year_avg3y,"Neu erstellte Wohnungen pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,KANTON,Aargau,3320,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+new_units_per_year_avg3y,"Neu erstellte Wohnungen pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,SCHWEIZ,Schweiz,40664,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+new_houses_per_year_avg3y,"Neu erstellte Einfamilienhäuser pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,GEMEINDE,Baden,2,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+new_houses_per_year_avg3y,"Neu erstellte Einfamilienhäuser pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,MS_REGION,MS-Region Baden,33,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+new_houses_per_year_avg3y,"Neu erstellte Einfamilienhäuser pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,KANTON,Aargau,576,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+new_houses_per_year_avg3y,"Neu erstellte Einfamilienhäuser pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,SCHWEIZ,Schweiz,5517,COUNT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+vacancy_mfh_pct,Mehrfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,GEMEINDE,Baden,0.8,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+vacancy_mfh_pct,Mehrfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,MS_REGION,MS-Region Baden,1.0,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+vacancy_mfh_pct,Mehrfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,KANTON,Aargau,1.4,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+vacancy_mfh_pct,Mehrfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,SCHWEIZ,Schweiz,1.1,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+vacancy_efh_pct,Einfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,GEMEINDE,Baden,0.6,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+vacancy_efh_pct,Einfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,MS_REGION,MS-Region Baden,0.5,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+vacancy_efh_pct,Einfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,KANTON,Aargau,0.8,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+vacancy_efh_pct,Einfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,SCHWEIZ,Schweiz,0.7,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_rent_pct,Mietwohnungen: Angebotsquote,LEERSTAND,2026/2,GEMEINDE,Baden,4.5,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_rent_pct,Mietwohnungen: Angebotsquote,LEERSTAND,2026/2,MS_REGION,MS-Region Baden,3.6,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_rent_pct,Mietwohnungen: Angebotsquote,LEERSTAND,2026/2,KANTON,Aargau,3.7,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_rent_pct,Mietwohnungen: Angebotsquote,LEERSTAND,2026/2,SCHWEIZ,Schweiz,3.6,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_condo_pct,Eigentumswohnungen: Angebotsquote,LEERSTAND,2026/2,GEMEINDE,Baden,2.5,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_condo_pct,Eigentumswohnungen: Angebotsquote,LEERSTAND,2026/2,MS_REGION,MS-Region Baden,2.9,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_condo_pct,Eigentumswohnungen: Angebotsquote,LEERSTAND,2026/2,KANTON,Aargau,3.4,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_condo_pct,Eigentumswohnungen: Angebotsquote,LEERSTAND,2026/2,SCHWEIZ,Schweiz,3.9,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_house_pct,Einfamilienhäuser: Angebotsquote,LEERSTAND,2026/2,GEMEINDE,Baden,1.3,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_house_pct,Einfamilienhäuser: Angebotsquote,LEERSTAND,2026/2,MS_REGION,MS-Region Baden,1.3,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_house_pct,Einfamilienhäuser: Angebotsquote,LEERSTAND,2026/2,KANTON,Aargau,1.9,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+listing_ratio_house_pct,Einfamilienhäuser: Angebotsquote,LEERSTAND,2026/2,SCHWEIZ,Schweiz,2.9,PCT,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_mfh_high_density_p10_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Baden,2320,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_mfh_high_density_p10_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Baden,1020,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_mfh_high_density_p10_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,400,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_mfh_high_density_p50_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Baden,2500,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_mfh_high_density_p50_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Baden,1940,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_mfh_high_density_p50_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,1010,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_mfh_high_density_p90_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Baden,3290,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_mfh_high_density_p90_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Baden,2750,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_mfh_high_density_p90_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,2100,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_efh_low_density_p10_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Baden,1670,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_efh_low_density_p10_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Baden,1430,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_efh_low_density_p10_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,700,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_efh_low_density_p50_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Baden,1960,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_efh_low_density_p50_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Baden,1900,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_efh_low_density_p50_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,1260,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_efh_low_density_p90_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Baden,2570,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_efh_low_density_p90_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Baden,2770,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31
+land_price_efh_low_density_p90_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,2180,CHF_M2,LICENSED_WUEST,baden-ag-standortinformation-2026-07-31.pdf,2026-07-31

@@ -18,8 +18,14 @@ Benötigt vom Auftraggeber (keine kostenpflichtigen Dienste werden ohne Zustimmu
 ## D. Nutzerkreis — offen
 Private Web-App mit Login, aber einem globalen Suchprofil. Annahme bis auf Widerruf: 2–5 bekannte Nutzer mit gleichberechtigtem Zugriff, Einladung nur manuell durch den Auftraggeber (kein Self-Signup).
 
-## E. Wüest Partner — offen
-Unklar, ob aktuell eine Wüest-Partner-Lizenz besteht. Der Import wird gegen ein dokumentiertes, generisches Excel/CSV-Schema gebaut; eine echte Beispieldatei würde das Mapping realistischer machen.
+## E. Wüest Partner — teilweise geklärt
+Es besteht eine Wüest-Partner-Lizenz; zwei echte "Standortinformation"-Reports (Baden AG,
+Wohlen AG) liegen vor. Diese wurden manuell in das dokumentierte CSV-Schema
+(`docs/WUEST_CSV_SCHEMA.md`) übertragen und in `data/wuest/` abgelegt — inkl. Original-PDFs
+als Provenienz-Nachweis. Weiterhin offen: automatische PDF-Extraktion bleibt bewusst
+ausserhalb des MVP-Scopes (Abschnitt 1.6/7); ob das E-Mail-Sharing-Flag für diese Lizenz
+gesetzt werden darf, ist ungeklärt (Lizenzvertrag prüfen, bevor Wüest-Werte in Alert-Mails
+erscheinen).
 
 ## F. Echte Geschäftsannahmen im Suchprofil — offen
 Zahlen wie maximales Eigenkapital, maximaler Grundstückspreis, Zielrendite, Zinssatz Stress etc. sind unternehmerische Entscheidungen und werden nicht erfunden. Der Suchprofil-Wizard wird mit klar als `ASSUMPTION` markierten Schweizer Marktwerten vorbelegt, die beim ersten Login überschrieben werden müssen.

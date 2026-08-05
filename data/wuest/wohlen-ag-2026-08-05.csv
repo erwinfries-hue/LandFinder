@@ -1,0 +1,171 @@
+metric_key,metric_label,category,period,region_scope,region_name,value,unit,source_type,source_document,retrieval_date
+rent_median_chf_m2_year,"Mietwohnungen: Nettomiete, 50%-Quantil",PREISE,2026/2,GEMEINDE,Wohlen (AG),239,CHF_M2_JAHR,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_median_chf_m2_year,"Mietwohnungen: Nettomiete, 50%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Freiamt,233,CHF_M2_JAHR,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_median_chf_m2_year,"Mietwohnungen: Nettomiete, 50%-Quantil",PREISE,2026/2,KANTON,Aargau,233,CHF_M2_JAHR,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_median_chf_m2_year,"Mietwohnungen: Nettomiete, 50%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,245,CHF_M2_JAHR,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_p90_chf_m2_year,"Mietwohnungen: Nettomiete, 90%-Quantil",PREISE,2026/2,GEMEINDE,Wohlen (AG),301,CHF_M2_JAHR,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_p90_chf_m2_year,"Mietwohnungen: Nettomiete, 90%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Freiamt,298,CHF_M2_JAHR,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_p90_chf_m2_year,"Mietwohnungen: Nettomiete, 90%-Quantil",PREISE,2026/2,KANTON,Aargau,306,CHF_M2_JAHR,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_p90_chf_m2_year,"Mietwohnungen: Nettomiete, 90%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,399,CHF_M2_JAHR,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_median_chf_m2,"Eigentumswohnungen: Kaufpreis, 50%-Quantil",PREISE,2026/2,GEMEINDE,Wohlen (AG),6900,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_median_chf_m2,"Eigentumswohnungen: Kaufpreis, 50%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Freiamt,8120,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_median_chf_m2,"Eigentumswohnungen: Kaufpreis, 50%-Quantil",PREISE,2026/2,KANTON,Aargau,7960,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_median_chf_m2,"Eigentumswohnungen: Kaufpreis, 50%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,7990,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_p90_chf_m2,"Eigentumswohnungen: Kaufpreis, 90%-Quantil",PREISE,2026/2,GEMEINDE,Wohlen (AG),9290,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_p90_chf_m2,"Eigentumswohnungen: Kaufpreis, 90%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Freiamt,9830,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_p90_chf_m2,"Eigentumswohnungen: Kaufpreis, 90%-Quantil",PREISE,2026/2,KANTON,Aargau,10800,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_p90_chf_m2,"Eigentumswohnungen: Kaufpreis, 90%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,14900,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_median_chf_m2,"Einfamilienhäuser: Kaufpreis, 50%-Quantil",PREISE,2026/2,GEMEINDE,Wohlen (AG),8090,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_median_chf_m2,"Einfamilienhäuser: Kaufpreis, 50%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Freiamt,8380,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_median_chf_m2,"Einfamilienhäuser: Kaufpreis, 50%-Quantil",PREISE,2026/2,KANTON,Aargau,8080,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_median_chf_m2,"Einfamilienhäuser: Kaufpreis, 50%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,7560,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_p90_chf_m2,"Einfamilienhäuser: Kaufpreis, 90%-Quantil",PREISE,2026/2,GEMEINDE,Wohlen (AG),10500,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_p90_chf_m2,"Einfamilienhäuser: Kaufpreis, 90%-Quantil",PREISE,2026/2,MS_REGION,MS-Region Freiamt,11200,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_p90_chf_m2,"Einfamilienhäuser: Kaufpreis, 90%-Quantil",PREISE,2026/2,KANTON,Aargau,11300,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_p90_chf_m2,"Einfamilienhäuser: Kaufpreis, 90%-Quantil",PREISE,2026/2,SCHWEIZ,Schweiz,13900,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_price_change_3y_pct,Mietwohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,GEMEINDE,Wohlen (AG),21.3,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_price_change_3y_pct,Mietwohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,MS_REGION,MS-Region Freiamt,14.8,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_price_change_3y_pct,Mietwohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,KANTON,Aargau,13.1,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rent_price_change_3y_pct,Mietwohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,SCHWEIZ,Schweiz,11.4,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_change_3y_pct,Eigentumswohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,GEMEINDE,Wohlen (AG),-1.1,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_change_3y_pct,Eigentumswohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,MS_REGION,MS-Region Freiamt,15.2,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_change_3y_pct,Eigentumswohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,KANTON,Aargau,14.9,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_price_change_3y_pct,Eigentumswohnungen: Preisveränderung über 3 Jahre,PREISE,2026/2,SCHWEIZ,Schweiz,7.2,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_change_3y_pct,Einfamilienhäuser: Preisveränderung über 3 Jahre,PREISE,2026/2,GEMEINDE,Wohlen (AG),7.2,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_change_3y_pct,Einfamilienhäuser: Preisveränderung über 3 Jahre,PREISE,2026/2,MS_REGION,MS-Region Freiamt,7.3,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_change_3y_pct,Einfamilienhäuser: Preisveränderung über 3 Jahre,PREISE,2026/2,KANTON,Aargau,8.6,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_price_change_3y_pct,Einfamilienhäuser: Preisveränderung über 3 Jahre,PREISE,2026/2,SCHWEIZ,Schweiz,4.4,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index,Eigentumswohnungen: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Freiamt,228.3,INDEX_2000_100,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index,Eigentumswohnungen: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,223.4,INDEX_2000_100,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index,Eigentumswohnungen: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,269.6,INDEX_2000_100,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index_qoq_pct,Eigentumswohnungen: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Freiamt,1.6,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index_qoq_pct,Eigentumswohnungen: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,1.7,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index_qoq_pct,Eigentumswohnungen: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,1.0,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index_yoy_pct,Eigentumswohnungen: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Freiamt,5.9,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index_yoy_pct,Eigentumswohnungen: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,6.5,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index_yoy_pct,Eigentumswohnungen: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,4.3,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index_3y_pct,Eigentumswohnungen: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Freiamt,15.1,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index_3y_pct,Eigentumswohnungen: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,15.6,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_transaction_index_3y_pct,Eigentumswohnungen: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,12.7,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index,Einfamilienhäuser: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Freiamt,225.2,INDEX_2000_100,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index,Einfamilienhäuser: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,223.2,INDEX_2000_100,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index,Einfamilienhäuser: Transaktionspreisindex (2000/1=100),TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,243.8,INDEX_2000_100,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index_qoq_pct,Einfamilienhäuser: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Freiamt,2.0,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index_qoq_pct,Einfamilienhäuser: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,2.0,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index_qoq_pct,Einfamilienhäuser: Index-Veränderung QoQ,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,1.5,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index_yoy_pct,Einfamilienhäuser: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Freiamt,5.6,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index_yoy_pct,Einfamilienhäuser: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,5.1,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index_yoy_pct,Einfamilienhäuser: Index-Veränderung YoY,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,4.3,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index_3y_pct,Einfamilienhäuser: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,MS_REGION,MS-Region Freiamt,15.1,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index_3y_pct,Einfamilienhäuser: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,KANTON,Aargau,14.9,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_transaction_index_3y_pct,Einfamilienhäuser: Index-Veränderung 3 Jahre,TRANSAKTIONSPREISINDEX,2026/2,SCHWEIZ,Schweiz,12.7,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+population,Anzahl Einwohner,NACHFRAGE,2024,GEMEINDE,Wohlen (AG),17816,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+population,Anzahl Einwohner,NACHFRAGE,2024,MS_REGION,MS-Region Freiamt,84433,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+population,Anzahl Einwohner,NACHFRAGE,2024,KANTON,Aargau,735808,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+population,Anzahl Einwohner,NACHFRAGE,2024,SCHWEIZ,Schweiz,9051029,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+population_growth_3y_pct,Bevölkerungsentwicklung über 3 Jahre,NACHFRAGE,2024,GEMEINDE,Wohlen (AG),5.4,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+population_growth_3y_pct,Bevölkerungsentwicklung über 3 Jahre,NACHFRAGE,2024,MS_REGION,MS-Region Freiamt,5.0,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+population_growth_3y_pct,Bevölkerungsentwicklung über 3 Jahre,NACHFRAGE,2024,KANTON,Aargau,4.7,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+population_growth_3y_pct,Bevölkerungsentwicklung über 3 Jahre,NACHFRAGE,2024,SCHWEIZ,Schweiz,3.6,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+households,Anzahl Haushalte,NACHFRAGE,2024,GEMEINDE,Wohlen (AG),7490,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+households,Anzahl Haushalte,NACHFRAGE,2024,MS_REGION,MS-Region Freiamt,35330,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+households,Anzahl Haushalte,NACHFRAGE,2024,KANTON,Aargau,320967,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+households,Anzahl Haushalte,NACHFRAGE,2024,SCHWEIZ,Schweiz,4063044,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_1p_households_pct,Anteil Einpersonenhaushalte,NACHFRAGE,2024,GEMEINDE,Wohlen (AG),32.3,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_1p_households_pct,Anteil Einpersonenhaushalte,NACHFRAGE,2024,MS_REGION,MS-Region Freiamt,30.8,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_1p_households_pct,Anteil Einpersonenhaushalte,NACHFRAGE,2024,KANTON,Aargau,33.4,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_1p_households_pct,Anteil Einpersonenhaushalte,NACHFRAGE,2024,SCHWEIZ,Schweiz,37.3,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_2p_households_pct,Anteil Zweipersonenhaushalte,NACHFRAGE,2024,GEMEINDE,Wohlen (AG),32.8,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_2p_households_pct,Anteil Zweipersonenhaushalte,NACHFRAGE,2024,MS_REGION,MS-Region Freiamt,34.1,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_2p_households_pct,Anteil Zweipersonenhaushalte,NACHFRAGE,2024,KANTON,Aargau,34.7,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_2p_households_pct,Anteil Zweipersonenhaushalte,NACHFRAGE,2024,SCHWEIZ,Schweiz,32.4,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_3plus_households_pct,Anteil Mehrpersonenhaushalte,NACHFRAGE,2024,GEMEINDE,Wohlen (AG),35.0,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_3plus_households_pct,Anteil Mehrpersonenhaushalte,NACHFRAGE,2024,MS_REGION,MS-Region Freiamt,35.1,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_3plus_households_pct,Anteil Mehrpersonenhaushalte,NACHFRAGE,2024,KANTON,Aargau,31.9,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+share_3plus_households_pct,Anteil Mehrpersonenhaushalte,NACHFRAGE,2024,SCHWEIZ,Schweiz,30.3,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+pt_reachable_residents_30min,"Erreichbare Einwohner (ÖV, 30 Min.)",MOBILITAET,2025,GEMEINDE,Wohlen (AG),210138,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+pt_reachable_residents_30min,"Erreichbare Einwohner (ÖV, 30 Min.)",MOBILITAET,2025,MS_REGION,MS-Region Freiamt,81203,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+pt_reachable_residents_30min,"Erreichbare Einwohner (ÖV, 30 Min.)",MOBILITAET,2025,KANTON,Aargau,149318,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+pt_reachable_residents_30min,"Erreichbare Einwohner (ÖV, 30 Min.)",MOBILITAET,2025,SCHWEIZ,Schweiz,120729,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+pt_reachable_jobs_30min,"Erreichbare Beschäftigte (ÖV, 30 Min.)",MOBILITAET,2025,GEMEINDE,Wohlen (AG),128631,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+pt_reachable_jobs_30min,"Erreichbare Beschäftigte (ÖV, 30 Min.)",MOBILITAET,2025,MS_REGION,MS-Region Freiamt,49138,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+pt_reachable_jobs_30min,"Erreichbare Beschäftigte (ÖV, 30 Min.)",MOBILITAET,2025,KANTON,Aargau,116340,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+pt_reachable_jobs_30min,"Erreichbare Beschäftigte (ÖV, 30 Min.)",MOBILITAET,2025,SCHWEIZ,Schweiz,96526,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+car_reachable_residents_30min,"Erreichbare Einwohner (MIV, 30 Min.)",MOBILITAET,2025,GEMEINDE,Wohlen (AG),1585479,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+car_reachable_residents_30min,"Erreichbare Einwohner (MIV, 30 Min.)",MOBILITAET,2025,MS_REGION,MS-Region Freiamt,1486461,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+car_reachable_residents_30min,"Erreichbare Einwohner (MIV, 30 Min.)",MOBILITAET,2025,KANTON,Aargau,1286384,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+car_reachable_residents_30min,"Erreichbare Einwohner (MIV, 30 Min.)",MOBILITAET,2025,SCHWEIZ,Schweiz,671419,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+car_reachable_jobs_30min,"Erreichbare Beschäftigte (MIV, 30 Min.)",MOBILITAET,2025,GEMEINDE,Wohlen (AG),1232250,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+car_reachable_jobs_30min,"Erreichbare Beschäftigte (MIV, 30 Min.)",MOBILITAET,2025,MS_REGION,MS-Region Freiamt,1156713,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+car_reachable_jobs_30min,"Erreichbare Beschäftigte (MIV, 30 Min.)",MOBILITAET,2025,KANTON,Aargau,958152,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+car_reachable_jobs_30min,"Erreichbare Beschäftigte (MIV, 30 Min.)",MOBILITAET,2025,SCHWEIZ,Schweiz,471915,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+tax_burden_single_60k_pct,"Steuerbelastung natürliche Personen, Singles, 60'000 CHF",STEUERN,2025,GEMEINDE,Wohlen (AG),8.7,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+tax_burden_single_60k_pct,"Steuerbelastung natürliche Personen, Singles, 60'000 CHF",STEUERN,2025,MS_REGION,MS-Region Freiamt,8.3,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+tax_burden_single_60k_pct,"Steuerbelastung natürliche Personen, Singles, 60'000 CHF",STEUERN,2025,KANTON,Aargau,8.3,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+tax_burden_single_60k_pct,"Steuerbelastung natürliche Personen, Singles, 60'000 CHF",STEUERN,2025,SCHWEIZ,Schweiz,8.8,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+tax_burden_couple_120k_pct,"Steuerbelastung natürliche Personen, Paare, 120'000 CHF",STEUERN,2025,GEMEINDE,Wohlen (AG),8.8,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+tax_burden_couple_120k_pct,"Steuerbelastung natürliche Personen, Paare, 120'000 CHF",STEUERN,2025,MS_REGION,MS-Region Freiamt,8.4,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+tax_burden_couple_120k_pct,"Steuerbelastung natürliche Personen, Paare, 120'000 CHF",STEUERN,2025,KANTON,Aargau,8.4,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+tax_burden_couple_120k_pct,"Steuerbelastung natürliche Personen, Paare, 120'000 CHF",STEUERN,2025,SCHWEIZ,Schweiz,8.8,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+taxpayers_above_75k_income,Anzahl Steuerpflichtige mit steuerbarem Einkommen > 75'000 CHF,STEUERN,2022,GEMEINDE,Wohlen (AG),2146,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+taxpayers_above_75k_income,Anzahl Steuerpflichtige mit steuerbarem Einkommen > 75'000 CHF,STEUERN,2022,MS_REGION,MS-Region Freiamt,12032,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+taxpayers_above_75k_income,Anzahl Steuerpflichtige mit steuerbarem Einkommen > 75'000 CHF,STEUERN,2022,KANTON,Aargau,112145,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+taxpayers_above_75k_income,Anzahl Steuerpflichtige mit steuerbarem Einkommen > 75'000 CHF,STEUERN,2022,SCHWEIZ,Schweiz,1253455,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rental_unit_stock,Mietwohnungsbestand,IMMOBILIENBESTAND,2024,GEMEINDE,Wohlen (AG),4798,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rental_unit_stock,Mietwohnungsbestand,IMMOBILIENBESTAND,2024,MS_REGION,MS-Region Freiamt,18628,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rental_unit_stock,Mietwohnungsbestand,IMMOBILIENBESTAND,2024,KANTON,Aargau,182125,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+rental_unit_stock,Mietwohnungsbestand,IMMOBILIENBESTAND,2024,SCHWEIZ,Schweiz,2843003,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_unit_stock,Eigentumswohnungsbestand,IMMOBILIENBESTAND,2024,GEMEINDE,Wohlen (AG),1145,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_unit_stock,Eigentumswohnungsbestand,IMMOBILIENBESTAND,2024,MS_REGION,MS-Region Freiamt,7360,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_unit_stock,Eigentumswohnungsbestand,IMMOBILIENBESTAND,2024,KANTON,Aargau,63381,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+condo_unit_stock,Eigentumswohnungsbestand,IMMOBILIENBESTAND,2024,SCHWEIZ,Schweiz,977638,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_stock,Einfamilienhausbestand,IMMOBILIENBESTAND,2024,GEMEINDE,Wohlen (AG),2215,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_stock,Einfamilienhausbestand,IMMOBILIENBESTAND,2024,MS_REGION,MS-Region Freiamt,12142,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_stock,Einfamilienhausbestand,IMMOBILIENBESTAND,2024,KANTON,Aargau,103150,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+house_stock,Einfamilienhausbestand,IMMOBILIENBESTAND,2024,SCHWEIZ,Schweiz,1019455,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+new_units_per_year_avg3y,"Neu erstellte Wohnungen pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,GEMEINDE,Wohlen (AG),98,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+new_units_per_year_avg3y,"Neu erstellte Wohnungen pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,MS_REGION,MS-Region Freiamt,407,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+new_units_per_year_avg3y,"Neu erstellte Wohnungen pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,KANTON,Aargau,3320,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+new_units_per_year_avg3y,"Neu erstellte Wohnungen pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,SCHWEIZ,Schweiz,40664,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+new_houses_per_year_avg3y,"Neu erstellte Einfamilienhäuser pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,GEMEINDE,Wohlen (AG),6,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+new_houses_per_year_avg3y,"Neu erstellte Einfamilienhäuser pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,MS_REGION,MS-Region Freiamt,69,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+new_houses_per_year_avg3y,"Neu erstellte Einfamilienhäuser pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,KANTON,Aargau,576,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+new_houses_per_year_avg3y,"Neu erstellte Einfamilienhäuser pro Jahr, Mittel 3 Jahre",IMMOBILIENBESTAND,2023,SCHWEIZ,Schweiz,5517,COUNT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+vacancy_mfh_pct,Mehrfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,GEMEINDE,Wohlen (AG),1.8,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+vacancy_mfh_pct,Mehrfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,MS_REGION,MS-Region Freiamt,1.1,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+vacancy_mfh_pct,Mehrfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,KANTON,Aargau,1.4,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+vacancy_mfh_pct,Mehrfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,SCHWEIZ,Schweiz,1.1,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+vacancy_efh_pct,Einfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,GEMEINDE,Wohlen (AG),0.6,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+vacancy_efh_pct,Einfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,MS_REGION,MS-Region Freiamt,0.7,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+vacancy_efh_pct,Einfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,KANTON,Aargau,0.8,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+vacancy_efh_pct,Einfamilienhäuser: Wohnungsleerstand,LEERSTAND,2025,SCHWEIZ,Schweiz,0.7,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_rent_pct,Mietwohnungen: Angebotsquote,LEERSTAND,2026/2,GEMEINDE,Wohlen (AG),3.0,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_rent_pct,Mietwohnungen: Angebotsquote,LEERSTAND,2026/2,MS_REGION,MS-Region Freiamt,3.3,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_rent_pct,Mietwohnungen: Angebotsquote,LEERSTAND,2026/2,KANTON,Aargau,3.7,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_rent_pct,Mietwohnungen: Angebotsquote,LEERSTAND,2026/2,SCHWEIZ,Schweiz,3.6,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_condo_pct,Eigentumswohnungen: Angebotsquote,LEERSTAND,2026/2,GEMEINDE,Wohlen (AG),3.6,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_condo_pct,Eigentumswohnungen: Angebotsquote,LEERSTAND,2026/2,MS_REGION,MS-Region Freiamt,3.1,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_condo_pct,Eigentumswohnungen: Angebotsquote,LEERSTAND,2026/2,KANTON,Aargau,3.4,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_condo_pct,Eigentumswohnungen: Angebotsquote,LEERSTAND,2026/2,SCHWEIZ,Schweiz,3.9,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_house_pct,Einfamilienhäuser: Angebotsquote,LEERSTAND,2026/2,GEMEINDE,Wohlen (AG),2.6,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_house_pct,Einfamilienhäuser: Angebotsquote,LEERSTAND,2026/2,MS_REGION,MS-Region Freiamt,1.8,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_house_pct,Einfamilienhäuser: Angebotsquote,LEERSTAND,2026/2,KANTON,Aargau,1.9,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+listing_ratio_house_pct,Einfamilienhäuser: Angebotsquote,LEERSTAND,2026/2,SCHWEIZ,Schweiz,2.9,PCT,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_mfh_high_density_p10_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Wohlen (AG),1080,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_mfh_high_density_p10_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Freiamt,390,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_mfh_high_density_p10_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,400,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_mfh_high_density_p50_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Wohlen (AG),1170,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_mfh_high_density_p50_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Freiamt,830,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_mfh_high_density_p50_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,1010,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_mfh_high_density_p90_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Wohlen (AG),1460,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_mfh_high_density_p90_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Freiamt,1390,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_mfh_high_density_p90_chf_m2,"MFH-Bauland hohe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,2100,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_efh_low_density_p10_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Wohlen (AG),970,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_efh_low_density_p10_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Freiamt,870,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_efh_low_density_p10_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 10%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,700,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_efh_low_density_p50_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Wohlen (AG),1270,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_efh_low_density_p50_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Freiamt,1270,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_efh_low_density_p50_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 50%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,1260,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_efh_low_density_p90_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,GEMEINDE,Wohlen (AG),1810,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_efh_low_density_p90_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,MS_REGION,MS-Region Freiamt,1880,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
+land_price_efh_low_density_p90_chf_m2,"EFH-Bauland tiefe Ausnützungsziffer, 90%-Quantil (Residualmethode)",BAULANDPREISE,2025/2,KANTON,Aargau,2180,CHF_M2,LICENSED_WUEST,wohlen-ag-standortinformation-2026-08-05.pdf,2026-08-05
