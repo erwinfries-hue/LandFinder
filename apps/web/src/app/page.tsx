@@ -34,40 +34,38 @@ export default function DashboardPage() {
           </button>
         </Panel>
 
-        <div className="gridcols">
-          <Panel style={{ padding: "1.3rem 1.4rem" }}>
-            <div className="sectionhead">
-              <h2>Rangliste — Top-Treffer</h2>
-              <a href="#" className="more">
-                Alle 34 Objekte →
-              </a>
-            </div>
-            <RankingTable rows={demoObjekte} />
-          </Panel>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.4rem" }}>
-            <Panel style={{ padding: "1.2rem 1.3rem" }}>
-              <div className="sectionhead">
-                <h2>Quellenstatus</h2>
-              </div>
-              <div className="status-list">
-                <StatusRow name="Homegate" meta="Direktadapter · letzter Lauf vor 12 Min." neu={4} />
-                <StatusRow name="ImmoScout24" meta="Direktadapter · letzter Lauf vor 12 Min." neu={2} />
-                <StatusRow name="newhome" meta="Direktadapter · letzter Lauf vor 41 Min." neu={1} warn />
-                <StatusRow name="E-Mail-Import" meta="IMAP-Fallback · vor 3 Std." neu={0} />
-                <StatusRow name="Manuelle Links" meta="On-Demand · vor 1 Std." neu={0} />
-              </div>
-            </Panel>
-            <Panel style={{ padding: "1.2rem 1.3rem" }}>
-              <div className="sectionhead">
-                <h2>Letzte Fehler</h2>
-              </div>
-              <div className="errlog">
-                <div className="t">Vor 2 Tagen</div>
-                newhome — Layoutänderung, Detailseite nicht vollständig extrahierbar. Status: teilweise extrahiert.
-              </div>
-            </Panel>
+        <Panel style={{ padding: "1.3rem 1.4rem" }}>
+          <div className="sectionhead">
+            <h2>Rangliste — Top-Treffer</h2>
+            <a href="#" className="more">
+              Alle 34 Objekte →
+            </a>
           </div>
+          <RankingTable rows={demoObjekte} />
+        </Panel>
+
+        <div className="statusrow">
+          <Panel style={{ padding: "1.2rem 1.3rem" }}>
+            <div className="sectionhead">
+              <h2>Quellenstatus</h2>
+            </div>
+            <div className="status-list">
+              <StatusRow name="Homegate" meta="Direktadapter · letzter Lauf vor 12 Min." neu={4} />
+              <StatusRow name="ImmoScout24" meta="Direktadapter · letzter Lauf vor 12 Min." neu={2} />
+              <StatusRow name="newhome" meta="Direktadapter · letzter Lauf vor 41 Min." neu={1} warn />
+              <StatusRow name="E-Mail-Import" meta="IMAP-Fallback · vor 3 Std." neu={0} />
+              <StatusRow name="Manuelle Links" meta="On-Demand · vor 1 Std." neu={0} />
+            </div>
+          </Panel>
+          <Panel style={{ padding: "1.2rem 1.3rem" }}>
+            <div className="sectionhead">
+              <h2>Letzte Fehler</h2>
+            </div>
+            <div className="errlog">
+              <div className="t">Vor 2 Tagen</div>
+              newhome — Layoutänderung, Detailseite nicht vollständig extrahierbar. Status: teilweise extrahiert.
+            </div>
+          </Panel>
         </div>
 
         <p style={{ marginTop: "2rem" }}>
