@@ -1,0 +1,31 @@
+# Offene Entscheidungen
+
+Gebündelte Fragen, die kostenrelevant, rechtlich heikel oder scope-verändernd sind und daher nicht ohne Rückmeldung des Auftraggebers entschieden werden (siehe Masterprompt, Abschnitt 30, „Arbeitsweise“). Diese Liste wird laufend aktualisiert.
+
+## A. Portal-Scraping (Homegate, ImmoScout24, newhome) — offen
+Automatisiertes Auslesen dieser drei Portale kann unabhängig von der Technik gegen deren AGB verstossen. Vor Beginn von Phase 2 (Portaladapter) wird ein `PORTAL_ACCESS_REVIEW.md` mit einer Einschätzung pro Portal erstellt (offizielle API/Feed? RSS? ToS-Lage?) und die risikoärmste Variante vorgeschlagen — bevorzugt Suchabo-E-Mails/RSS statt HTML-Scraping. **Kein Scraping-Code läuft vor expliziter Freigabe.**
+
+## B. LLM-Provider — offen
+Empfehlung: Anthropic API (Claude), da bereits im Ökosystem vorhanden. Benötigt: Anthropic-API-Key als Secret. Bis zur Klärung läuft alles im Demo-Modus gegen die Mock-LLM-Implementierung.
+
+## C. Infrastruktur-Accounts — offen
+Benötigt vom Auftraggeber (keine kostenpflichtigen Dienste werden ohne Zustimmung angelegt):
+- Supabase-Projekt (EU-Region), Free Tier für den MVP ausreichend
+- Hosting für `apps/web` (Empfehlung: Vercel Free Tier)
+- E-Mail-Konto für IMAP-Polling (Suchabo-Mails, weitergeleitete Inserate)
+- SMTP/Versanddienst für ausgehende Alerts (Empfehlung: Resend)
+
+## D. Nutzerkreis — offen
+Private Web-App mit Login, aber einem globalen Suchprofil. Annahme bis auf Widerruf: 2–5 bekannte Nutzer mit gleichberechtigtem Zugriff, Einladung nur manuell durch den Auftraggeber (kein Self-Signup).
+
+## E. Wüest Partner — offen
+Unklar, ob aktuell eine Wüest-Partner-Lizenz besteht. Der Import wird gegen ein dokumentiertes, generisches Excel/CSV-Schema gebaut; eine echte Beispieldatei würde das Mapping realistischer machen.
+
+## F. Echte Geschäftsannahmen im Suchprofil — offen
+Zahlen wie maximales Eigenkapital, maximaler Grundstückspreis, Zielrendite, Zinssatz Stress etc. sind unternehmerische Entscheidungen und werden nicht erfunden. Der Suchprofil-Wizard wird mit klar als `ASSUMPTION` markierten Schweizer Marktwerten vorbelegt, die beim ersten Login überschrieben werden müssen.
+
+## G. Domain / Deployment-Ziel — offen
+Annahme bis auf Widerruf: Vercel-Subdomain für den MVP, echte Domain erst auf Wunsch.
+
+## H. Design-Sprache — entschieden
+"Vermessung/Kataster": kühles Vermessungspapier-Blau-Grün statt warmem Creme-Ton, Petrol-Akzent (`#0E6E68` / `#4FC2B4` dunkel), Newsreader (Display-Serife) + Public Sans (UI) + IBM Plex Mono (Zahlen/Daten). Umgesetzt in `packages/ui` und `apps/web`. Referenz-Mockups wurden iterativ abgenommen (Login, Dashboard, Objekt-Detail).

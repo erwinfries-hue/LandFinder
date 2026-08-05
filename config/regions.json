@@ -1,0 +1,12 @@
+{
+  "description": "Editierbare Liste der Kantone, die im Suchprofil-Assistenten zur Auswahl stehen. Weitere Kantone können hier ergänzt werden, ohne Code zu ändern (Abschnitt 1.1 des Masterdokuments).",
+  "cantons": [
+    { "code": "ZH", "name": "Zürich", "defaultEnabled": true },
+    { "code": "ZG", "name": "Zug", "defaultEnabled": true },
+    { "code": "SZ", "name": "Schwyz", "defaultEnabled": true },
+    { "code": "AG", "name": "Aargau", "defaultEnabled": true },
+    { "code": "LU", "name": "Luzern", "defaultEnabled": true },
+    { "code": "OW", "name": "Obwalden", "defaultEnabled": true },
+    { "code": "NW", "name": "Nidwalden", "defaultEnabled": true }
+  ]
+}
