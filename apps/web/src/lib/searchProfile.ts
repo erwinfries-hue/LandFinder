@@ -66,10 +66,15 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   },
   eigennutzung: {
     enabled: true,
-    unitCount: undefined,
-    targetSizeM2: undefined,
-    roomCount: undefined,
-    positionInBuilding: undefined,
+    // Vorschlagswerte, leicht überschreibbar: eine Einheit (der Eigentümer bezieht
+    // typischerweise nicht mehrere Wohnungen selbst), ~120 m² als komfortable
+    // Familiengrösse konsistent mit den 20%-Flächen-/Kapitalanteil-Deckeln unten,
+    // 4.5 Zimmer als zu dieser Grösse passender Zuschnitt, Attikageschoss als
+    // verbreitete Eigennutzer-Präferenz (Aussicht, Privatsphäre, kein Publikumsverkehr).
+    unitCount: 1,
+    targetSizeM2: 120,
+    roomCount: 4.5,
+    positionInBuilding: "Attikageschoss",
     imputedMarketRentChfPerM2Month: 25,
     maxAreaSharePercent: 20,
     maxCapitalSharePercent: 20,

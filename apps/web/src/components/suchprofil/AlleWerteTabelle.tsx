@@ -16,7 +16,7 @@ type SectionRecord = Record<string, unknown>;
 export function AlleWerteTabelle() {
   const profile = useSyncExternalStore(subscribeSearchProfile, getSearchProfileSnapshot, getSearchProfileServerSnapshot);
 
-  function setField(sectionKey: keyof SearchProfile, fieldKey: string, value: number | boolean) {
+  function setField(sectionKey: keyof SearchProfile, fieldKey: string, value: number | boolean | string) {
     const section = profile[sectionKey] as unknown as SectionRecord;
     setSearchProfile({ ...profile, [sectionKey]: { ...section, [fieldKey]: value } });
   }
@@ -62,6 +62,12 @@ export function AlleWerteTabelle() {
                               checked={Boolean(raw)}
                               onChange={(e) => setField(section.sectionKey, field.key, e.target.checked)}
                               style={{ accentColor: "var(--accent)" }}
+                            />
+                          ) : field.type === "text" ? (
+                            <input
+                              type="text"
+                              value={typeof raw === "string" ? raw : ""}
+                              onChange={(e) => setField(section.sectionKey, field.key, e.target.value)}
                             />
                           ) : (
                             <input

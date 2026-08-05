@@ -1,6 +1,6 @@
 import type { SearchProfile } from "@landfinder/domain";
 
-export type ProfileFieldType = "number" | "boolean";
+export type ProfileFieldType = "number" | "boolean" | "text";
 
 export interface ProfileFieldDescriptor {
   key: string;
@@ -90,6 +90,7 @@ export const PROFILE_SECTIONS: ProfileSectionDescriptor[] = [
       { key: "unitCount", label: "Anzahl Einheiten", type: "number" },
       { key: "targetSizeM2", label: "Zielgrösse", type: "number", unit: "m²" },
       { key: "roomCount", label: "Zimmerzahl", type: "number" },
+      { key: "positionInBuilding", label: "Lage im Gebäude", type: "text" },
       { key: "imputedMarketRentChfPerM2Month", label: "Kalkulatorische Marktmiete", type: "number", unit: "CHF/m²/Mt." },
       { key: "maxAreaSharePercent", label: "Maximaler Flächenanteil", type: "number", unit: "%" },
       { key: "maxCapitalSharePercent", label: "Maximaler Kapitalanteil", type: "number", unit: "%" },
