@@ -1,0 +1,10 @@
+{
+  "name": "@landfinder/financial-engine",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@landfinder/domain": "0.1.0"
+  }
+}
