@@ -392,6 +392,9 @@ td {
 tbody tr:hover {
   background: var(--surface-2);
 }
+tr.row-clickable {
+  cursor: pointer;
+}
 .twrap {
   overflow-x: auto;
 }
@@ -621,6 +624,69 @@ table.sortable th {
 }
 .nav a.current svg {
   color: var(--accent);
+}
+.navobjekte summary {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  cursor: pointer;
+  padding: 0.1rem 0.6rem 0.1rem 0.6rem;
+  border-radius: var(--radius);
+}
+.navobjekte summary::-webkit-details-marker {
+  display: none;
+}
+.navobjekte summary a {
+  flex: 1;
+  padding-left: 0;
+}
+.navobjekte summary::before {
+  content: "";
+  width: 0.5em;
+  height: 0.5em;
+  margin-right: 0.5rem;
+  border-right: 1.5px solid var(--ink-faint);
+  border-bottom: 1.5px solid var(--ink-faint);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+.navobjekte[open] summary::before {
+  transform: rotate(45deg);
+}
+.navobjekte-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0.15rem 0 0.35rem 1.6rem;
+  max-height: 15rem;
+  overflow-y: auto;
+}
+.navobjekte-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.navobjekte-list a .t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.navobjekte-list a .s {
+  color: var(--ink-faint);
+  font-size: 0.72rem;
+  flex-shrink: 0;
+}
+.navobjekte-list a.current {
+  background: var(--surface-2);
+  color: var(--ink);
+  font-weight: 600;
 }
 .side .profile {
   margin-top: auto;

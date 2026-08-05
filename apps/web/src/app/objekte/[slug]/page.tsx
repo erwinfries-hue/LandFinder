@@ -25,7 +25,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
 
   return (
     <div className="shell">
-      <SideNav current="objekte" />
+      <SideNav current="objekte" activeSlug={objekt.slug} />
       <main className="main">
         <Panel className="dethead">
           <div className="eyebrow">

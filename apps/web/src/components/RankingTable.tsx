@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   ScoreDial,
   EmpfehlungBadge,
@@ -16,6 +17,7 @@ import { formatChf, type Objekt } from "@/lib/demo-data";
  * übergeben werden. Die Seite selbst bleibt dadurch eine Server-Komponente.
  */
 export function RankingTable({ rows }: { rows: Objekt[] }) {
+  const router = useRouter();
   const columns: Column<Objekt>[] = [
     {
       key: "rank",
@@ -104,5 +106,12 @@ export function RankingTable({ rows }: { rows: Objekt[] }) {
     },
   ];
 
-  return <SortableTable columns={columns} rows={rows} rowKey={(o) => o.slug} />;
+  return (
+    <SortableTable
+      columns={columns}
+      rows={rows}
+      rowKey={(o) => o.slug}
+      onRowClick={(o) => router.push(`/objekte/${o.slug}`)}
+    />
+  );
 }

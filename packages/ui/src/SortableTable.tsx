@@ -23,10 +23,15 @@ export function SortableTable<Row>({
   columns,
   rows,
   rowKey,
+  onRowClick,
 }: {
   columns: Column<Row>[];
   rows: Row[];
   rowKey: (row: Row) => string;
+  /** Optional: Zeile klickbar machen (z.B. Navigation zur Detailseite). Klicks auf
+   * verschachtelte Links (z.B. die Kartenlink-Spalte) lösen dabei nicht zusätzlich
+   * die Zeilennavigation aus. */
+  onRowClick?: (row: Row) => void;
 }) {
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
 
@@ -71,7 +76,18 @@ export function SortableTable<Row>({
         </thead>
         <tbody>
           {sorted.map((row) => (
-            <tr key={rowKey(row)}>
+            <tr
+              key={rowKey(row)}
+              className={onRowClick ? "row-clickable" : undefined}
+              onClick={
+                onRowClick
+                  ? (e) => {
+                      if ((e.target as HTMLElement).closest("a")) return;
+                      onRowClick(row);
+                    }
+                  : undefined
+              }
+            >
               {columns.map((col) => (
                 <td
                   key={col.key}
