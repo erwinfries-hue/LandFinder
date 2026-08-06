@@ -2,8 +2,8 @@
 
 Gebündelte Fragen, die kostenrelevant, rechtlich heikel oder scope-verändernd sind und daher nicht ohne Rückmeldung des Auftraggebers entschieden werden (siehe Masterprompt, Abschnitt 30, „Arbeitsweise“). Diese Liste wird laufend aktualisiert.
 
-## A. Portal-Scraping (Homegate, ImmoScout24, newhome) — entschieden
-Entscheid (2026-08-06): **Tier 1 — Suchabo-/Alert-E-Mails per IMAP** als alleinige Datenquelle für den MVP, kein HTML-Scraping. Basis: `docs/PORTAL_ACCESS_REVIEW.md` (Homegate/ImmoScout24-AGB deuten auf ein explizites Crawling-Verbot hin; newhome bestätigt ein kostenloses Suchabo per E-Mail). Konto für die drei Suchabos und das IMAP-Polling: `erwin.fries@gmx.ch` (siehe Punkt C). Nächster Schritt: die drei Suchabos für das Suchprofil (Kantone ZH/ZG/SZ/AG/LU/OW/NW) manuell auf den Portalen anlegen, danach IMAP-Zugang für dieses Postfach einrichten (App-Passwort o.ä.). **Kein Scraping-Code läuft vor expliziter Freigabe** — bleibt so, unabhängig von diesem Entscheid.
+## A. Portal-Scraping (Homegate, ImmoScout24, newhome) — entschieden, Empfangsseite gebaut
+Entscheid (2026-08-06): **Tier 1 — Suchabo-/Alert-E-Mails**, kein HTML-Scraping und kein systematisches Crawling der Portale. Basis: `docs/PORTAL_ACCESS_REVIEW.md`. Zustellweg zuletzt verfeinert: statt IMAP-Polling eines gmx.ch-Postfachs nutzen wir einen **Postmark-Inbound-Webhook** (push statt poll, kein IMAP-Passwort nötig). Empfängerseite ist bereits gebaut und getestet: `apps/web/src/app/api/inbound/portal-alerts/route.ts` nimmt Postmarks Webhook-Payload entgegen, `apps/web/src/lib/inboundMail.ts` filtert die enthaltenen Inserat-Links (nur `homegate.ch`/`immoscout24.ch`/`newhome.ch`, andere Links wie Abmelden/Logo werden ignoriert). Optionaler Schutz per HTTP-Basic-Auth über `INBOUND_WEBHOOK_SECRET` (Format `username:password`, muss mit den Zugangsdaten in der Postmark-Webhook-URL übereinstimmen). Bis Supabase (Punkt C) steht, werden gefundene Links nur geloggt, nicht gespeichert. **Nächste Schritte bei dir:** Postmark-Konto + Server anlegen, Webhook-URL eintragen, die drei Suchabos mit der resultierenden Adresse registrieren. **Kein Scraping-Code der Portale selbst läuft vor expliziter Freigabe** — bleibt so, unabhängig von diesem Entscheid.
 
 ## B. LLM-Provider — offen
 Empfehlung: Anthropic API (Claude), da bereits im Ökosystem vorhanden. Benötigt: Anthropic-API-Key als Secret. Bis zur Klärung läuft alles im Demo-Modus gegen die Mock-LLM-Implementierung.
@@ -11,7 +11,7 @@ Empfehlung: Anthropic API (Claude), da bereits im Ökosystem vorhanden. Benötig
 ## C. Infrastruktur-Accounts — Hosting erledigt, Rest offen
 - ~~Hosting für `apps/web`~~ **erledigt**: Vercel-Projekt `land-finder-web` unter deinem bestehenden Account (Team AXIA4) eingerichtet, Production Branch `claude/landfinder-mvp-projekt-l9baa1`, feste URL `land-finder-web.vercel.app`, automatisches Deployment bei jedem Push.
 - Supabase-Projekt (EU-Region), Free Tier für den MVP ausreichend — offen
-- ~~E-Mail-Konto für IMAP-Polling~~ **entschieden** (siehe Punkt A): `erwin.fries@gmx.ch`, IMAP-Zugang (App-Passwort) steht noch aus
+- ~~E-Mail-Zustellweg für Suchabo-Mails~~ **entschieden** (siehe Punkt A): Postmark-Inbound-Webhook statt IMAP-Postfach — Postmark-Konto/Server-Einrichtung steht noch aus
 - SMTP/Versanddienst für ausgehende Alerts (Empfehlung: Resend) — offen
 
 ## D. Nutzerkreis — offen
