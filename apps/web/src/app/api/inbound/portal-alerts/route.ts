@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parsePostmarkInboundPayload, type PostmarkInboundPayload } from "@/lib/inboundMail";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 /**
  * Empfängt Suchabo-Mails (Homegate/ImmoScout24/newhome), die Postmark Inbound an diese
@@ -7,8 +8,10 @@ import { parsePostmarkInboundPayload, type PostmarkInboundPayload } from "@/lib/
  * die Portale selbst — die Mails wurden von den Portalen an eine eigens dafür
  * eingerichtete Adresse gesendet, wir lesen hier nur unseren eigenen Posteingang aus.
  *
- * Persistenz fehlt noch (Supabase, Punkt C): bis dahin werden gefundene Inserat-Links
- * nur geloggt, nicht gespeichert.
+ * Speichert jeden Treffer in `inbound_alerts` (supabase/migrations/0001_inbound_alerts.sql).
+ * Solange die Supabase-Umgebungsvariablen fehlen (z.B. lokal ohne .env), wird nur
+ * geloggt statt gespeichert — kein harter Fehler, damit lokale Entwicklung/Tests ohne
+ * Datenbank weiterlaufen.
  */
 export async function POST(request: Request): Promise<Response> {
   // Erwartetes Format: "username:password" — dieselben Zugangsdaten, die in der
@@ -30,8 +33,29 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const parsed = parsePostmarkInboundPayload(payload);
-  // Vorläufiges Logging bis Supabase (Punkt C) steht.
   console.log("[inbound/portal-alerts]", parsed);
 
-  return NextResponse.json({ received: true, listingLinksFound: parsed.listingLinks.length }, { status: 200 });
+  const supabase = createSupabaseServerClient();
+  if (supabase) {
+    const { error } = await supabase.from("inbound_alerts").insert({
+      from_address: parsed.from,
+      subject: parsed.subject,
+      portal_message_date: parsed.date,
+      listing_links: parsed.listingLinks,
+      raw_payload: payload,
+    });
+    if (error) {
+      console.error("[inbound/portal-alerts] Supabase insert failed", error);
+      // 500 statt 200: Postmark wiederholt die Zustellung automatisch (Retry-Mechanismus),
+      // damit ein transienter DB-Fehler nicht zu endgültigem Datenverlust führt.
+      return NextResponse.json({ received: true, stored: false, error: "storage failed" }, { status: 500 });
+    }
+  } else {
+    console.warn("[inbound/portal-alerts] Supabase nicht konfiguriert — nur geloggt, nicht gespeichert");
+  }
+
+  return NextResponse.json(
+    { received: true, stored: Boolean(supabase), listingLinksFound: parsed.listingLinks.length },
+    { status: 200 },
+  );
 }
