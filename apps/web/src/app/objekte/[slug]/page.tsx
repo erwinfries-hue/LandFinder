@@ -53,15 +53,20 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
                 <>
                   <div className="scorewrap">
                     <ScoreDialLarge value={objekt.score} tone={objekt.scoreTon} />
-                    <div className="lbl" title={METRIC_HINTS.score}>Score</div>
+                    <div className="lbl">
+                      Score <InfoHint text={METRIC_HINTS.score} />
+                    </div>
                   </div>
                   <div className="scorewrap">
                     <ScoreDialLarge value={objekt.vertrauen} tone="accent" />
-                    <div className="lbl" title={METRIC_HINTS.vertrauen}>Vertrauen</div>
+                    <div className="lbl">
+                      Vertrauen <InfoHint text={METRIC_HINTS.vertrauen} />
+                    </div>
                   </div>
                   <Chip tone={objekt.empfKlasse === "A" ? "good" : objekt.empfKlasse === "B" ? "accent" : "warn"}>
-                    <span title={METRIC_HINTS.empfehlung}>{objekt.empfWort}</span>
+                    {objekt.empfWort}
                   </Chip>
+                  <InfoHint text={METRIC_HINTS.empfehlung} />
                 </>
               )}
             </div>
@@ -165,7 +170,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
                   <div style={{ fontSize: ".8125rem", color: "var(--ink-soft)" }}>
                     Methode: {v.baupotenzialMethode}
                     <br />
-                    Verifikation: <span className="badge-verify" title={METRIC_HINTS.verifikation}>{v.baupotenzialVerifikation}</span>
+                    Verifikation <InfoHint text={METRIC_HINTS.verifikation} />: <span className="badge-verify">{v.baupotenzialVerifikation}</span>
                   </div>
                 </div>
                 <div className="sectionhead" style={{ marginTop: "1rem" }}>

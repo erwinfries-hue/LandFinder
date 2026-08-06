@@ -429,11 +429,50 @@ table.sortable th {
   font-size: 0.9em;
 }
 .infoicon {
+  position: relative;
+  display: inline-block;
   cursor: help;
   color: var(--ink-faint);
   font-size: 0.85em;
   margin-left: 0.15em;
   border-bottom: 1px dotted var(--ink-faint);
+}
+/* Eigener Tooltip statt native `title` — sichtbar per Hover UND per Fokus (Tab-Taste
+   oder Tap auf Touch-Geräten, da tabIndex=0 den Fokus dort auslöst). Erscheint immer
+   unterhalb des Icons, nie darüber: mehrere Vorkommen sitzen in Tabellen mit
+   `overflow-x: auto` (.twrap), deren automatisch berechnetes `overflow-y` einen nach
+   oben austretenden Tooltip abschneiden würde. */
+.infoicon::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: 135%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  letter-spacing: normal;
+  text-align: left;
+  white-space: normal;
+  width: max-content;
+  max-width: min(240px, 70vw);
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 80;
+}
+.infoicon:hover::after,
+.infoicon:focus::after,
+.infoicon:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* ================= LOGIN ================= */
@@ -585,6 +624,21 @@ table.sortable th {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+}
+.side-headrow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.mobilenav-toggle {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.mobilenav-burger,
+.mobilenav-backdrop,
+.mobilenav-close {
+  display: none;
 }
 .side .word {
   font-family: var(--font-mono), ui-monospace, monospace;
@@ -1009,8 +1063,48 @@ table.sortable th {
   .shell {
     grid-template-columns: 1fr;
   }
+  .mobilenav-burger {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 0.75rem 1rem;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
   .side {
     display: none;
+    position: fixed;
+    inset: 0 25vw 0 0;
+    z-index: 55;
+    max-width: 320px;
+    overflow-y: auto;
+    background: var(--paper);
+    box-shadow: var(--shadow);
+  }
+  .mobilenav-close {
+    display: flex;
+    cursor: pointer;
+    color: var(--ink-faint);
+    font-size: 1.1rem;
+    padding: 0.2rem 0.4rem;
+  }
+  .mobilenav-toggle:checked ~ .mobilenav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.4);
+  }
+  .mobilenav-toggle:checked ~ .side {
+    display: flex;
   }
   .statusrow {
     grid-template-columns: 1fr;

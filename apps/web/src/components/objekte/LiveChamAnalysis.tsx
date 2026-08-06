@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { EMPFEHLUNG_LABEL, type Empfehlung } from "@landfinder/domain";
-import { Panel, Icon, ScoreDialLarge, Chip, type DialTone, type ChipTone } from "@landfinder/ui";
+import { Panel, Icon, ScoreDialLarge, Chip, InfoHint, type DialTone, type ChipTone } from "@landfinder/ui";
 import { getSearchProfileServerSnapshot, getSearchProfileSnapshot, subscribeSearchProfile } from "@/lib/searchProfile";
 import { getAnnahmenServerSnapshot, getAnnahmenSnapshot, subscribeAnnahmen } from "@/lib/annahmen";
 import { computeChamAnalysis, CHAM_FACTS } from "@/lib/objektAnalysis";
@@ -42,15 +42,18 @@ export function LiveChamScoreDials() {
     <>
       <div className="scorewrap">
         <ScoreDialLarge value={Math.round(a.score.total)} tone={SCORE_TONE(a.score.total)} />
-        <div className="lbl" title={METRIC_HINTS.score}>Score (live)</div>
+        <div className="lbl">
+          Score (live) <InfoHint text={METRIC_HINTS.score} />
+        </div>
       </div>
       <div className="scorewrap">
         <ScoreDialLarge value={Math.round(a.confidence.total)} tone="accent" />
-        <div className="lbl" title={METRIC_HINTS.vertrauen}>Vertrauen (live)</div>
+        <div className="lbl">
+          Vertrauen (live) <InfoHint text={METRIC_HINTS.vertrauen} />
+        </div>
       </div>
-      <Chip tone={EMPFEHLUNG_TONE[a.empfehlung]}>
-        <span title={METRIC_HINTS.empfehlung}>{EMPFEHLUNG_LABEL[a.empfehlung]}</span>
-      </Chip>
+      <Chip tone={EMPFEHLUNG_TONE[a.empfehlung]}>{EMPFEHLUNG_LABEL[a.empfehlung]}</Chip>
+      <InfoHint text={METRIC_HINTS.empfehlung} />
     </>
   );
 }
