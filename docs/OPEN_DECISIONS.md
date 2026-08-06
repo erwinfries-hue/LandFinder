@@ -2,8 +2,8 @@
 
 Gebündelte Fragen, die kostenrelevant, rechtlich heikel oder scope-verändernd sind und daher nicht ohne Rückmeldung des Auftraggebers entschieden werden (siehe Masterprompt, Abschnitt 30, „Arbeitsweise“). Diese Liste wird laufend aktualisiert.
 
-## A. Portal-Scraping (Homegate, ImmoScout24, newhome) — Review liegt vor, Entscheid offen
-Automatisiertes Auslesen dieser drei Portale kann unabhängig von der Technik gegen deren AGB verstossen. Die Einschätzung pro Portal liegt jetzt vor: `docs/PORTAL_ACCESS_REVIEW.md` (Homegate/ImmoScout24 AGB deuten auf ein explizites Crawling-Verbot hin, beide Domains blockierten sogar automatisierte Lesezugriffe auf ihre eigenen Rechtstexte; newhome bestätigt ein kostenloses Suchabo per E-Mail und bietet zusätzlich einen "Business Connector" als B2B-Schnittstelle an). Empfehlung: **Tier 1 — Suchabo-/Alert-E-Mails per IMAP** als alleinige Datenquelle für den MVP, kein HTML-Scraping. Basiert auf Sekundärquellen (die AGB-Seiten selbst waren automatisiert nicht abrufbar) — vor dem finalen Entscheid bitte die drei AGB-Seiten einmal manuell im Browser lesen. **Kein Scraping-Code läuft vor expliziter Freigabe.**
+## A. Portal-Scraping (Homegate, ImmoScout24, newhome) — entschieden
+Entscheid (2026-08-06): **Tier 1 — Suchabo-/Alert-E-Mails per IMAP** als alleinige Datenquelle für den MVP, kein HTML-Scraping. Basis: `docs/PORTAL_ACCESS_REVIEW.md` (Homegate/ImmoScout24-AGB deuten auf ein explizites Crawling-Verbot hin; newhome bestätigt ein kostenloses Suchabo per E-Mail). Konto für die drei Suchabos und das IMAP-Polling: `erwin.fries@gmx.ch` (siehe Punkt C). Nächster Schritt: die drei Suchabos für das Suchprofil (Kantone ZH/ZG/SZ/AG/LU/OW/NW) manuell auf den Portalen anlegen, danach IMAP-Zugang für dieses Postfach einrichten (App-Passwort o.ä.). **Kein Scraping-Code läuft vor expliziter Freigabe** — bleibt so, unabhängig von diesem Entscheid.
 
 ## B. LLM-Provider — offen
 Empfehlung: Anthropic API (Claude), da bereits im Ökosystem vorhanden. Benötigt: Anthropic-API-Key als Secret. Bis zur Klärung läuft alles im Demo-Modus gegen die Mock-LLM-Implementierung.
@@ -11,7 +11,7 @@ Empfehlung: Anthropic API (Claude), da bereits im Ökosystem vorhanden. Benötig
 ## C. Infrastruktur-Accounts — Hosting erledigt, Rest offen
 - ~~Hosting für `apps/web`~~ **erledigt**: Vercel-Projekt `land-finder-web` unter deinem bestehenden Account (Team AXIA4) eingerichtet, Production Branch `claude/landfinder-mvp-projekt-l9baa1`, feste URL `land-finder-web.vercel.app`, automatisches Deployment bei jedem Push.
 - Supabase-Projekt (EU-Region), Free Tier für den MVP ausreichend — offen
-- E-Mail-Konto für IMAP-Polling (Suchabo-Mails, weitergeleitete Inserate) — offen
+- ~~E-Mail-Konto für IMAP-Polling~~ **entschieden** (siehe Punkt A): `erwin.fries@gmx.ch`, IMAP-Zugang (App-Passwort) steht noch aus
 - SMTP/Versanddienst für ausgehende Alerts (Empfehlung: Resend) — offen
 
 ## D. Nutzerkreis — offen
