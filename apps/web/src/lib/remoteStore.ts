@@ -79,15 +79,22 @@ export function createRemoteSyncedStore<T>(options: {
       listeners.add(callback);
       return () => listeners.delete(callback);
     },
-    setValue(value: T): void {
+    /** Löst mit `true` auf, sobald der Server-Schreibvorgang bestätigt ist (bzw. `false` bei Fehler/nicht konfiguriert) — für UI-Feedback wie "Gespeichert ✓". Lokal ist der Wert bereits vorher übernommen, unabhängig vom Ausgang. */
+    async setValue(value: T): Promise<boolean> {
       applyAndNotify(value);
-      fetch(`/api/state/${options.apiId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: cachedRaw ?? JSON.stringify(value),
-      }).catch((err) => {
+      try {
+        const res = await fetch(`/api/state/${options.apiId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: cachedRaw ?? JSON.stringify(value),
+        });
+        if (!res.ok) return false;
+        const body = (await res.json()) as { saved?: boolean };
+        return Boolean(body.saved);
+      } catch (err) {
         console.warn(`[remoteStore:${options.apiId}] Speichern auf Server fehlgeschlagen, lokal aber übernommen`, err);
-      });
+        return false;
+      }
     },
   };
 }

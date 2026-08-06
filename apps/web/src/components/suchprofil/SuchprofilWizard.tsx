@@ -44,16 +44,26 @@ const TABS = [
   "Alle Werte",
 ] as const;
 
+type SaveStatus = "idle" | "saving" | "saved" | "offline";
+
 export function SuchprofilWizard() {
   const profile = useSyncExternalStore(subscribeSearchProfile, getSearchProfileSnapshot, getSearchProfileServerSnapshot);
   const [activeTab, setActiveTab] = useState<number>(0);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
   function setProfile(next: typeof profile) {
     setSearchProfile(next);
   }
 
-  function bump() {
-    setSearchProfile({ ...profile, version: profile.version + 1, updatedAt: new Date().toISOString().slice(0, 10) });
+  async function bump() {
+    setSaveStatus("saving");
+    const savedRemotely = await setSearchProfile({
+      ...profile,
+      version: profile.version + 1,
+      updatedAt: new Date().toISOString().slice(0, 10),
+    });
+    setSaveStatus(savedRemotely ? "saved" : "offline");
+    setTimeout(() => setSaveStatus("idle"), 2500);
   }
 
   return (
@@ -62,8 +72,8 @@ export function SuchprofilWizard() {
         <Icon name="alert" width={18} />
         <div>
           Die Startwerte in diesem Suchprofil sind <strong>Schweizer Marktannahmen</strong>, keine bestätigten Werte
-          (siehe <code>docs/OPEN_DECISIONS.md</code>, Punkt F). Änderungen werden lokal im Browser gespeichert — noch
-          keine Anbindung an eine Datenbank (Phase 1, Schritt 5 von 5, Supabase folgt gemäss Punkt C).
+          (siehe <code>docs/OPEN_DECISIONS.md</code>, Punkt F). Änderungen werden sofort lokal gespeichert und im
+          Hintergrund mit der Datenbank synchronisiert — geräteübergreifend verfügbar, kein Login nötig.
         </div>
       </div>
 
@@ -99,13 +109,28 @@ export function SuchprofilWizard() {
           <span className="eyebrow">
             Suchprofil Version {profile.version} — aktualisiert {profile.updatedAt}
           </span>
-          <button
-            className="btn"
-            style={{ width: "auto", padding: ".65rem 1.2rem", background: "var(--accent)" }}
-            onClick={bump}
-          >
-            Als neue Version speichern
-          </button>
+          <div className="wizard-actions-right">
+            <span className="savefeedback" aria-live="polite">
+              {saveStatus === "saved" && (
+                <span className="savefeedback-ok">
+                  <Icon name="check" width={14} /> Gespeichert
+                </span>
+              )}
+              {saveStatus === "offline" && (
+                <span className="savefeedback-warn">
+                  <Icon name="alert" width={14} /> Lokal gespeichert, Server nicht erreichbar
+                </span>
+              )}
+            </span>
+            <button
+              className="btn"
+              style={{ width: "auto", padding: ".65rem 1.2rem", background: "var(--accent)" }}
+              onClick={bump}
+              disabled={saveStatus === "saving"}
+            >
+              {saveStatus === "saving" ? "Speichert …" : "Als neue Version speichern"}
+            </button>
+          </div>
         </div>
       )}
     </div>

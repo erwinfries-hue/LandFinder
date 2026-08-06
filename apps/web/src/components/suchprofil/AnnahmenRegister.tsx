@@ -39,9 +39,9 @@ export function AnnahmenRegister() {
         <div>
           <strong>Annahmen &amp; Formeln</strong> — jeder Wert hier ist derselbe Default, den die Finanz- und
           Scoring-Formeln tatsächlich verwenden (<code>packages/financial-engine</code>,{" "}
-          <code>packages/scoring-engine</code>). Änderungen hier werden lokal gespeichert (kein Server, keine
-          Datenbank) und wirken sich in einer künftigen Anbindung direkt auf jede Berechnung aus, die diesen
-          Parameter als Default nutzt.
+          <code>packages/scoring-engine</code>). Änderungen hier werden sofort lokal übernommen, im Hintergrund mit
+          der Datenbank synchronisiert und wirken sich direkt auf jede Berechnung aus, die diesen Parameter als
+          Default nutzt (z.B. die Live-Berechnung auf der Objekt-Detailseite von Cham).
         </div>
       </div>
 
