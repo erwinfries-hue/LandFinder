@@ -597,6 +597,15 @@ table.sortable th {
   text-decoration: none;
   font-size: 0.8125rem;
 }
+.loginerror {
+  background: var(--bad-bg);
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.8rem;
+  font-size: 0.8125rem;
+  margin-bottom: 1.1rem;
+}
 .disclaimer {
   position: relative;
   z-index: 1;

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { Panel, Icon } from "@landfinder/ui";
+import { Suspense } from "react";
+import { Panel } from "@landfinder/ui";
 import { ContourBackdrop } from "@/components/ContourBackdrop";
+import { LoginForm } from "@/components/LoginForm";
 
 export const metadata: Metadata = {
   title: "Anmeldung — SIPIS LandFinder",
@@ -40,27 +42,9 @@ export default function LoginPage() {
           <div className="eyebrow">Anmeldung</div>
           <h2>Willkommen zurück</h2>
           <div style={{ height: "1.4rem" }} />
-          <form>
-            <div className="field">
-              <label htmlFor="lf-email">E-Mail-Adresse</label>
-              <input id="lf-email" type="email" placeholder="name@beispiel.ch" />
-            </div>
-            <div className="field">
-              <label htmlFor="lf-pw">Passwort</label>
-              <input id="lf-pw" type="password" placeholder="••••••••••••" />
-            </div>
-            <div className="rowbetween">
-              <label>
-                <input type="checkbox" defaultChecked style={{ accentColor: "var(--accent)" }} /> Angemeldet bleiben
-              </label>
-              <a href="#" className="finelink">
-                Passwort vergessen?
-              </a>
-            </div>
-            <button type="submit" className="btn">
-              Anmelden <Icon name="import" style={{ transform: "rotate(-90deg)" }} />
-            </button>
-          </form>
+          <Suspense fallback={null}>
+            <LoginForm />
+          </Suspense>
         </Panel>
       </div>
       <p className="disclaimer">
