@@ -42,12 +42,10 @@ Grundstück-Bereich (`PRICE_PER_M2_ABOVE_MAXIMUM`) ist implementiert.
 (`apps/web/src/lib/objektAnalysis.ts`), reagiert auf jede Änderung im Suchprofil
 oder Annahmen-Register. Bewusst nur dieses eine Objekt — die anderen 5
 Demo-Objekte haben keine strukturierten Rohdaten und blieben unverändert
-statischer Text, statt erfundene Eingaben zu bekommen. Bekannte Lücke: die
-statischen "Warum attraktiv/riskant"-Stichpunkte für Cham zitieren noch alte,
-frei erfundene Zahlen (z.B. "DSCR Base 1.32"), die von den jetzt live berechneten
-Werten (DSCR 0.84 mit aktuellen Default-Annahmen) abweichen — bewusst nicht
-angefasst, da das eine redaktionelle Entscheidung ist. Weiterhin offen: Dashboard
-und die anderen 5 Objekte rechnen weiterhin mit `apps/web/src/lib/demo-data.ts`.
+statischer Text, statt erfundene Eingaben zu bekommen. Die "Warum
+attraktiv/riskant"-Stichpunkte für Cham wurden bereinigt (keine durch die
+Live-Werte widerlegten Zahlen mehr). Weiterhin offen: Dashboard und die
+anderen 5 Objekte rechnen weiterhin mit `apps/web/src/lib/demo-data.ts`.
 
 ## G. Domain / Deployment-Ziel — Vercel-Subdomain aktiv
 Wie angenommen: `land-finder-web.vercel.app` ist die aktive MVP-Adresse (siehe Punkt C). Echte Domain erst auf Wunsch.
