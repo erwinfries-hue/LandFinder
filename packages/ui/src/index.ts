@@ -7,3 +7,4 @@ export { Cell2 } from "./Cell2";
 export { MapLink } from "./MapLink";
 export { Ticker, type TickerItem } from "./Ticker";
 export { SortableTable, type Column } from "./SortableTable";
+export { InfoHint } from "./InfoHint";

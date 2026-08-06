@@ -7,9 +7,11 @@ import {
   Cell2,
   MapLink,
   SortableTable,
+  InfoHint,
   type Column,
 } from "@landfinder/ui";
 import { formatChf, type Objekt } from "@/lib/demo-data";
+import { METRIC_HINTS } from "@/lib/metricHints";
 
 /**
  * Eigene Client-Komponente, weil Spaltendefinitionen Funktionen (render/sortValue)
@@ -49,7 +51,11 @@ export function RankingTable({ rows }: { rows: Objekt[] }) {
     },
     {
       key: "score",
-      header: "Score",
+      header: (
+        <>
+          Score <InfoHint text={METRIC_HINTS.score} />
+        </>
+      ),
       sortValue: (o) => o.score,
       render: (o) => (
         <span className="dial">
@@ -60,25 +66,41 @@ export function RankingTable({ rows }: { rows: Objekt[] }) {
     },
     {
       key: "vertrauen",
-      header: "Vertrauen",
+      header: (
+        <>
+          Vertrauen <InfoHint text={METRIC_HINTS.vertrauen} />
+        </>
+      ),
       sortValue: (o) => o.vertrauen,
       render: (o) => <Cell2 top={o.vertrauen} bottom={o.vertrauenLabel} />,
     },
     {
       key: "empf",
-      header: "Empfehlung",
+      header: (
+        <>
+          Empfehlung <InfoHint text={METRIC_HINTS.empfehlung} />
+        </>
+      ),
       sortValue: (o) => o.empfKlasse,
       render: (o) => <EmpfehlungBadge klasse={o.empfKlasse} wort={o.empfWort} farbe={o.empfFarbe} />,
     },
     {
       key: "flaeche",
-      header: "Fläche",
+      header: (
+        <>
+          Fläche <InfoHint text={METRIC_HINTS.flaeche} />
+        </>
+      ),
       sortValue: (o) => o.flaecheM2,
       render: (o) => <Cell2 mono top={`${formatChf(o.flaecheM2)} m²`} bottom={`CHF ${formatChf(o.preisProM2)}/m²`} />,
     },
     {
       key: "preis",
-      header: "Preis",
+      header: (
+        <>
+          Preis <InfoHint text={METRIC_HINTS.preis} />
+        </>
+      ),
       sortValue: (o) => o.preisChf,
       render: (o) => <span className="mono">{formatChf(o.preisChf)}</span>,
     },
@@ -86,13 +108,7 @@ export function RankingTable({ rows }: { rows: Objekt[] }) {
       key: "yoc",
       header: (
         <>
-          Yield&nbsp;on&nbsp;Cost{" "}
-          <span
-            className="infoicon"
-            title="Nettoertrag (NOI) ÷ Gesamtprojektkosten. Zeigt die Rendite auf die gesamte Investition — unabhängig vom späteren Verkehrswert."
-          >
-            ⓘ
-          </span>
+          Yield&nbsp;on&nbsp;Cost <InfoHint text={METRIC_HINTS.yieldOnCost} />
         </>
       ),
       sortValue: (o) => o.yieldOnCost,
@@ -100,7 +116,11 @@ export function RankingTable({ rows }: { rows: Objekt[] }) {
     },
     {
       key: "lage",
-      header: "Lage",
+      header: (
+        <>
+          Lage <InfoHint text={METRIC_HINTS.lage} />
+        </>
+      ),
       sortValue: (o) => `${o.adresse}, ${o.plz} ${o.ort}`.toLowerCase(),
       render: (o) => <MapLink address={`${o.adresse}, ${o.plz} ${o.ort}`} />,
     },

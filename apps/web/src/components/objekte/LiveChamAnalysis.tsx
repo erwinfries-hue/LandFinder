@@ -7,6 +7,7 @@ import { getSearchProfileServerSnapshot, getSearchProfileSnapshot, subscribeSear
 import { getAnnahmenServerSnapshot, getAnnahmenSnapshot, subscribeAnnahmen } from "@/lib/annahmen";
 import { computeChamAnalysis, CHAM_FACTS } from "@/lib/objektAnalysis";
 import { formatChf } from "@/lib/demo-data";
+import { METRIC_HINTS } from "@/lib/metricHints";
 import { Metric, StressRow } from "./MetricPrimitives";
 
 const SCORE_TONE: (score: number) => DialTone = (score) => (score >= 75 ? "good" : score >= 55 ? "accent" : score >= 35 ? "warn" : "neutral");
@@ -41,13 +42,15 @@ export function LiveChamScoreDials() {
     <>
       <div className="scorewrap">
         <ScoreDialLarge value={Math.round(a.score.total)} tone={SCORE_TONE(a.score.total)} />
-        <div className="lbl">Score (live)</div>
+        <div className="lbl" title={METRIC_HINTS.score}>Score (live)</div>
       </div>
       <div className="scorewrap">
         <ScoreDialLarge value={Math.round(a.confidence.total)} tone="accent" />
-        <div className="lbl">Vertrauen (live)</div>
+        <div className="lbl" title={METRIC_HINTS.vertrauen}>Vertrauen (live)</div>
       </div>
-      <Chip tone={EMPFEHLUNG_TONE[a.empfehlung]}>{EMPFEHLUNG_LABEL[a.empfehlung]}</Chip>
+      <Chip tone={EMPFEHLUNG_TONE[a.empfehlung]}>
+        <span title={METRIC_HINTS.empfehlung}>{EMPFEHLUNG_LABEL[a.empfehlung]}</span>
+      </Chip>
     </>
   );
 }
@@ -62,18 +65,20 @@ export function LiveChamMetricGrid() {
         l="Angebotspreis"
         v={`CHF ${formatChf(CHAM_FACTS.askingPriceChf)}`}
         sub={`CHF ${formatChf(Math.round(CHAM_FACTS.askingPriceChf / CHAM_FACTS.parcelAreaM2))} / m² Land`}
+        hint={METRIC_HINTS.angebotspreis}
       />
-      <Metric l="Grundstücksfläche" v={`${formatChf(CHAM_FACTS.parcelAreaM2)} m²`} sub="Zone W3 (unverändert übernommen)" />
-      <Metric l="Berechnete NRA" v={`${formatChf(Math.round(a.baupotenzial.adjustedNraM2))} m²`} sub="live aus Ausnützungsziffer × Fläche" />
-      <Metric l="Gesamtinvestition" v={`CHF ${formatChf(Math.round(a.base.totalDevelopmentCostChf))}`} sub="Base Case, live" />
-      <Metric l="Eigenkapitalbedarf" v={`CHF ${formatChf(Math.round(a.base.equityRequiredChf))}`} sub={`LTC ${a.base.loanToCostPercent}%`} />
+      <Metric l="Grundstücksfläche" v={`${formatChf(CHAM_FACTS.parcelAreaM2)} m²`} sub="Zone W3 (unverändert übernommen)" hint={METRIC_HINTS.grundstuecksflaeche} />
+      <Metric l="Berechnete NRA" v={`${formatChf(Math.round(a.baupotenzial.adjustedNraM2))} m²`} sub="live aus Ausnützungsziffer × Fläche" hint={METRIC_HINTS.nra} />
+      <Metric l="Gesamtinvestition" v={`CHF ${formatChf(Math.round(a.base.totalDevelopmentCostChf))}`} sub="Base Case, live" hint={METRIC_HINTS.gesamtinvestition} />
+      <Metric l="Eigenkapitalbedarf" v={`CHF ${formatChf(Math.round(a.base.equityRequiredChf))}`} sub={`LTC ${a.base.loanToCostPercent}%`} hint={METRIC_HINTS.eigenkapitalbedarf} />
       <Metric
         l="Yield on Cost"
         v={`${a.yieldOnCostPercent.toFixed(1)}%`}
         sub={`Ziel ≥ ${profile.renditeziele.minYieldOnCostPercent}%`}
         valueColor={a.yieldOnCostPercent >= profile.renditeziele.minYieldOnCostPercent ? "var(--good)" : "var(--bad)"}
+        hint={METRIC_HINTS.yieldOnCost}
       />
-      <Metric l="DSCR (Base)" v={a.base.dscr.toFixed(2)} sub={`Stress: ${a.stress.dscr.toFixed(2)}`} />
+      <Metric l="DSCR (Base)" v={a.base.dscr.toFixed(2)} sub={`Stress: ${a.stress.dscr.toFixed(2)}`} hint={METRIC_HINTS.dscr} />
       <Metric
         l="Residualwert"
         v={`CHF ${formatChf(Math.round(a.wert.residualLandValueChf))}`}
@@ -81,6 +86,7 @@ export function LiveChamMetricGrid() {
           a.wert.landValueGapPercent >= 0 ? "+" : ""
         }${a.wert.landValueGapPercent.toFixed(1)}% ggü. Angebot`}
         subColor={a.wert.landValueGapPercent >= 0 ? "var(--good)" : "var(--bad)"}
+        hint={METRIC_HINTS.residualwert}
       />
     </>
   );
@@ -108,19 +114,27 @@ export function LiveChamStressTable() {
             label="Nettomiete CHF/m²/Mt."
             base={profile.marktannahmen.netRentChfPerM2Month.toFixed(2)}
             stress={a.stress.rentChfPerM2Month.toFixed(2)}
+            hint={METRIC_HINTS.nettomiete}
           />
           <StressRow
             label="Baukosten/m² NRA"
             base={formatChf(profile.baukosten.buildingCostChfPerM2)}
             stress={formatChf(Math.round(a.stress.buildingCostPerM2Chf))}
+            hint={METRIC_HINTS.baukostenM2}
           />
           <StressRow
             label="Zinssatz"
             base={`${profile.finanzierung.interestRateBasePercent.toFixed(1)}%`}
             stress={`${a.stress.interestRatePercent.toFixed(1)}%`}
+            hint={METRIC_HINTS.zinssatz}
           />
-          <StressRow label="DSCR" base={a.base.dscr.toFixed(2)} stress={a.stress.dscr.toFixed(2)} />
-          <StressRow label="Cash-on-Cash" base={`${a.base.cashOnCashPercent.toFixed(1)}%`} stress={`${a.stress.cashOnCashPercent.toFixed(1)}%`} />
+          <StressRow label="DSCR" base={a.base.dscr.toFixed(2)} stress={a.stress.dscr.toFixed(2)} hint={METRIC_HINTS.dscr} />
+          <StressRow
+            label="Cash-on-Cash"
+            base={`${a.base.cashOnCashPercent.toFixed(1)}%`}
+            stress={`${a.stress.cashOnCashPercent.toFixed(1)}%`}
+            hint={METRIC_HINTS.cashOnCash}
+          />
         </tbody>
       </table>
     </Panel>

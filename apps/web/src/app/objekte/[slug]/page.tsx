@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Panel, Icon, ScoreDialLarge, MapLink, Chip } from "@landfinder/ui";
+import { Panel, Icon, ScoreDialLarge, MapLink, Chip, InfoHint } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { demoObjekte, formatChf } from "@/lib/demo-data";
+import { METRIC_HINTS } from "@/lib/metricHints";
 import { Metric, StressRow } from "@/components/objekte/MetricPrimitives";
 import { LiveChamScoreDials, LiveChamMetricGrid, LiveChamStressTable, LiveChamAssumptions } from "@/components/objekte/LiveChamAnalysis";
 
@@ -52,14 +53,14 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
                 <>
                   <div className="scorewrap">
                     <ScoreDialLarge value={objekt.score} tone={objekt.scoreTon} />
-                    <div className="lbl">Score</div>
+                    <div className="lbl" title={METRIC_HINTS.score}>Score</div>
                   </div>
                   <div className="scorewrap">
                     <ScoreDialLarge value={objekt.vertrauen} tone="accent" />
-                    <div className="lbl">Vertrauen</div>
+                    <div className="lbl" title={METRIC_HINTS.vertrauen}>Vertrauen</div>
                   </div>
                   <Chip tone={objekt.empfKlasse === "A" ? "good" : objekt.empfKlasse === "B" ? "accent" : "warn"}>
-                    {objekt.empfWort}
+                    <span title={METRIC_HINTS.empfehlung}>{objekt.empfWort}</span>
                   </Chip>
                 </>
               )}
@@ -71,20 +72,21 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
               <LiveChamMetricGrid />
             ) : (
               <>
-                <Metric l="Angebotspreis" v={`CHF ${formatChf(objekt.preisChf)}`} sub={`CHF ${formatChf(objekt.preisProM2)} / m² Land`} />
-                <Metric l="Grundstücksfläche" v={`${formatChf(objekt.flaecheM2)} m²`} sub={v?.zone ?? "Zone unbestätigt"} />
+                <Metric l="Angebotspreis" v={`CHF ${formatChf(objekt.preisChf)}`} sub={`CHF ${formatChf(objekt.preisProM2)} / m² Land`} hint={METRIC_HINTS.angebotspreis} />
+                <Metric l="Grundstücksfläche" v={`${formatChf(objekt.flaecheM2)} m²`} sub={v?.zone ?? "Zone unbestätigt"} hint={METRIC_HINTS.grundstuecksflaeche} />
                 {v ? (
                   <>
-                    <Metric l="Geschätzte NRA" v={`${formatChf(v.nraM2)} m²`} sub={<>Verifikation <span className="badge-verify">{v.nraVerifikation}</span></>} />
-                    <Metric l="Gesamtinvestition" v={`CHF ${formatChf(v.gesamtinvestitionChf)}`} sub="Base Case" />
-                    <Metric l="Eigenkapitalbedarf" v={`CHF ${formatChf(v.eigenkapitalbedarfChf)}`} sub={`LTC ${v.ltcProzent}%`} />
-                    <Metric l="Yield on Cost" v={`${objekt.yieldOnCost}%`} sub="Ziel ≥ 4.2%" valueColor="var(--good)" />
-                    <Metric l="DSCR (Base)" v={v.dscrBase.toFixed(2)} sub={`Stress: ${v.dscrStress.toFixed(2)}`} />
+                    <Metric l="Geschätzte NRA" v={`${formatChf(v.nraM2)} m²`} sub={<>Verifikation <span className="badge-verify">{v.nraVerifikation}</span></>} hint={METRIC_HINTS.nra} />
+                    <Metric l="Gesamtinvestition" v={`CHF ${formatChf(v.gesamtinvestitionChf)}`} sub="Base Case" hint={METRIC_HINTS.gesamtinvestition} />
+                    <Metric l="Eigenkapitalbedarf" v={`CHF ${formatChf(v.eigenkapitalbedarfChf)}`} sub={`LTC ${v.ltcProzent}%`} hint={METRIC_HINTS.eigenkapitalbedarf} />
+                    <Metric l="Yield on Cost" v={`${objekt.yieldOnCost}%`} sub="Ziel ≥ 4.2%" valueColor="var(--good)" hint={METRIC_HINTS.yieldOnCost} />
+                    <Metric l="DSCR (Base)" v={v.dscrBase.toFixed(2)} sub={`Stress: ${v.dscrStress.toFixed(2)}`} hint={METRIC_HINTS.dscr} />
                     <Metric
                       l="Residualwert"
                       v={`CHF ${formatChf(v.residualwertChf)}`}
                       sub={`+CHF ${formatChf(v.residualwertDiffChf)} · +${v.residualwertDiffProzent}% ggü. Angebot`}
                       subColor="var(--good)"
+                      hint={METRIC_HINTS.residualwert}
                     />
                   </>
                 ) : (
@@ -143,29 +145,33 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
                       </tr>
                     </thead>
                     <tbody>
-                      <StressRow label="Nettomiete CHF/m²/Mt." base={v.base.nettomiete} stress={v.stress.nettomiete} />
-                      <StressRow label="Baukosten/m² NRA" base={v.base.baukosten} stress={v.stress.baukosten} />
-                      <StressRow label="Zinssatz" base={v.base.zinssatz} stress={v.stress.zinssatz} />
-                      <StressRow label="DSCR" base={v.base.dscr} stress={v.stress.dscr} />
-                      <StressRow label="Cash-on-Cash" base={v.base.cashOnCash} stress={v.stress.cashOnCash} />
+                      <StressRow label="Nettomiete CHF/m²/Mt." base={v.base.nettomiete} stress={v.stress.nettomiete} hint={METRIC_HINTS.nettomiete} />
+                      <StressRow label="Baukosten/m² NRA" base={v.base.baukosten} stress={v.stress.baukosten} hint={METRIC_HINTS.baukostenM2} />
+                      <StressRow label="Zinssatz" base={v.base.zinssatz} stress={v.stress.zinssatz} hint={METRIC_HINTS.zinssatz} />
+                      <StressRow label="DSCR" base={v.base.dscr} stress={v.stress.dscr} hint={METRIC_HINTS.dscr} />
+                      <StressRow label="Cash-on-Cash" base={v.base.cashOnCash} stress={v.stress.cashOnCash} hint={METRIC_HINTS.cashOnCash} />
                     </tbody>
                   </table>
                 </Panel>
               )}
               <Panel style={{ padding: "1.2rem 1.3rem" }}>
                 <div className="sectionhead">
-                  <h2>Baupotenzial</h2>
+                  <h2>
+                    Baupotenzial <InfoHint text={METRIC_HINTS.baupotenzialMethode} />
+                  </h2>
                 </div>
                 <div style={{ display: "flex", gap: ".8rem", alignItems: "flex-start", marginBottom: ".9rem" }}>
                   <Icon name="tri" width={22} style={{ color: "var(--accent)" }} />
                   <div style={{ fontSize: ".8125rem", color: "var(--ink-soft)" }}>
                     Methode: {v.baupotenzialMethode}
                     <br />
-                    Verifikation: <span className="badge-verify">{v.baupotenzialVerifikation}</span>
+                    Verifikation: <span className="badge-verify" title={METRIC_HINTS.verifikation}>{v.baupotenzialVerifikation}</span>
                   </div>
                 </div>
                 <div className="sectionhead" style={{ marginTop: "1rem" }}>
-                  <h2 style={{ fontSize: ".85rem" }}>Vergleich Kanton {objekt.kanton}</h2>
+                  <h2 style={{ fontSize: ".85rem" }}>
+                    Vergleich Kanton {objekt.kanton} <InfoHint text={METRIC_HINTS.vergleichKanton} />
+                  </h2>
                 </div>
                 <div className="compare-strip" style={{ padding: 0, marginTop: ".3rem" }}>
                   <span className="big">

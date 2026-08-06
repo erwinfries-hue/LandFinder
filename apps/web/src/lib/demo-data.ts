@@ -87,17 +87,17 @@ export const demoObjekte: Objekt[] = [
       residualwertChf: 3_780_000,
       residualwertDiffChf: 330_000,
       residualwertDiffProzent: 9.6,
+      // Bewusst ohne konkrete Zahlen (Residualwert-%, DSCR-Wert etc.) — diese werden
+      // jetzt live berechnet (siehe LiveChamAnalysis.tsx) und würden hier sonst bei
+      // jeder Annahmenänderung veralten. Qualitative Punkte bleiben stabil.
       positives: [
         "ÖV-Güteklasse B, 6 Min. zur S-Bahn Cham",
         "Leerstand Gemeinde 0.9 % — deutlich unter Kantonsschnitt",
         "Zone W3 amtlich bestätigt, Ausnützung 0.6 verifiziert (Stufe B)",
-        "Residualwert 9.6 % über Angebotspreis",
-        "DSCR Base 1.32 — komfortabler Puffer",
       ],
       negatives: [
         "Baukosten nur Inseratsangabe, extern noch nicht bestätigt",
         "Zufahrt über gemeinsames Erschliessungsrecht, ÖREB ausstehend",
-        "Stress-Case: DSCR sinkt auf 1.04",
         "Nachbarparzelle in Planungszone — mögliche Bauverzögerung",
         "Wüest-Mietvergleich für Cham noch nicht hinterlegt",
       ],
