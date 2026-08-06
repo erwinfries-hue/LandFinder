@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { Panel, Icon, ScoreDialLarge, MapLink, Chip } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { demoObjekte, formatChf } from "@/lib/demo-data";
+import { Metric, StressRow } from "@/components/objekte/MetricPrimitives";
+import { LiveChamScoreDials, LiveChamMetricGrid, LiveChamStressTable, LiveChamAssumptions } from "@/components/objekte/LiveChamAnalysis";
+
+const LIVE_WIRED_SLUGS = ["cham-chamerstrasse-2214"];
 
 export function generateStaticParams() {
   return demoObjekte.map((o) => ({ slug: o.slug }));
@@ -22,6 +25,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
 
   const v = objekt.vertiefung;
   const adresseVoll = `${objekt.adresse}, ${objekt.plz} ${objekt.ort}`;
+  const isLiveWired = LIVE_WIRED_SLUGS.includes(objekt.slug);
 
   return (
     <div className="shell">
@@ -42,39 +46,51 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
               {v ? <p className="lede lede-line">{v.leadSummary}</p> : null}
             </div>
             <div className="det-scores">
-              <div className="scorewrap">
-                <ScoreDialLarge value={objekt.score} tone={objekt.scoreTon} />
-                <div className="lbl">Score</div>
-              </div>
-              <div className="scorewrap">
-                <ScoreDialLarge value={objekt.vertrauen} tone="accent" />
-                <div className="lbl">Vertrauen</div>
-              </div>
-              <Chip tone={objekt.empfKlasse === "A" ? "good" : objekt.empfKlasse === "B" ? "accent" : "warn"}>
-                {objekt.empfWort}
-              </Chip>
+              {isLiveWired ? (
+                <LiveChamScoreDials />
+              ) : (
+                <>
+                  <div className="scorewrap">
+                    <ScoreDialLarge value={objekt.score} tone={objekt.scoreTon} />
+                    <div className="lbl">Score</div>
+                  </div>
+                  <div className="scorewrap">
+                    <ScoreDialLarge value={objekt.vertrauen} tone="accent" />
+                    <div className="lbl">Vertrauen</div>
+                  </div>
+                  <Chip tone={objekt.empfKlasse === "A" ? "good" : objekt.empfKlasse === "B" ? "accent" : "warn"}>
+                    {objekt.empfWort}
+                  </Chip>
+                </>
+              )}
             </div>
           </div>
 
           <div className="metricgrid">
-            <Metric l="Angebotspreis" v={`CHF ${formatChf(objekt.preisChf)}`} sub={`CHF ${formatChf(objekt.preisProM2)} / m² Land`} />
-            <Metric l="Grundstücksfläche" v={`${formatChf(objekt.flaecheM2)} m²`} sub={v?.zone ?? "Zone unbestätigt"} />
-            {v ? (
-              <>
-                <Metric l="Geschätzte NRA" v={`${formatChf(v.nraM2)} m²`} sub={<>Verifikation <span className="badge-verify">{v.nraVerifikation}</span></>} />
-                <Metric l="Gesamtinvestition" v={`CHF ${formatChf(v.gesamtinvestitionChf)}`} sub="Base Case" />
-                <Metric l="Eigenkapitalbedarf" v={`CHF ${formatChf(v.eigenkapitalbedarfChf)}`} sub={`LTC ${v.ltcProzent}%`} />
-                <Metric l="Yield on Cost" v={`${objekt.yieldOnCost}%`} sub="Ziel ≥ 4.2%" valueColor="var(--good)" />
-                <Metric l="DSCR (Base)" v={v.dscrBase.toFixed(2)} sub={`Stress: ${v.dscrStress.toFixed(2)}`} />
-                <Metric
-                  l="Residualwert"
-                  v={`CHF ${formatChf(v.residualwertChf)}`}
-                  sub={`+CHF ${formatChf(v.residualwertDiffChf)} · +${v.residualwertDiffProzent}% ggü. Angebot`}
-                  subColor="var(--good)"
-                />
-              </>
+            {isLiveWired ? (
+              <LiveChamMetricGrid />
             ) : (
-              <Metric l="Vertiefung" v="Ausstehend" sub="Stufe 2 noch nicht ausgeführt" />
+              <>
+                <Metric l="Angebotspreis" v={`CHF ${formatChf(objekt.preisChf)}`} sub={`CHF ${formatChf(objekt.preisProM2)} / m² Land`} />
+                <Metric l="Grundstücksfläche" v={`${formatChf(objekt.flaecheM2)} m²`} sub={v?.zone ?? "Zone unbestätigt"} />
+                {v ? (
+                  <>
+                    <Metric l="Geschätzte NRA" v={`${formatChf(v.nraM2)} m²`} sub={<>Verifikation <span className="badge-verify">{v.nraVerifikation}</span></>} />
+                    <Metric l="Gesamtinvestition" v={`CHF ${formatChf(v.gesamtinvestitionChf)}`} sub="Base Case" />
+                    <Metric l="Eigenkapitalbedarf" v={`CHF ${formatChf(v.eigenkapitalbedarfChf)}`} sub={`LTC ${v.ltcProzent}%`} />
+                    <Metric l="Yield on Cost" v={`${objekt.yieldOnCost}%`} sub="Ziel ≥ 4.2%" valueColor="var(--good)" />
+                    <Metric l="DSCR (Base)" v={v.dscrBase.toFixed(2)} sub={`Stress: ${v.dscrStress.toFixed(2)}`} />
+                    <Metric
+                      l="Residualwert"
+                      v={`CHF ${formatChf(v.residualwertChf)}`}
+                      sub={`+CHF ${formatChf(v.residualwertDiffChf)} · +${v.residualwertDiffProzent}% ggü. Angebot`}
+                      subColor="var(--good)"
+                    />
+                  </>
+                ) : (
+                  <Metric l="Vertiefung" v="Ausstehend" sub="Stufe 2 noch nicht ausgeführt" />
+                )}
+              </>
             )}
           </div>
         </Panel>
@@ -111,27 +127,31 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
             </div>
 
             <div className="subgrid">
-              <Panel style={{ padding: "1.2rem 1.3rem" }}>
-                <div className="sectionhead">
-                  <h2>Base &amp; Stress</h2>
-                </div>
-                <table className="stresstable">
-                  <thead>
-                    <tr>
-                      <th />
-                      <th className="num">Base</th>
-                      <th className="num">Stress</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <StressRow label="Nettomiete CHF/m²/Mt." base={v.base.nettomiete} stress={v.stress.nettomiete} />
-                    <StressRow label="Baukosten/m² NRA" base={v.base.baukosten} stress={v.stress.baukosten} />
-                    <StressRow label="Zinssatz" base={v.base.zinssatz} stress={v.stress.zinssatz} />
-                    <StressRow label="DSCR" base={v.base.dscr} stress={v.stress.dscr} />
-                    <StressRow label="Cash-on-Cash" base={v.base.cashOnCash} stress={v.stress.cashOnCash} />
-                  </tbody>
-                </table>
-              </Panel>
+              {isLiveWired ? (
+                <LiveChamStressTable />
+              ) : (
+                <Panel style={{ padding: "1.2rem 1.3rem" }}>
+                  <div className="sectionhead">
+                    <h2>Base &amp; Stress</h2>
+                  </div>
+                  <table className="stresstable">
+                    <thead>
+                      <tr>
+                        <th />
+                        <th className="num">Base</th>
+                        <th className="num">Stress</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <StressRow label="Nettomiete CHF/m²/Mt." base={v.base.nettomiete} stress={v.stress.nettomiete} />
+                      <StressRow label="Baukosten/m² NRA" base={v.base.baukosten} stress={v.stress.baukosten} />
+                      <StressRow label="Zinssatz" base={v.base.zinssatz} stress={v.stress.zinssatz} />
+                      <StressRow label="DSCR" base={v.base.dscr} stress={v.stress.dscr} />
+                      <StressRow label="Cash-on-Cash" base={v.base.cashOnCash} stress={v.stress.cashOnCash} />
+                    </tbody>
+                  </table>
+                </Panel>
+              )}
               <Panel style={{ padding: "1.2rem 1.3rem" }}>
                 <div className="sectionhead">
                   <h2>Baupotenzial</h2>
@@ -161,6 +181,8 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
               </Panel>
             </div>
 
+            {isLiveWired && <LiveChamAssumptions />}
+
             <Panel className="provenance" style={{ padding: "1rem 1.3rem" }}>
               <span className="eyebrow">Herkunft der Datenpunkte</span>
               {v.provenance.map((p) => (
@@ -181,43 +203,5 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
         )}
       </main>
     </div>
-  );
-}
-
-function Metric({
-  l,
-  v,
-  sub,
-  valueColor,
-  subColor,
-}: {
-  l: string;
-  v: string;
-  sub?: ReactNode;
-  valueColor?: string;
-  subColor?: string;
-}) {
-  return (
-    <div className="metric">
-      <div className="l">{l}</div>
-      <div className="v" style={valueColor ? { color: valueColor } : undefined}>
-        {v}
-      </div>
-      {sub ? (
-        <div className="sub" style={subColor ? { color: subColor } : undefined}>
-          {sub}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function StressRow({ label, base, stress }: { label: string; base: string; stress: string }) {
-  return (
-    <tr>
-      <td>{label}</td>
-      <td className="num mono">{base}</td>
-      <td className="num mono">{stress}</td>
-    </tr>
   );
 }
