@@ -2,16 +2,16 @@
 
 Gebündelte Fragen, die kostenrelevant, rechtlich heikel oder scope-verändernd sind und daher nicht ohne Rückmeldung des Auftraggebers entschieden werden (siehe Masterprompt, Abschnitt 30, „Arbeitsweise“). Diese Liste wird laufend aktualisiert.
 
-## A. Portal-Scraping (Homegate, ImmoScout24, newhome) — entschieden, Empfangsseite gebaut
-Entscheid (2026-08-06): **Tier 1 — Suchabo-/Alert-E-Mails**, kein HTML-Scraping und kein systematisches Crawling der Portale. Basis: `docs/PORTAL_ACCESS_REVIEW.md`. Zustellweg zuletzt verfeinert: statt IMAP-Polling eines gmx.ch-Postfachs nutzen wir einen **Postmark-Inbound-Webhook** (push statt poll, kein IMAP-Passwort nötig). Empfängerseite ist bereits gebaut und getestet: `apps/web/src/app/api/inbound/portal-alerts/route.ts` nimmt Postmarks Webhook-Payload entgegen, `apps/web/src/lib/inboundMail.ts` filtert die enthaltenen Inserat-Links (nur `homegate.ch`/`immoscout24.ch`/`newhome.ch`, andere Links wie Abmelden/Logo werden ignoriert). Optionaler Schutz per HTTP-Basic-Auth über `INBOUND_WEBHOOK_SECRET` (Format `username:password`, muss mit den Zugangsdaten in der Postmark-Webhook-URL übereinstimmen). Bis Supabase (Punkt C) steht, werden gefundene Links nur geloggt, nicht gespeichert. **Nächste Schritte bei dir:** Postmark-Konto + Server anlegen, Webhook-URL eintragen, die drei Suchabos mit der resultierenden Adresse registrieren. **Kein Scraping-Code der Portale selbst läuft vor expliziter Freigabe** — bleibt so, unabhängig von diesem Entscheid.
+## A. Portal-Scraping (Homegate, ImmoScout24, newhome) — Discovery live, Persistenz offen
+Entscheid (2026-08-06): **Tier 1 — Suchabo-/Alert-E-Mails**, kein HTML-Scraping und kein systematisches Crawling der Portale. Basis: `docs/PORTAL_ACCESS_REVIEW.md`. Zustellweg: **Postmark-Inbound-Webhook** (push statt poll). Empfängerseite gebaut und Ende-zu-Ende verifiziert: `apps/web/src/app/api/inbound/portal-alerts/route.ts` (Postmark-Payload) + `apps/web/src/lib/inboundMail.ts` (filtert Inserat-Links auf `homegate.ch`/`immoscout24.ch`/`newhome.ch`). **Alle drei Suchabos sind seit 2026-08-06 live** (Zieladresse: die Postmark-Inbound-Adresse des Servers "LandFinder"), bestätigt per echtem Test-Traffic in den Vercel-Logs (`POST /api/inbound/portal-alerts`, Status 200). Optionaler Schutz per HTTP-Basic-Auth über `INBOUND_WEBHOOK_SECRET`. **Offen:** ohne Supabase (Punkt C) werden ankommende Treffer nur in den Vercel-Function-Logs sichtbar, nicht dauerhaft gespeichert — Logs haben begrenzte Aufbewahrung, echte Treffer könnten so verloren gehen, bis Persistenz steht. **Kein Scraping-Code der Portale selbst läuft vor expliziter Freigabe.**
 
 ## B. LLM-Provider — offen
 Empfehlung: Anthropic API (Claude), da bereits im Ökosystem vorhanden. Benötigt: Anthropic-API-Key als Secret. Bis zur Klärung läuft alles im Demo-Modus gegen die Mock-LLM-Implementierung.
 
 ## C. Infrastruktur-Accounts — Hosting erledigt, Rest offen
 - ~~Hosting für `apps/web`~~ **erledigt**: Vercel-Projekt `land-finder-web` unter deinem bestehenden Account (Team AXIA4) eingerichtet, Production Branch `claude/landfinder-mvp-projekt-l9baa1`, feste URL `land-finder-web.vercel.app`, automatisches Deployment bei jedem Push.
-- Supabase-Projekt (EU-Region), Free Tier für den MVP ausreichend — offen
-- ~~E-Mail-Zustellweg für Suchabo-Mails~~ **entschieden** (siehe Punkt A): Postmark-Inbound-Webhook statt IMAP-Postfach — Postmark-Konto/Server-Einrichtung steht noch aus
+- Supabase-Projekt (EU-Region), Free Tier für den MVP ausreichend — **offen, jetzt dringend** (siehe Punkt A: ohne Persistenz gehen ankommende Suchabo-Treffer nach Log-Ablauf verloren)
+- ~~E-Mail-Zustellweg für Suchabo-Mails~~ **erledigt** (siehe Punkt A): Postmark-Inbound-Webhook live, alle drei Suchabos registriert
 - SMTP/Versanddienst für ausgehende Alerts (Empfehlung: Resend) — offen
 
 ## D. Nutzerkreis — offen
