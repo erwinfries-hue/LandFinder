@@ -63,6 +63,11 @@ export function IconSprite() {
           <path d="M15 3v4h4" />
           <path d="M9 12h7M9 15.5h7M9 8.5h3" />
         </symbol>
+        <symbol id="i-extlink" viewBox="0 0 24 24">
+          <path d="M9 5H5a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-4" />
+          <path d="M14 4h6v6" />
+          <path d="M20 4 10.5 13.5" />
+        </symbol>
       </defs>
     </svg>
   );
@@ -80,7 +85,8 @@ export type IconName =
   | "alert"
   | "grid"
   | "scale"
-  | "doc";
+  | "doc"
+  | "extlink";
 
 export function Icon({
   name,

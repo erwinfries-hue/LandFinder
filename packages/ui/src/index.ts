@@ -5,6 +5,7 @@ export { ScoreDial, ScoreDialLarge, type DialTone } from "./ScoreDial";
 export { EmpfehlungBadge, type EmpfehlungKlasse } from "./EmpfehlungBadge";
 export { Cell2 } from "./Cell2";
 export { MapLink } from "./MapLink";
+export { ListingLink } from "./ListingLink";
 export { Ticker, type TickerItem } from "./Ticker";
 export { SortableTable, type Column } from "./SortableTable";
 export { InfoHint } from "./InfoHint";
