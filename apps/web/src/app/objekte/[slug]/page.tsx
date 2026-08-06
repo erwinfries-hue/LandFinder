@@ -63,10 +63,12 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
                       Vertrauen <InfoHint text={METRIC_HINTS.vertrauen} />
                     </div>
                   </div>
-                  <Chip tone={objekt.empfKlasse === "A" ? "good" : objekt.empfKlasse === "B" ? "accent" : "warn"}>
-                    {objekt.empfWort}
-                  </Chip>
-                  <InfoHint text={METRIC_HINTS.empfehlung} />
+                  <div className="empf-wrap">
+                    <Chip tone={objekt.empfKlasse === "A" ? "good" : objekt.empfKlasse === "B" ? "accent" : "warn"}>
+                      {objekt.empfWort}
+                    </Chip>
+                    <InfoHint text={METRIC_HINTS.empfehlung} />
+                  </div>
                 </>
               )}
             </div>

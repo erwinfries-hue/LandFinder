@@ -52,8 +52,10 @@ export function LiveChamScoreDials() {
           Vertrauen (live) <InfoHint text={METRIC_HINTS.vertrauen} />
         </div>
       </div>
-      <Chip tone={EMPFEHLUNG_TONE[a.empfehlung]}>{EMPFEHLUNG_LABEL[a.empfehlung]}</Chip>
-      <InfoHint text={METRIC_HINTS.empfehlung} />
+      <div className="empf-wrap">
+        <Chip tone={EMPFEHLUNG_TONE[a.empfehlung]}>{EMPFEHLUNG_LABEL[a.empfehlung]}</Chip>
+        <InfoHint text={METRIC_HINTS.empfehlung} />
+      </div>
     </>
   );
 }

@@ -906,6 +906,11 @@ table.sortable th {
   gap: 1.4rem;
   align-items: center;
 }
+.empf-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
 .scorewrap {
   display: flex;
   flex-direction: column;
@@ -1067,8 +1072,10 @@ table.sortable th {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 40;
     background: var(--surface);
     border-bottom: 1px solid var(--line);
@@ -1078,6 +1085,21 @@ table.sortable th {
     letter-spacing: 0.04em;
     color: var(--ink-soft);
     cursor: pointer;
+  }
+  /* .mobilenav-burger ist jetzt fixed statt sticky (bleibt garantiert oben, unabhängig
+     vom Scroll-Kontext) — dadurch verlässt es den normalen Fluss, .main braucht also
+     eigenen Abstand, damit der Inhalt nicht darunter startet. */
+  .main {
+    padding-top: 5rem;
+  }
+  .empf-wrap {
+    flex: 1 0 100%;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+  .det-scores {
+    flex-wrap: wrap;
+    justify-content: center;
   }
   .side {
     display: none;
