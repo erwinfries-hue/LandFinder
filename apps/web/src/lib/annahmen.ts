@@ -1,5 +1,6 @@
 import { BAUPOTENZIAL_PARAMETERS, STRESS_CASE_PARAMETERS } from "@landfinder/financial-engine";
 import { SCORE_WEIGHTS, SCORE_BANDS, RISK_DEDUCTIONS, CONFIDENCE_WEIGHTS, EMPFEHLUNG_PARAMETERS } from "@landfinder/scoring-engine";
+import { createRemoteSyncedStore } from "./remoteStore";
 
 export interface AnnahmeGroup {
   id: string;
@@ -61,46 +62,18 @@ export const ANNAHME_GROUPS: AnnahmeGroup[] = [
 
 export type AnnahmenOverrides = Record<string, number>;
 
-const STORAGE_KEY = "landfinder.annahmenOverrides.v1";
+/** Wie `searchProfile.ts`: Store über `localStorage` + Supabase, siehe `lib/remoteStore.ts`. */
+const store = createRemoteSyncedStore<AnnahmenOverrides>({
+  storageKey: "landfinder.annahmenOverrides.v1",
+  apiId: "annahmen-overrides",
+  defaultValue: {},
+  merge: (partial) => partial as AnnahmenOverrides,
+});
 
-/** Wie `searchProfile.ts`: externer Store über `localStorage`, angebunden via `useSyncExternalStore`. */
-let cachedRaw: string | null = null;
-let cachedOverrides: AnnahmenOverrides = {};
-const listeners = new Set<() => void>();
-
-function parse(raw: string | null): AnnahmenOverrides {
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw) as AnnahmenOverrides;
-  } catch {
-    return {};
-  }
-}
-
-export function getAnnahmenSnapshot(): AnnahmenOverrides {
-  const raw = typeof window === "undefined" ? null : window.localStorage.getItem(STORAGE_KEY);
-  if (raw !== cachedRaw) {
-    cachedRaw = raw;
-    cachedOverrides = parse(raw);
-  }
-  return cachedOverrides;
-}
-
-export function getAnnahmenServerSnapshot(): AnnahmenOverrides {
-  return {};
-}
-
-export function subscribeAnnahmen(callback: () => void): () => void {
-  listeners.add(callback);
-  return () => listeners.delete(callback);
-}
-
-export function setAnnahmenOverrides(overrides: AnnahmenOverrides): void {
-  cachedRaw = JSON.stringify(overrides);
-  cachedOverrides = overrides;
-  window.localStorage.setItem(STORAGE_KEY, cachedRaw);
-  listeners.forEach((l) => l());
-}
+export const getAnnahmenSnapshot = store.getSnapshot;
+export const getAnnahmenServerSnapshot = store.getServerSnapshot;
+export const subscribeAnnahmen = store.subscribe;
+export const setAnnahmenOverrides = store.setValue;
 
 export function overrideKey(groupId: string, paramKey: string): string {
   return `${groupId}.${paramKey}`;

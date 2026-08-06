@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "@landfinder/domain": "0.1.0",
     "@landfinder/financial-engine": "0.1.0",
     "@landfinder/scoring-engine": "0.1.0",

@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { parsePostmarkInboundPayload, type PostmarkInboundPayload } from "@/lib/inboundMail";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { processListingLinks } from "@/lib/processListingLinks";
+
+export const maxDuration = 30;
 
 /**
  * Empfängt Suchabo-Mails (Homegate/ImmoScout24/newhome), die Postmark Inbound an diese
@@ -12,6 +15,10 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer";
  * Solange die Supabase-Umgebungsvariablen fehlen (z.B. lokal ohne .env), wird nur
  * geloggt statt gespeichert — kein harter Fehler, damit lokale Entwicklung/Tests ohne
  * Datenbank weiterlaufen.
+ *
+ * Stufe 2 (Einzelseiten-Abruf + Extraktion, `processListingLinks`) läuft über
+ * `after()`, damit Postmark sofort eine schnelle Antwort bekommt, statt auf externe
+ * Seitenabrufe/LLM-Aufrufe warten zu müssen — reduziert unnötige Retry-Versuche.
  */
 export async function POST(request: Request): Promise<Response> {
   // Erwartetes Format: "username:password" — dieselben Zugangsdaten, die in der
@@ -52,6 +59,16 @@ export async function POST(request: Request): Promise<Response> {
     }
   } else {
     console.warn("[inbound/portal-alerts] Supabase nicht konfiguriert — nur geloggt, nicht gespeichert");
+  }
+
+  if (supabase && parsed.listingLinks.length > 0) {
+    after(async () => {
+      try {
+        await processListingLinks(supabase, parsed.listingLinks);
+      } catch (err) {
+        console.error("[inbound/portal-alerts] processListingLinks fehlgeschlagen", err);
+      }
+    });
   }
 
   return NextResponse.json(

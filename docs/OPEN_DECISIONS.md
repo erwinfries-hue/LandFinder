@@ -3,16 +3,19 @@
 Gebündelte Fragen, die kostenrelevant, rechtlich heikel oder scope-verändernd sind und daher nicht ohne Rückmeldung des Auftraggebers entschieden werden (siehe Masterprompt, Abschnitt 30, „Arbeitsweise“). Diese Liste wird laufend aktualisiert.
 
 ## A. Portal-Scraping (Homegate, ImmoScout24, newhome) — Discovery + Persistenz live
-Entscheid (2026-08-06): **Tier 1 — Suchabo-/Alert-E-Mails**, kein HTML-Scraping und kein systematisches Crawling der Portale. Basis: `docs/PORTAL_ACCESS_REVIEW.md`. Zustellweg: **Postmark-Inbound-Webhook** (push statt poll). Vollständige Kette Ende-zu-Ende mit echtem Traffic verifiziert: Portal-Suchabo → Postmark (`docs/`-Server "LandFinder") → `apps/web/src/app/api/inbound/portal-alerts/route.ts` (parst Payload, filtert Inserat-Links via `apps/web/src/lib/inboundMail.ts` auf `homegate.ch`/`immoscout24.ch`/`newhome.ch`) → Supabase-Tabelle `inbound_alerts` (Migration `supabase/migrations/0001_inbound_alerts.sql`, RLS aktiv ohne Policies, nur `service_role` schreibt/liest). Erste echte Zeile am 2026-08-06 im Table Editor bestätigt. Optionaler Schutz per HTTP-Basic-Auth über `INBOUND_WEBHOOK_SECRET`. Bei Datenbank-Fehlern liefert die Route bewusst HTTP 500, damit Postmarks Retry-Mechanismus greift statt Treffer stillschweigend zu verlieren. **Offen:** Stufe 2 (automatisierter Einzelseiten-Abruf je Link + LLM-Extraktion der Felder) ist noch nicht gebaut — aktuell landen nur Rohdaten (Absender, Betreff, Links) in der Tabelle, noch keine strukturierten `listings`. **Kein Scraping-Code der Portale selbst läuft vor expliziter Freigabe.**
+Entscheid (2026-08-06): **Tier 1 — Suchabo-/Alert-E-Mails**, kein HTML-Scraping und kein systematisches Crawling der Portale. Basis: `docs/PORTAL_ACCESS_REVIEW.md`. Zustellweg: **Postmark-Inbound-Webhook** (push statt poll). Vollständige Kette Ende-zu-Ende mit echtem Traffic verifiziert: Portal-Suchabo → Postmark (`docs/`-Server "LandFinder") → `apps/web/src/app/api/inbound/portal-alerts/route.ts` (parst Payload, filtert Inserat-Links via `apps/web/src/lib/inboundMail.ts` auf `homegate.ch`/`immoscout24.ch`/`newhome.ch`) → Supabase-Tabelle `inbound_alerts` (Migration `supabase/migrations/0001_inbound_alerts.sql`, RLS aktiv ohne Policies, nur `service_role` schreibt/liest). Erste echte Zeile am 2026-08-06 im Table Editor bestätigt. Optionaler Schutz per HTTP-Basic-Auth über `INBOUND_WEBHOOK_SECRET`. Bei Datenbank-Fehlern liefert die Route bewusst HTTP 500, damit Postmarks Retry-Mechanismus greift statt Treffer stillschweigend zu verlieren. **Kein Scraping-Code der Portale selbst läuft vor expliziter Freigabe.**
 
-## B. LLM-Provider — offen
-Empfehlung: Anthropic API (Claude), da bereits im Ökosystem vorhanden. Benötigt: Anthropic-API-Key als Secret. Bis zur Klärung läuft alles im Demo-Modus gegen die Mock-LLM-Implementierung.
+**Stufe 2 ist jetzt gebaut** (2026-08-06, mit deiner Freigabe): `apps/web/src/lib/fetchListingPage.ts` ruft gezielt genau die eine Inserat-URL ab, die uns die Suchabo-Mail bereits genannt hat (kein Crawlen/Suchen). `apps/web/src/lib/listingExtraction.ts` extrahiert daraus Felder — läuft im Mock-Modus (regelbasierte Heuristik, Konfidenz 25, Methode `MOCK_HEURISTIC`) bis `ANTHROPIC_API_KEY` gesetzt ist (Punkt B), danach automatisch mit echter Claude-Extraktion (Methode `ANTHROPIC`), ohne Code-Änderung. Ergebnis landet in der neuen Tabelle `listings` (Migration `0004_listings.sql`). Läuft über Next.js' `after()`, damit Postmark sofort eine Antwort bekommt statt auf externe Abrufe zu warten. Bewusst auf 2 Links pro Mail begrenzt (Vercel-Hobby-Zeitbudget: 10 Sekunden hartes Limit) — weitere Links bleiben unverarbeitet, aber sichtbar in `inbound_alerts.listing_links`. **Noch nicht in dieser Session getestet:** ob die Portale den Abruf durchlassen oder blockieren (aus der Sandbox heraus nicht prüfbar, nur in Produktion) — bei Blockade landet der Link mit `ingestion_status: 'BLOCKED'` in `listings`, kein Absturz.
+
+## B. LLM-Provider — offen, Code bereit
+Empfehlung: Anthropic API (Claude), da bereits im Ökosystem vorhanden. Benötigt: Anthropic-API-Key als Secret (`ANTHROPIC_API_KEY` in Vercel). Die Extraktion (Punkt A, Stufe 2) ist bereits vollständig dagegen gebaut — bis der Key gesetzt ist, läuft alles im Demo-Modus gegen die Mock-LLM-Implementierung (Heuristik statt echtem LLM).
 
 ## C. Infrastruktur-Accounts — Hosting erledigt, Rest offen
 - ~~Hosting für `apps/web`~~ **erledigt**: Vercel-Projekt `land-finder-web` unter deinem bestehenden Account (Team AXIA4) eingerichtet, Production Branch `claude/landfinder-mvp-projekt-l9baa1`, feste URL `land-finder-web.vercel.app`, automatisches Deployment bei jedem Push.
 - ~~Supabase-Projekt~~ **erledigt**: Projekt "LandFinder" (Region Zürich) unter einem separaten, neu angelegten Account (Free Tier), da die bestehenden tekmesis-/ponderio-Projekte das Account-Limit von 2 Free-Projekten bereits ausschöpften — bewusst getrennter Account, da LandFinder als eher kurzlebiges Projekt eingeschätzt wird. Zugangsdaten als Vercel-Environment-Variablen hinterlegt (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`).
 - ~~E-Mail-Zustellweg für Suchabo-Mails~~ **erledigt** (siehe Punkt A): Postmark-Inbound-Webhook live, alle drei Suchabos registriert
 - SMTP/Versanddienst für ausgehende Alerts (Empfehlung: Resend) — offen
+- ~~Anthropic-API-Key~~ siehe Punkt B — Code ist bereit, Key fehlt noch
 
 ## D. Nutzerkreis — offen
 Private Web-App mit Login, aber einem globalen Suchprofil. Annahme bis auf Widerruf: 2–5 bekannte Nutzer mit gleichberechtigtem Zugriff, Einladung nur manuell durch den Auftraggeber (kein Self-Signup).
@@ -29,8 +32,13 @@ erscheinen).
 ## F. Echte Geschäftsannahmen im Suchprofil — Wizard steht, Werte offen
 Der Suchprofil-Wizard (`/suchprofil`) ist implementiert: alle zwölf Bereiche aus
 Abschnitt 6, vorbelegt mit Schweizer Marktannahmen (`apps/web/src/lib/searchProfile.ts`,
-klar als solche im UI gekennzeichnet), lokal im Browser gespeichert (noch keine
-Datenbank). Zusätzlich gibt es einen 13. Reiter "Annahmen & Formeln", der alle
+klar als solche im UI gekennzeichnet). **Jetzt geräteübergreifend persistiert**
+(2026-08-06): Suchprofil und Annahmen-Register-Overrides liegen in der
+Supabase-Tabelle `app_state` (Migration `0002_app_state.sql`, über
+`/api/state/[id]`), `localStorage` bleibt als schnelle lokale Kopie/Fallback,
+falls Supabase kurz nicht erreichbar ist (siehe `apps/web/src/lib/remoteStore.ts`).
+Kein Login/Nutzerkontext (Punkt D) — ein einziges globales Suchprofil, wie im
+Masterdokument vorgesehen. Zusätzlich gibt es einen 13. Reiter "Annahmen & Formeln", der alle
 Parameter-Registries aus `financial-engine`/`scoring-engine` (71 Werte) direkt
 editierbar macht. Die Startwerte wurden inzwischen gegen die echten Wüest-Partner-Daten
 kalibriert (Budget, Preis/m², Leerstand, Yield-on-Cost) und die Eigennutzungs-

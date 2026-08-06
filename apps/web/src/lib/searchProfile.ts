@@ -1,5 +1,6 @@
 import type { SearchProfile } from "@landfinder/domain";
 import regionsConfig from "../../../../config/regions.json";
+import { createRemoteSyncedStore } from "./remoteStore";
 
 export const AVAILABLE_CANTONS: { code: string; name: string }[] = regionsConfig.cantons.map((c) => ({
   code: c.code,
@@ -146,48 +147,21 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   },
 };
 
-const STORAGE_KEY = "landfinder.searchProfile.v1";
-
 /**
- * Kleiner externer Store über `localStorage`, angebunden via `useSyncExternalStore`
- * (siehe `SuchprofilWizard.tsx`) — nicht über `useEffect`+`setState`, weil das beim
- * initialen Laden zu Hydration-Mismatches führen kann (Server kennt kein
- * `localStorage`) und vom React-Compiler-Lint als Anti-Pattern markiert wird.
+ * Store über `localStorage` + Supabase (via `/api/state/search-profile`), angebunden
+ * via `useSyncExternalStore` (siehe `SuchprofilWizard.tsx`) — nicht über
+ * `useEffect`+`setState`, weil das beim initialen Laden zu Hydration-Mismatches
+ * führen kann (Server kennt kein `localStorage`) und vom React-Compiler-Lint als
+ * Anti-Pattern markiert wird. Details zum Server-Abgleich: `lib/remoteStore.ts`.
  */
-let cachedRaw: string | null = null;
-let cachedProfile: SearchProfile = DEFAULT_SEARCH_PROFILE;
-const listeners = new Set<() => void>();
+const store = createRemoteSyncedStore<SearchProfile>({
+  storageKey: "landfinder.searchProfile.v1",
+  apiId: "search-profile",
+  defaultValue: DEFAULT_SEARCH_PROFILE,
+  merge: (partial) => ({ ...DEFAULT_SEARCH_PROFILE, ...(partial as Partial<SearchProfile>) }),
+});
 
-function parse(raw: string | null): SearchProfile {
-  if (!raw) return DEFAULT_SEARCH_PROFILE;
-  try {
-    return { ...DEFAULT_SEARCH_PROFILE, ...(JSON.parse(raw) as Partial<SearchProfile>) };
-  } catch {
-    return DEFAULT_SEARCH_PROFILE;
-  }
-}
-
-export function getSearchProfileSnapshot(): SearchProfile {
-  const raw = typeof window === "undefined" ? null : window.localStorage.getItem(STORAGE_KEY);
-  if (raw !== cachedRaw) {
-    cachedRaw = raw;
-    cachedProfile = parse(raw);
-  }
-  return cachedProfile;
-}
-
-export function getSearchProfileServerSnapshot(): SearchProfile {
-  return DEFAULT_SEARCH_PROFILE;
-}
-
-export function subscribeSearchProfile(callback: () => void): () => void {
-  listeners.add(callback);
-  return () => listeners.delete(callback);
-}
-
-export function setSearchProfile(profile: SearchProfile): void {
-  cachedRaw = JSON.stringify(profile);
-  cachedProfile = profile;
-  window.localStorage.setItem(STORAGE_KEY, cachedRaw);
-  listeners.forEach((l) => l());
-}
+export const getSearchProfileSnapshot = store.getSnapshot;
+export const getSearchProfileServerSnapshot = store.getServerSnapshot;
+export const subscribeSearchProfile = store.subscribe;
+export const setSearchProfile = store.setValue;
