@@ -35,10 +35,19 @@ Parameter-Registries aus `financial-engine`/`scoring-engine` (71 Werte) direkt
 editierbar macht. Die Startwerte wurden inzwischen gegen die echten Wüest-Partner-Daten
 kalibriert (Budget, Preis/m², Leerstand, Yield-on-Cost) und die Eigennutzungs-
 Detailwerte ergänzt. Der zuvor fehlende Hard Gate für den Preis/m²-Deckel im
-Grundstück-Bereich (`PRICE_PER_M2_ABOVE_MAXIMUM`) ist implementiert. Weiterhin offen:
-Dashboard und Objekt-Detailseite rechnen noch mit statischen Demo-Daten
-(`apps/web/src/lib/demo-data.ts`), nicht mit den echten Engines — die eigentliche
-Verdrahtung fehlt noch (siehe Vorschlag für die nächste Session).
+Grundstück-Bereich (`PRICE_PER_M2_ABOVE_MAXIMUM`) ist implementiert.
+
+**Reale Verdrahtung — erster Schritt gemacht:** die Objekt-Detailseite von
+"Chamerstrasse, Cham ZG" rechnet jetzt live mit financial-engine/scoring-engine
+(`apps/web/src/lib/objektAnalysis.ts`), reagiert auf jede Änderung im Suchprofil
+oder Annahmen-Register. Bewusst nur dieses eine Objekt — die anderen 5
+Demo-Objekte haben keine strukturierten Rohdaten und blieben unverändert
+statischer Text, statt erfundene Eingaben zu bekommen. Bekannte Lücke: die
+statischen "Warum attraktiv/riskant"-Stichpunkte für Cham zitieren noch alte,
+frei erfundene Zahlen (z.B. "DSCR Base 1.32"), die von den jetzt live berechneten
+Werten (DSCR 0.84 mit aktuellen Default-Annahmen) abweichen — bewusst nicht
+angefasst, da das eine redaktionelle Entscheidung ist. Weiterhin offen: Dashboard
+und die anderen 5 Objekte rechnen weiterhin mit `apps/web/src/lib/demo-data.ts`.
 
 ## G. Domain / Deployment-Ziel — Vercel-Subdomain aktiv
 Wie angenommen: `land-finder-web.vercel.app` ist die aktive MVP-Adresse (siehe Punkt C). Echte Domain erst auf Wunsch.
