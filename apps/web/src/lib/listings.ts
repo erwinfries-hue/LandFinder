@@ -26,6 +26,9 @@ export interface ListingRow {
   first_seen_at: string;
   last_seen_at: string;
   active: boolean;
+  /** Diagnose des letzten Stufe-2-Abrufversuchs (Migration 0004) — z.B. um ein Portal-Blocking (HTTP 403/429) nachzuvollziehen. */
+  last_fetch_http_status: number | null;
+  last_fetch_at: string | null;
 }
 
 export interface InboundAlertRow {

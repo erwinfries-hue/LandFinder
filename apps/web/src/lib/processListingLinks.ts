@@ -26,9 +26,16 @@ export async function processListingLinks(supabase: SupabaseClient, links: strin
 
     if (fetchResult.status !== "OK") {
       const ingestionStatus = fetchResult.status === "BLOCKED" ? "BLOCKED" : fetchResult.status === "TIMEOUT" ? "TIMEOUT" : "NOT_AVAILABLE";
-      const { error } = await supabase
-        .from("listings")
-        .upsert({ canonical_url: url, source, ingestion_status: ingestionStatus }, { onConflict: "canonical_url" });
+      const { error } = await supabase.from("listings").upsert(
+        {
+          canonical_url: url,
+          source,
+          ingestion_status: ingestionStatus,
+          last_fetch_http_status: fetchResult.httpStatus ?? null,
+          last_fetch_at: new Date().toISOString(),
+        },
+        { onConflict: "canonical_url" },
+      );
       if (error) console.error("[processListingLinks] Upsert (Fehlerfall) fehlgeschlagen", url, error);
       continue;
     }
@@ -49,6 +56,8 @@ export async function processListingLinks(supabase: SupabaseClient, links: strin
         known_zone: extraction.fields.knownZone,
         extraction,
         ingestion_status: ingestionStatus,
+        last_fetch_http_status: fetchResult.httpStatus ?? null,
+        last_fetch_at: new Date().toISOString(),
       },
       { onConflict: "canonical_url" },
     );

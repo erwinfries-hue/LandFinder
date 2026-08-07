@@ -92,6 +92,12 @@ export default async function QuellenDetailPage({ params }: { params: Promise<{ 
             {extractionConfidence !== undefined ? ` · Konfidenz ${extractionConfidence}` : ""} — jeder Wert stammt
             direkt aus dem Original-Inserat, nichts wurde geschätzt oder ergänzt.
           </p>
+          {listing.last_fetch_at ? (
+            <p style={{ color: "var(--ink-faint)", fontSize: ".78rem", margin: "0.6rem 0 0" }}>
+              Letzter Abrufversuch: {formatDateTime(listing.last_fetch_at)}
+              {listing.last_fetch_http_status != null ? ` · HTTP ${listing.last_fetch_http_status}` : " · keine HTTP-Antwort (Timeout/Netzwerkfehler)"}
+            </p>
+          ) : null}
         </Panel>
 
         <p style={{ marginTop: "1.2rem" }}>

@@ -65,12 +65,12 @@ describe("processListingLinks", () => {
   });
 
   it.each([
-    ["BLOCKED", "BLOCKED"],
-    ["TIMEOUT", "TIMEOUT"],
-    ["ERROR", "NOT_AVAILABLE"],
-  ] as const)("speichert bei Abruf-Status %s nur den Fehlerfall (%s), ohne Extraktion aufzurufen", async (fetchStatus, expectedIngestionStatus) => {
+    ["BLOCKED", 403, "BLOCKED"],
+    ["TIMEOUT", undefined, "TIMEOUT"],
+    ["ERROR", 500, "NOT_AVAILABLE"],
+  ] as const)("speichert bei Abruf-Status %s nur den Fehlerfall (%s), ohne Extraktion aufzurufen", async (fetchStatus, httpStatus, expectedIngestionStatus) => {
     const supabase = createSupabaseMock();
-    mockFetchListingPage.mockResolvedValue({ status: fetchStatus, html: "" });
+    mockFetchListingPage.mockResolvedValue({ status: fetchStatus, html: "", httpStatus });
 
     await processListingLinks(supabase, ["https://www.newhome.ch/de/kauf/12345"]);
 
@@ -81,8 +81,21 @@ describe("processListingLinks", () => {
       canonical_url: "https://www.newhome.ch/de/kauf/12345",
       source: "NEWHOME",
       ingestion_status: expectedIngestionStatus,
+      last_fetch_http_status: httpStatus ?? null,
+      last_fetch_at: expect.any(String),
     });
     expect(options).toEqual({ onConflict: "canonical_url" });
+  });
+
+  it("speichert den echten HTTP-Statuscode einer Blockade zur Diagnose (z.B. newhome-Bot-Erkennung)", async () => {
+    const supabase = createSupabaseMock();
+    mockFetchListingPage.mockResolvedValue({ status: "BLOCKED", html: "", httpStatus: 429 });
+
+    await processListingLinks(supabase, ["https://www.newhome.ch/de/kauf/1"]);
+
+    const [record] = supabase.upsert.mock.calls[0];
+    expect(record.last_fetch_http_status).toBe(429);
+    expect(new Date(record.last_fetch_at).toString()).not.toBe("Invalid Date");
   });
 
   it("erkennt unbekannte Portale als EMAIL_IMPORT", async () => {
