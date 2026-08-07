@@ -61,6 +61,8 @@ attraktiv/riskant"-Stichpunkte für Cham wurden bereinigt (keine durch die
 Live-Werte widerlegten Zahlen mehr). Weiterhin offen: Dashboard und die
 anderen 5 Objekte rechnen weiterhin mit `apps/web/src/lib/demo-data.ts`.
 
+**Echte Inserate aus `/quellen` — Vorprüfung statt vollem Score (2026-08-07):** Eingehende, per Stufe-2 extrahierte Inserate lagen bisher komplett unbewertet in der Quellen-Ansicht. Eine volle Score/Empfehlung wie bei Cham scheitert strukturell an fehlenden Daten — Ausnützungsziffer, Zonenverifikation und Koordinaten stehen in keinem Inserate-Text, das wäre Raten statt Rechnen. Stattdessen prüft `apps/web/src/lib/listingPrescreen.ts` automatisch die vier Kriterien, die sich ehrlich aus den extrahierten Feldern beurteilen lassen (Kanton, Objektart, Preis-Obergrenze, Preis/m²-Obergrenze) gegen das echte, gespeicherte Suchprofil (`getPersistedSearchProfile()`) — jedes einzeln sichtbar, mit "zu wenig Daten" statt Vermutung bei fehlenden Feldern. Sichtbar als Spalte in der Quellen-Übersicht und als volle Aufschlüsselung auf der Detailseite. Ein voller Score für echte Inserate bräuchte entweder eine manuelle "Objekt vertiefen"-Eingabe pro Kandidat oder eine echte Zonendaten-Quelle pro Parzelle (z.B. via Wüest/kantonale API) — beides nicht Teil dieser Änderung.
+
 ## G. Domain / Deployment-Ziel — Vercel-Subdomain aktiv
 Wie angenommen: `land-finder-web.vercel.app` ist die aktive MVP-Adresse (siehe Punkt C). Echte Domain erst auf Wunsch.
 
