@@ -47,7 +47,9 @@ export function RankingTable({ rows }: { rows: Objekt[] }) {
       key: "kanton",
       header: "Kanton",
       sortValue: (o) => o.kanton,
-      render: (o) => <span className="mono">{o.kanton}</span>,
+      render: (o) => (
+        <Cell2 mono top={o.kanton} bottom={<MapLink address={`${o.adresse}, ${o.plz} ${o.ort}`} label="Lage" />} />
+      ),
     },
     {
       key: "score",
@@ -108,21 +110,11 @@ export function RankingTable({ rows }: { rows: Objekt[] }) {
       key: "yoc",
       header: (
         <>
-          Yield&nbsp;on&nbsp;Cost <InfoHint text={METRIC_HINTS.yieldOnCost} />
+          YoC <InfoHint text={METRIC_HINTS.yieldOnCost} />
         </>
       ),
       sortValue: (o) => o.yieldOnCost,
       render: (o) => <span className="mono">{o.yieldOnCost.toFixed(1)}%</span>,
-    },
-    {
-      key: "lage",
-      header: (
-        <>
-          Lage <InfoHint text={METRIC_HINTS.lage} />
-        </>
-      ),
-      sortValue: (o) => `${o.adresse}, ${o.plz} ${o.ort}`.toLowerCase(),
-      render: (o) => <MapLink address={`${o.adresse}, ${o.plz} ${o.ort}`} />,
     },
   ];
 

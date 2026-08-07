@@ -19,6 +19,10 @@ const items: { href: string; label: string; icon: IconName; key: string }[] = [
  * (Burger-Button, Backdrop) steuern per CSS-Sibling-Selektor (`:checked ~ .side`), ob
  * `.side` als Overlay-Drawer eingeblendet wird (siehe globals.css, ≤980px). Bleibt
  * dadurch eine Server Component, wie der Rest der Navigation.
+ *
+ * Der Einklapp-Griff (Desktop, "sidenav-collapse") funktioniert nach demselben Muster
+ * (Checkbox + `:has()` statt JS): reduziert `.side` auf eine schmale Icon-Leiste, damit
+ * breite Tabellen (z.B. die Rangliste) mehr Platz bekommen, ohne horizontal zu scrollen.
  */
 export function SideNav({ current, activeSlug }: { current: string; activeSlug?: string }) {
   return (
@@ -28,6 +32,10 @@ export function SideNav({ current, activeSlug }: { current: string; activeSlug?:
         <Icon name="grid" width={18} /> Menü
       </label>
       <label htmlFor="mobilenav-toggle" className="mobilenav-backdrop" aria-hidden="true" />
+      <input type="checkbox" id="sidenav-collapse" className="sidenav-collapse-toggle" />
+      <label htmlFor="sidenav-collapse" className="sidenav-collapse-btn" aria-label="Navigation ein-/ausblenden">
+        <span className="sidenav-collapse-arrow" aria-hidden="true" />
+      </label>
       <aside className="side">
         <div className="side-headrow">
           <div>
@@ -43,8 +51,8 @@ export function SideNav({ current, activeSlug }: { current: string; activeSlug?:
             item.key === "objekte" ? (
               <details key={item.key} className="navobjekte" open={current === "objekte" ? true : undefined}>
                 <summary>
-                  <Link href={item.href} className={item.key === current ? "current" : undefined}>
-                    <Icon name={item.icon} /> {item.label}
+                  <Link href={item.href} className={item.key === current ? "current" : undefined} title={item.label}>
+                    <Icon name={item.icon} /> <span className="label">{item.label}</span>
                   </Link>
                 </summary>
                 <div className="navobjekte-list">
@@ -63,8 +71,13 @@ export function SideNav({ current, activeSlug }: { current: string; activeSlug?:
                 </div>
               </details>
             ) : (
-              <Link key={item.key} href={item.href} className={item.key === current ? "current" : undefined}>
-                <Icon name={item.icon} /> {item.label}
+              <Link
+                key={item.key}
+                href={item.href}
+                className={item.key === current ? "current" : undefined}
+                title={item.label}
+              >
+                <Icon name={item.icon} /> <span className="label">{item.label}</span>
               </Link>
             )
           )}

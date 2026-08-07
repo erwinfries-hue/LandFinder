@@ -649,6 +649,71 @@ table.sortable th {
 .mobilenav-close {
   display: none;
 }
+
+/* ---------- Navigation einklappbar (Desktop) ---------- */
+.sidenav-collapse-toggle {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+@media (min-width: 981px) {
+  .sidenav-collapse-btn {
+    position: absolute;
+    top: 1.55rem;
+    left: 15.5rem;
+    transform: translateX(-50%);
+    z-index: 5;
+    width: 1.4rem;
+    height: 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--paper);
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--ink-faint);
+    transition: left 0.15s ease;
+  }
+  .sidenav-collapse-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .sidenav-collapse-arrow {
+    width: 0.4em;
+    height: 0.4em;
+    border-left: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    margin-left: 0.2em;
+  }
+  .shell:has(#sidenav-collapse:checked) {
+    grid-template-columns: 3.75rem minmax(0, 1fr);
+  }
+  .shell:has(#sidenav-collapse:checked) .sidenav-collapse-btn {
+    left: 3.75rem;
+  }
+  .shell:has(#sidenav-collapse:checked) .sidenav-collapse-arrow {
+    transform: rotate(-135deg);
+    margin-left: -0.05em;
+  }
+  .shell:has(#sidenav-collapse:checked) .side {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  .shell:has(#sidenav-collapse:checked) .side-headrow,
+  .shell:has(#sidenav-collapse:checked) .side .profile,
+  .shell:has(#sidenav-collapse:checked) .nav a .label,
+  .shell:has(#sidenav-collapse:checked) .navobjekte-list,
+  .shell:has(#sidenav-collapse:checked) .navobjekte summary::before {
+    display: none;
+  }
+  .shell:has(#sidenav-collapse:checked) .nav a,
+  .shell:has(#sidenav-collapse:checked) .navobjekte summary a {
+    justify-content: center;
+    padding: 0.5rem 0.3rem;
+  }
+}
 .side .word {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.7rem;
@@ -1076,6 +1141,9 @@ table.sortable th {
   }
   .shell {
     grid-template-columns: 1fr;
+  }
+  .sidenav-collapse-btn {
+    display: none;
   }
   .mobilenav-burger {
     display: flex;
