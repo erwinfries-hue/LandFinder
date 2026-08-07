@@ -46,7 +46,7 @@ describe("fetchListingPage", () => {
     expect(result).toEqual({ status: "ERROR", html: "" });
   });
 
-  it("sendet einen erkennbaren, nicht als Crawler getarnten User-Agent", async () => {
+  it("sendet einen browserähnlichen User-Agent samt Accept-Headern (Entscheid 2026-08-07, siehe OPEN_DECISIONS.md Punkt A)", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "<html></html>" });
     global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -54,6 +54,8 @@ describe("fetchListingPage", () => {
 
     const [calledUrl, options] = fetchMock.mock.calls[0] as [string, { headers: Record<string, string> }];
     expect(calledUrl).toBe("https://example.ch/inserat/1");
-    expect(options.headers["User-Agent"]).toContain("LandFinderBot");
+    expect(options.headers["User-Agent"]).toContain("Chrome");
+    expect(options.headers["User-Agent"]).not.toContain("Bot");
+    expect(options.headers["Accept-Language"]).toContain("de-CH");
   });
 });
