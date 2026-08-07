@@ -37,9 +37,9 @@ export default function DashboardPage() {
         <Panel style={{ padding: "1.3rem 1.4rem" }}>
           <div className="sectionhead">
             <h2>Rangliste — Top-Treffer</h2>
-            <a href="#" className="more">
-              Alle 34 Objekte →
-            </a>
+            <Link href="/objekte" className="more">
+              Alle Objekte →
+            </Link>
           </div>
           <RankingTable rows={demoObjekte} />
         </Panel>
