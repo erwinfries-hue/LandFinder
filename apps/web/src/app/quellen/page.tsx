@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Panel, Chip, ListingLink } from "@landfinder/ui";
+import { Panel, Chip, ListingLink, InfoHint } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { formatChf } from "@/lib/demo-data";
 import { getListings, getInboundAlerts, listingStatus, objectTypeLabel, formatDateTime } from "@/lib/listings";
+import { getPersistedSearchProfile } from "@/lib/searchProfile";
+import { prescreenListing } from "@/lib/listingPrescreen";
 
 export const metadata: Metadata = { title: "Quellen — SIPIS LandFinder" };
 
@@ -13,8 +15,14 @@ export const metadata: Metadata = { title: "Quellen — SIPIS LandFinder" };
  * (`listings`) — bisher nur über das Supabase-Dashboard einsehbar. Jeder Link führt
  * als aktiver Link zum Original-Inserat beim Portal.
  */
+const PRESCREEN_STATUS_CHIP: Record<"PASSED" | "REJECTED" | "INSUFFICIENT_DATA", { label: string; tone: "good" | "bad" | "neutral" }> = {
+  PASSED: { label: "Passt", tone: "good" },
+  REJECTED: { label: "Ausserhalb", tone: "bad" },
+  INSUFFICIENT_DATA: { label: "Zu wenig Daten", tone: "neutral" },
+};
+
 export default async function QuellenPage() {
-  const [listings, alerts] = await Promise.all([getListings(), getInboundAlerts()]);
+  const [listings, alerts, searchProfile] = await Promise.all([getListings(), getInboundAlerts(), getPersistedSearchProfile()]);
   const configured = listings !== null && alerts !== null;
 
   return (
@@ -56,6 +64,9 @@ export default async function QuellenPage() {
                         <th>Preis</th>
                         <th>Fläche</th>
                         <th style={{ textAlign: "left" }}>Status</th>
+                        <th style={{ textAlign: "left" }}>
+                          Suchprofil <InfoHint text="Automatische Vorprüfung: Kanton, Objektart, Preis-Obergrenze, Preis/m²-Obergrenze — keine volle Score/Empfehlung, dafür fehlen Zonendaten." />
+                        </th>
                         <th>Zuletzt gesehen</th>
                         <th>Original</th>
                       </tr>
@@ -63,6 +74,8 @@ export default async function QuellenPage() {
                     <tbody>
                       {listings!.map((l) => {
                         const st = listingStatus(l.ingestion_status);
+                        const prescreen = prescreenListing(l, searchProfile);
+                        const prescreenChip = PRESCREEN_STATUS_CHIP[prescreen.status];
                         return (
                           <tr key={l.id}>
                             <td style={{ textAlign: "left" }}>
@@ -83,6 +96,11 @@ export default async function QuellenPage() {
                             </td>
                             <td style={{ textAlign: "left" }}>
                               <Chip tone={st.tone}>{st.label}</Chip>
+                            </td>
+                            <td style={{ textAlign: "left" }}>
+                              <Link href={`/quellen/${l.id}`}>
+                                <Chip tone={prescreenChip.tone}>{prescreenChip.label}</Chip>
+                              </Link>
                             </td>
                             <td className="num mono">{formatDateTime(l.last_seen_at)}</td>
                             <td>

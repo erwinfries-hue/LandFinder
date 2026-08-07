@@ -1,6 +1,7 @@
 import type { SearchProfile } from "@landfinder/domain";
 import regionsConfig from "../../../../config/regions.json";
 import { createRemoteSyncedStore } from "./remoteStore";
+import { createSupabaseServerClient } from "./supabaseServer";
 
 export const AVAILABLE_CANTONS: { code: string; name: string }[] = regionsConfig.cantons.map((c) => ({
   code: c.code,
@@ -165,3 +166,18 @@ export const getSearchProfileSnapshot = store.getSnapshot;
 export const getSearchProfileServerSnapshot = store.getServerSnapshot;
 export const subscribeSearchProfile = store.subscribe;
 export const setSearchProfile = store.setValue;
+
+/**
+ * Liest das echte, persistierte Suchprofil direkt aus Supabase — für Server Components
+ * (z.B. die Quellen-Vorprüfung), die zum Zeitpunkt des Renderns den tatsächlich
+ * gespeicherten Stand brauchen, nicht nur `DEFAULT_SEARCH_PROFILE`. Fällt auf den
+ * Default zurück, wenn Supabase nicht konfiguriert ist oder noch kein Profil
+ * gespeichert wurde (identische Merge-Logik wie der Client-Store oben).
+ */
+export async function getPersistedSearchProfile(): Promise<SearchProfile> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return DEFAULT_SEARCH_PROFILE;
+  const { data, error } = await supabase.from("app_state").select("data").eq("id", "search-profile").maybeSingle();
+  if (error || !data?.data) return DEFAULT_SEARCH_PROFILE;
+  return { ...DEFAULT_SEARCH_PROFILE, ...(data.data as Partial<SearchProfile>) };
+}
