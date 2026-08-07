@@ -99,7 +99,7 @@ export default async function QuellenDetailPage({ params }: { params: Promise<{ 
         <Panel style={{ padding: "1.4rem 1.6rem", marginTop: "1.6rem" }}>
           <div className="eyebrow">Vorprüfung gegen aktuelles Suchprofil</div>
           <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: "0.4rem 0 1rem" }}>
-            Nur die vier Kriterien, die sich ehrlich aus dem Inserat beurteilen lassen — keine volle Score/Empfehlung
+            Nur die fünf Kriterien, die sich ehrlich aus dem Inserat beurteilen lassen — keine volle Score/Empfehlung
             wie bei Cham, dafür fehlen Ausnützungsziffer, Zonenverifikation und Koordinaten.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: ".6rem" }}>
@@ -114,6 +114,11 @@ export default async function QuellenDetailPage({ params }: { params: Promise<{ 
               );
             })}
           </div>
+          {listing.alert_sent_at ? (
+            <p style={{ color: "var(--ink-faint)", fontSize: ".78rem", margin: "1rem 0 0" }}>
+              Alert-Mail versendet am {formatDateTime(listing.alert_sent_at)} an {searchProfile.alerts.recipients.join(", ")}.
+            </p>
+          ) : null}
         </Panel>
 
         <Panel style={{ padding: "1.4rem 1.6rem", marginTop: "1.6rem" }}>

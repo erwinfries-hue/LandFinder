@@ -16,7 +16,7 @@ import { objectTypeLabel } from "./listings";
 export type PrescreenRuleStatus = "PASSED" | "FAILED" | "INSUFFICIENT_DATA";
 
 export interface PrescreenRule {
-  key: "region" | "objektart" | "preisMax" | "preisProM2Max";
+  key: "region" | "objektart" | "preisMax" | "preisProM2Max" | "flaeche";
   label: string;
   status: PrescreenRuleStatus;
   evidence: string;
@@ -109,8 +109,34 @@ function checkPreisProM2Max(listing: PrescreenableListing, profile: SearchProfil
   };
 }
 
+function checkFlaeche(listing: PrescreenableListing, profile: SearchProfile): PrescreenRule {
+  if (!listing.parcel_area_m2) {
+    return { key: "flaeche", label: "Flächen-Spanne", status: "INSUFFICIENT_DATA", evidence: "Parzellenfläche nicht extrahiert." };
+  }
+  const min = profile.grundstueck.minAreaM2;
+  const max = profile.grundstueck.maxAreaM2;
+  const belowMin = min !== undefined && listing.parcel_area_m2 < min;
+  const aboveMax = max !== undefined && listing.parcel_area_m2 > max;
+  const ok = !belowMin && !aboveMax;
+  const spanne = `${min !== undefined ? formatChf(min) : "?"}–${max !== undefined ? formatChf(max) : "?"} m²`;
+  return {
+    key: "flaeche",
+    label: "Flächen-Spanne",
+    status: ok ? "PASSED" : "FAILED",
+    evidence: ok
+      ? `${formatChf(listing.parcel_area_m2)} m² innerhalb der Suchprofil-Spanne (${spanne}).`
+      : `${formatChf(listing.parcel_area_m2)} m² ${belowMin ? "unter" : "über"} der Suchprofil-Spanne (${spanne}).`,
+  };
+}
+
 export function prescreenListing(listing: PrescreenableListing, profile: SearchProfile): PrescreenResult {
-  const rules = [checkRegion(listing, profile), checkObjektart(listing, profile), checkPreisMax(listing, profile), checkPreisProM2Max(listing, profile)];
+  const rules = [
+    checkRegion(listing, profile),
+    checkObjektart(listing, profile),
+    checkPreisMax(listing, profile),
+    checkPreisProM2Max(listing, profile),
+    checkFlaeche(listing, profile),
+  ];
 
   const status: PrescreenStatus = rules.some((r) => r.status === "FAILED")
     ? "REJECTED"

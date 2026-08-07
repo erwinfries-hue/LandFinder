@@ -13,10 +13,23 @@ function listing(overrides: Partial<PrescreenableListing>): PrescreenableListing
 }
 
 describe("prescreenListing", () => {
-  it("besteht die Vorprüfung, wenn alle vier Kriterien im Rahmen des Suchprofils liegen", () => {
+  it("besteht die Vorprüfung, wenn alle fünf Kriterien im Rahmen des Suchprofils liegen", () => {
     const result = prescreenListing(listing({}), DEFAULT_SEARCH_PROFILE);
     expect(result.status).toBe("PASSED");
+    expect(result.rules).toHaveLength(5);
     expect(result.rules.every((r) => r.status === "PASSED")).toBe(true);
+  });
+
+  it("lehnt ab, wenn die Fläche unter der Suchprofil-Spanne liegt", () => {
+    const result = prescreenListing(listing({ parcel_area_m2: DEFAULT_SEARCH_PROFILE.grundstueck.minAreaM2! - 1 }), DEFAULT_SEARCH_PROFILE);
+    expect(result.status).toBe("REJECTED");
+    expect(result.rules.find((r) => r.key === "flaeche")?.status).toBe("FAILED");
+  });
+
+  it("lehnt ab, wenn die Fläche über der Suchprofil-Spanne liegt", () => {
+    const result = prescreenListing(listing({ parcel_area_m2: DEFAULT_SEARCH_PROFILE.grundstueck.maxAreaM2! + 1 }), DEFAULT_SEARCH_PROFILE);
+    expect(result.status).toBe("REJECTED");
+    expect(result.rules.find((r) => r.key === "flaeche")?.status).toBe("FAILED");
   });
 
   it("lehnt ab, wenn der Kanton nicht im Suchprofil aktiviert ist", () => {
@@ -63,6 +76,7 @@ describe("prescreenListing", () => {
 
     const ohneFlaeche = prescreenListing(listing({ parcel_area_m2: null }), DEFAULT_SEARCH_PROFILE);
     expect(ohneFlaeche.rules.find((r) => r.key === "preisProM2Max")?.status).toBe("INSUFFICIENT_DATA");
+    expect(ohneFlaeche.rules.find((r) => r.key === "flaeche")?.status).toBe("INSUFFICIENT_DATA");
     // Preis-Obergrenze bleibt unabhängig von der Fläche prüfbar.
     expect(ohneFlaeche.rules.find((r) => r.key === "preisMax")?.status).toBe("PASSED");
   });

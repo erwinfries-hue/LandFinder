@@ -65,7 +65,7 @@ export default async function QuellenPage() {
                         <th>Fläche</th>
                         <th style={{ textAlign: "left" }}>Status</th>
                         <th style={{ textAlign: "left" }}>
-                          Suchprofil <InfoHint text="Automatische Vorprüfung: Kanton, Objektart, Preis-Obergrenze, Preis/m²-Obergrenze — keine volle Score/Empfehlung, dafür fehlen Zonendaten." />
+                          Suchprofil <InfoHint text="Automatische Vorprüfung: Kanton, Objektart, Preis-Obergrenze, Preis/m²-Obergrenze, Flächen-Spanne — keine volle Score/Empfehlung, dafür fehlen Zonendaten." />
                         </th>
                         <th>Zuletzt gesehen</th>
                         <th>Original</th>

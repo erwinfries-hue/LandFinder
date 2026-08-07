@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchListingPage } from "./fetchListingPage";
 import { extractListingFields } from "./listingExtraction";
+import { maybeSendListingAlert } from "./listingAlerts";
 
 /**
  * Verarbeitet die aus einer Suchabo-Mail gefundenen Inserat-Links zu strukturierten
@@ -61,6 +62,19 @@ export async function processListingLinks(supabase: SupabaseClient, links: strin
       },
       { onConflict: "canonical_url" },
     );
-    if (error) console.error("[processListingLinks] Upsert fehlgeschlagen", url, error);
+    if (error) {
+      console.error("[processListingLinks] Upsert fehlgeschlagen", url, error);
+      continue;
+    }
+
+    await maybeSendListingAlert(supabase, {
+      canonical_url: url,
+      title: extraction.fields.title,
+      address_text: extraction.fields.addressText,
+      canton: extraction.fields.canton ?? null,
+      object_type: extraction.fields.objectType ?? null,
+      asking_price_chf: extraction.fields.askingPriceChf ?? null,
+      parcel_area_m2: extraction.fields.parcelAreaM2 ?? null,
+    });
   }
 }
