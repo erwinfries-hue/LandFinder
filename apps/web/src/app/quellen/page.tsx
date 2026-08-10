@@ -10,6 +10,15 @@ import { prescreenListing } from "@/lib/listingPrescreen";
 export const metadata: Metadata = { title: "Quellen — SIPIS LandFinder" };
 
 /**
+ * `force-dynamic`: diese Seite zeigt live eingehende Suchabo-Mails/Inserate — ohne
+ * diesen Export baut Next.js sie als statische Seite (kein erkennbarer
+ * Request-abhängiger Code), eingefroren auf den Datenstand des letzten Deploys, statt
+ * bei jedem Aufruf neu aus Supabase zu lesen (Bug gefunden am 2026-08-07: die Seite
+ * zeigte "0 Mails", obwohl `inbound_alerts` bereits 22 echte Zeilen enthielt).
+ */
+export const dynamic = "force-dynamic";
+
+/**
  * Übersicht der echten Stufe-1/2-Daten (Abschnitt 22/24): eingehende Suchabo-Mails
  * (`inbound_alerts`) und die daraus per Einzelseiten-Abruf extrahierten Inserate
  * (`listings`) — bisher nur über das Supabase-Dashboard einsehbar. Jeder Link führt

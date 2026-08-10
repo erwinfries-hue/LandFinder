@@ -15,6 +15,9 @@ const RULE_STATUS_CHIP: Record<PrescreenRuleStatus, { label: string; tone: "good
   INSUFFICIENT_DATA: { label: "Zu wenig Daten", tone: "neutral" },
 };
 
+/** Explizit statt sich auf Next.js' Heuristik zu verlassen — siehe /quellen/page.tsx. */
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const listing = await getListingById(id);
