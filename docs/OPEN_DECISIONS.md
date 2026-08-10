@@ -34,7 +34,7 @@ Private Web-App mit Login, aber einem globalen Suchprofil. Annahme bis auf Wider
 
 **Umgesetzt (2026-08-06):** ein geteiltes Passwort (Umgebungsvariable `APP_PASSWORD` in Vercel) schützt jetzt die ganze App inkl. `/api/state/*` — das bisher **ganz ohne Zugriffsschutz** erreichbar war (Suchprofil/Annahmen-Register liess sich ohne Login lesen und überschreiben). `apps/web/src/middleware.ts` prüft ein signiertes Session-Cookie (`lf_session`, HMAC-SHA256 über `apps/web/src/lib/authSession.ts`, Web-Crypto-API, 30 Tage gültig) vor jeder Seite/API-Route; `/login` und der Postmark-Webhook (`/api/inbound/*`, eigene Basic-Auth) bleiben ausgenommen. `/api/state/[id]` prüft das Cookie zusätzlich selbst (defense in depth). **Fail closed:** ist `APP_PASSWORD` nicht gesetzt, bleibt der Zugriff gesperrt statt offen. Bewusst kein volles Multi-User-Login (einzelne Konten, Passwort-Reset) — das wäre für 2-5 bekannte Nutzer unverhältnismässiger Aufwand; E-Mail-/Remember-me-Felder im Login-Formular sind aktuell nur kosmetisch (aus dem abgenommenen Mockup übernommen), geprüft wird ausschliesslich das gemeinsame Passwort. Der konkrete `APP_PASSWORD`-Wert wurde dir separat mitgeteilt und muss in Vercel gesetzt werden, sonst bleibt die App für alle gesperrt.
 
-## E. Wüest Partner — teilweise geklärt
+## E. Wüest Partner — teilweise geklärt, Rest langfristig blockiert
 Es besteht eine Wüest-Partner-Lizenz; zwei echte "Standortinformation"-Reports (Baden AG,
 Wohlen AG) liegen vor. Diese wurden manuell in das dokumentierte CSV-Schema
 (`docs/WUEST_CSV_SCHEMA.md`) übertragen und in `data/wuest/` abgelegt — inkl. Original-PDFs
@@ -42,6 +42,12 @@ als Provenienz-Nachweis. Weiterhin offen: automatische PDF-Extraktion bleibt bew
 ausserhalb des MVP-Scopes (Abschnitt 1.6/7); ob das E-Mail-Sharing-Flag für diese Lizenz
 gesetzt werden darf, ist ungeklärt (Lizenzvertrag prüfen, bevor Wüest-Werte in Alert-Mails
 erscheinen).
+
+**Update (2026-08-10):** Laut Telefonat mit Wüest Partner ist mit einer Klärung nicht in
+nützlicher Frist zu rechnen — bleibt also auf unbestimmte Zeit offen, nicht aktiv verfolgen,
+bis von aussen etwas kommt. Betrifft nur den Versand von Wüest-Werten in Alert-Mails an
+Dritte; die interne Nutzung (Suchprofil-Kalibrierung, Cham-Analyse) ist davon nicht
+berührt und bleibt wie bisher.
 
 ## F. Echte Geschäftsannahmen im Suchprofil — Wizard steht, Werte offen
 Der Suchprofil-Wizard (`/suchprofil`) ist implementiert: alle zwölf Bereiche aus
