@@ -5,7 +5,10 @@ import { fetchListingPage } from "./fetchListingPage";
 import { extractListingFields } from "./listingExtraction";
 
 vi.mock("./fetchListingPage", () => ({ fetchListingPage: vi.fn() }));
-vi.mock("./listingExtraction", () => ({ extractListingFields: vi.fn() }));
+vi.mock("./listingExtraction", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./listingExtraction")>();
+  return { ...actual, extractListingFields: vi.fn() };
+});
 
 const mockFetchListingPage = vi.mocked(fetchListingPage);
 const mockExtractListingFields = vi.mocked(extractListingFields);
@@ -121,6 +124,82 @@ describe("processListingLinks", () => {
     expect(supabase.upsert).toHaveBeenCalledTimes(2);
     expect(mockFetchListingPage).toHaveBeenNthCalledWith(1, "https://www.homegate.ch/kauf/1");
     expect(mockFetchListingPage).toHaveBeenNthCalledWith(2, "https://www.homegate.ch/kauf/2");
+  });
+
+  it("fällt auf den Mailinhalt zurück, wenn der Seitenabruf nur ein Bild statt der Inserat-Seite liefert", async () => {
+    const supabase = createSupabaseMock();
+    // Simuliert genau den real beobachteten Fall (2026-08-08): der "Link" ist ein
+    // Homegate-Vorschaubild, extractListingFields findet darin nichts Brauchbares.
+    mockFetchListingPage.mockResolvedValue({ status: "OK", html: "<html><body>binary image garbage</body></html>" });
+    mockExtractListingFields.mockResolvedValue({ fields: {}, method: "MOCK_HEURISTIC", confidence: 25 });
+
+    await processListingLinks(
+      supabase,
+      ["https://media2.homegate.ch/.../image.jpg"],
+      {
+        subject: "1 neuer Treffer für 'Bauland zum Kaufen'",
+        htmlBody: "<p>CHF 2'970'000.–</p><p>Friedhofweg 2<br/>4414 Füllinsdorf</p>",
+      },
+    );
+
+    const [record] = supabase.upsert.mock.calls[0];
+    expect(record.asking_price_chf).toBe(2_970_000);
+    expect(record.address_text).toBe("Friedhofweg 2, 4414 Füllinsdorf");
+    expect(record.extraction.method).toBe("EMAIL_HEURISTIC");
+    expect(record.ingestion_status).toBe("MANUAL_INPUT_REQUIRED");
+  });
+
+  it("bevorzugt die Seiten-Extraktion, wenn sie bereits brauchbare Felder liefert (kein Mail-Fallback nötig)", async () => {
+    const supabase = createSupabaseMock();
+    mockFetchListingPage.mockResolvedValue({ status: "OK", html: "<html></html>" });
+    mockExtractListingFields.mockResolvedValue({
+      fields: { title: "Echte Seite", askingPriceChf: 1_000_000 },
+      method: "MOCK_HEURISTIC",
+      confidence: 25,
+    });
+
+    await processListingLinks(supabase, ["https://www.homegate.ch/kauf/1"], {
+      subject: "Anderer Betreff",
+      htmlBody: "<p>CHF 9'999'999.–</p>",
+    });
+
+    const [record] = supabase.upsert.mock.calls[0];
+    expect(record.title).toBe("Echte Seite");
+    expect(record.asking_price_chf).toBe(1_000_000);
+  });
+
+  it("nutzt den Mail-Fallback auch, wenn der Seitenabruf komplett blockiert war", async () => {
+    const supabase = createSupabaseMock();
+    mockFetchListingPage.mockResolvedValue({ status: "BLOCKED", html: "", httpStatus: 403 });
+
+    await processListingLinks(supabase, ["https://www.newhome.ch/de/kauf/1"], {
+      subject: "Neue Treffer in Ihrem Suchabo",
+      htmlBody: "<p>CHF 500'000.-</p><p>Musterstrasse 1<br/>8000 Zürich</p>",
+    });
+
+    const [record] = supabase.upsert.mock.calls[0];
+    expect(record.asking_price_chf).toBe(500_000);
+    expect(record.ingestion_status).toBe("MANUAL_INPUT_REQUIRED");
+    expect(mockExtractListingFields).not.toHaveBeenCalled();
+  });
+
+  it("bleibt beim Fehlerstatus, wenn weder Seite noch Mailinhalt etwas Brauchbares liefern", async () => {
+    const supabase = createSupabaseMock();
+    mockFetchListingPage.mockResolvedValue({ status: "BLOCKED", html: "", httpStatus: 403 });
+
+    await processListingLinks(supabase, ["https://www.newhome.ch/de/kauf/1"], {
+      subject: "Erinnerung: Bitte Anmeldung bestätigen",
+      htmlBody: "<p>Bitte bestätige deine Anmeldung.</p>",
+    });
+
+    const [record] = supabase.upsert.mock.calls[0];
+    expect(record).toEqual({
+      canonical_url: "https://www.newhome.ch/de/kauf/1",
+      source: "NEWHOME",
+      ingestion_status: "BLOCKED",
+      last_fetch_http_status: 403,
+      last_fetch_at: expect.any(String),
+    });
   });
 
   it("verarbeitet mehrere Links nacheinander und loggt einen Upsert-Fehler statt zu werfen", async () => {

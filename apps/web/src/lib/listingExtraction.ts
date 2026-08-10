@@ -21,7 +21,7 @@ export interface ExtractedListingFields {
   knownZone?: string;
 }
 
-export type ExtractionMethod = "MOCK_HEURISTIC" | "ANTHROPIC";
+export type ExtractionMethod = "MOCK_HEURISTIC" | "EMAIL_HEURISTIC" | "ANTHROPIC";
 
 export interface ExtractionResult {
   fields: ExtractedListingFields;
@@ -70,6 +70,57 @@ export function extractWithHeuristic(html: string): ExtractionResult {
     },
     method: "MOCK_HEURISTIC",
     confidence: 25,
+  };
+}
+
+export interface AlertMailContent {
+  subject: string;
+  htmlBody?: string;
+  textBody?: string;
+}
+
+/**
+ * Extrahiert Basisfelder direkt aus dem Inhalt der Suchabo-Mail selbst (Betreff +
+ * Text) — ohne externen Seitenabruf. Anlass (2026-08-08): Homegate-Suchabo-Mails
+ * zeigen Preis und Adresse bereits im Mailtext an, aber der echte "Zum Inserat"-Link
+ * läuft über einen E-Mail-Marketing-Tracking-Dienst (z.B. SendGrid Click-Tracking),
+ * nicht über eine homegate.ch-Domain — unser Link-Filter (siehe inboundMail.ts)
+ * erkennt ihn deshalb nicht, und Stufe 2 hätte ohnehin nur Bild-/Logo-Links abgerufen.
+ * Sicherer als einer unbekannten Tracking-Domain zu folgen.
+ *
+ * Bewusst konservativ: Kanton wird NICHT aus dem Betreff geraten, weil Suchabo-Mails
+ * oft mehrere Kantone gleichzeitig auflisten (die Suchkriterien, nicht die Lage des
+ * konkreten Treffers) — eine falsche Zuordnung wäre schlimmer als keine Angabe.
+ */
+export function extractFromEmailContent(mail: AlertMailContent): ExtractionResult {
+  const text = stripHtml(`${mail.subject}\n${mail.htmlBody ?? mail.textBody ?? ""}`);
+
+  const priceMatch = text.match(/CHF\s*([\d'’.]{4,})/i);
+  const askingPriceChf = priceMatch ? Number(priceMatch[1].replace(/[^\d]/g, "")) || undefined : undefined;
+
+  const areaMatch = text.match(/([\d'’]{2,})\s*m[²2]/i);
+  const parcelAreaM2 = areaMatch ? Number(areaMatch[1].replace(/[^\d]/g, "")) || undefined : undefined;
+
+  // Strasse + Hausnummer, dann 4-stellige PLZ, dann Ortsname — alles auf einer Zeile,
+  // da stripHtml() Zeilenumbrüche zu Leerzeichen zusammenzieht.
+  const addressMatch = text.match(
+    /([A-ZÄÖÜ][\wÀ-ÿ.\- ]{1,40}?\s\d{1,4}[a-z]?)\s+(\d{4})\s+([A-ZÄÖÜ][\wÀ-ÿ\- ]{1,40}?)(?=\s|$)/,
+  );
+  const addressText = addressMatch ? `${addressMatch[1].trim()}, ${addressMatch[2]} ${addressMatch[3].trim()}` : undefined;
+
+  const objectType = /abbruch|rückbau|abriss/i.test(text) ? "ABBRUCHOBJEKT" : /bauland|baulandparzelle|unbebaut/i.test(text) ? "BAULAND" : undefined;
+
+  return {
+    fields: {
+      title: mail.subject || undefined,
+      description: text.slice(0, 400) || undefined,
+      objectType,
+      addressText,
+      askingPriceChf,
+      parcelAreaM2,
+    },
+    method: "EMAIL_HEURISTIC",
+    confidence: 30,
   };
 }
 

@@ -64,7 +64,11 @@ export async function POST(request: Request): Promise<Response> {
   if (supabase && parsed.listingLinks.length > 0) {
     after(async () => {
       try {
-        await processListingLinks(supabase, parsed.listingLinks);
+        await processListingLinks(supabase, parsed.listingLinks, {
+          subject: parsed.subject,
+          htmlBody: payload.HtmlBody,
+          textBody: payload.TextBody,
+        });
       } catch (err) {
         console.error("[inbound/portal-alerts] processListingLinks fehlgeschlagen", err);
       }

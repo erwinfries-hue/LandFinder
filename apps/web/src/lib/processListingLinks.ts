@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchListingPage } from "./fetchListingPage";
-import { extractListingFields } from "./listingExtraction";
+import { extractListingFields, extractFromEmailContent, type AlertMailContent, type ExtractedListingFields, type ExtractionResult } from "./listingExtraction";
 import { maybeSendListingAlert } from "./listingAlerts";
 
 /**
@@ -20,12 +20,38 @@ function sourceFromUrl(url: string): string {
   return "EMAIL_IMPORT";
 }
 
-export async function processListingLinks(supabase: SupabaseClient, links: string[]): Promise<void> {
+function hasUsefulFields(fields: ExtractedListingFields): boolean {
+  return Boolean(fields.title || fields.askingPriceChf || fields.addressText);
+}
+
+/**
+ * Strengerer Check speziell für `extractFromEmailContent`-Ergebnisse: dort kommt
+ * `title` immer aus dem Mail-Betreff, auch bei generischen Erinnerungs-/Newsletter-
+ * Mails ohne echte Objektdaten — für sich allein also kein Hinweis auf einen echten
+ * Treffer, deshalb hier bewusst ausgeklammert.
+ */
+function hasUsefulEmailFields(fields: ExtractedListingFields): boolean {
+  return Boolean(fields.askingPriceChf || fields.addressText);
+}
+
+export async function processListingLinks(supabase: SupabaseClient, links: string[], mailContext?: AlertMailContent): Promise<void> {
   for (const url of links.slice(0, MAX_LINKS_PER_RUN)) {
     const source = sourceFromUrl(url);
     const fetchResult = await fetchListingPage(url);
 
-    if (fetchResult.status !== "OK") {
+    const pageExtraction: ExtractionResult | undefined = fetchResult.status === "OK" ? await extractListingFields(fetchResult.html) : undefined;
+
+    // Fallback auf den Mailinhalt selbst, wenn der Seitenabruf nichts Brauchbares
+    // ergab (z.B. weil der "Link" tatsächlich ein Logo-/Vorschaubild war statt der
+    // echten Inserat-Seite — siehe listingExtraction.ts, extractFromEmailContent).
+    const emailExtraction =
+      mailContext && (!pageExtraction || !hasUsefulFields(pageExtraction.fields)) ? extractFromEmailContent(mailContext) : undefined;
+    const usableEmailExtraction = emailExtraction && hasUsefulEmailFields(emailExtraction.fields) ? emailExtraction : undefined;
+
+    const extraction = usableEmailExtraction ?? pageExtraction;
+
+    if (!extraction) {
+      // Weder Seitenabruf noch Mailinhalt ergaben etwas — Fehlerfall unverändert festhalten.
       const ingestionStatus = fetchResult.status === "BLOCKED" ? "BLOCKED" : fetchResult.status === "TIMEOUT" ? "TIMEOUT" : "NOT_AVAILABLE";
       const { error } = await supabase.from("listings").upsert(
         {
@@ -41,7 +67,6 @@ export async function processListingLinks(supabase: SupabaseClient, links: strin
       continue;
     }
 
-    const extraction = await extractListingFields(fetchResult.html);
     const ingestionStatus = extraction.method === "ANTHROPIC" ? "PARTIAL" : "MANUAL_INPUT_REQUIRED";
     const { error } = await supabase.from("listings").upsert(
       {
