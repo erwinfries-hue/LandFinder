@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchListingPage } from "./fetchListingPage";
 import { extractListingFields, extractFromEmailContent, type AlertMailContent, type ExtractedListingFields, type ExtractionResult } from "./listingExtraction";
+import { isPortalUrl } from "./inboundMail";
 import { maybeSendListingAlert } from "./listingAlerts";
 
 /**
@@ -36,14 +37,26 @@ function hasUsefulEmailFields(fields: ExtractedListingFields): boolean {
 
 export async function processListingLinks(supabase: SupabaseClient, links: string[], mailContext?: AlertMailContent): Promise<void> {
   for (const url of links.slice(0, MAX_LINKS_PER_RUN)) {
-    const source = sourceFromUrl(url);
     const fetchResult = await fetchListingPage(url);
 
-    const pageExtraction: ExtractionResult | undefined = fetchResult.status === "OK" ? await extractListingFields(fetchResult.html) : undefined;
+    // Falls `url` ein Klick-Tracking-Link war (z.B. SendGrid, siehe inboundMail.ts)
+    // und `fetch()` automatisch auf eine bekannte Portal-Domain weitergeleitet hat,
+    // verwenden wir diese echte Ziel-URL als canonical_url — stabiler für die
+    // Deduplizierung als der Tracking-Link, und `source` wird korrekt erkannt.
+    const resolvedUrl = fetchResult.finalUrl && isPortalUrl(fetchResult.finalUrl) ? fetchResult.finalUrl : url;
+    const source = sourceFromUrl(resolvedUrl);
+
+    // Den Seiteninhalt nur dann als Inserat-Seite behandeln, wenn Original- oder
+    // aufgelöste Ziel-URL wirklich zu einem der drei bekannten Portale gehört — sonst
+    // könnten wir Text einer völlig fremden Seite (falsche Weiterleitung) als
+    // Inserat-Daten interpretieren.
+    const landedOnKnownPortal = isPortalUrl(url) || (fetchResult.finalUrl != null && isPortalUrl(fetchResult.finalUrl));
+    const pageExtraction: ExtractionResult | undefined =
+      fetchResult.status === "OK" && landedOnKnownPortal ? await extractListingFields(fetchResult.html) : undefined;
 
     // Fallback auf den Mailinhalt selbst, wenn der Seitenabruf nichts Brauchbares
-    // ergab (z.B. weil der "Link" tatsächlich ein Logo-/Vorschaubild war statt der
-    // echten Inserat-Seite — siehe listingExtraction.ts, extractFromEmailContent).
+    // ergab (z.B. weil der Link auf ein Logo-/Vorschaubild zeigte oder blockiert
+    // wurde — siehe listingExtraction.ts, extractFromEmailContent).
     const emailExtraction =
       mailContext && (!pageExtraction || !hasUsefulFields(pageExtraction.fields)) ? extractFromEmailContent(mailContext) : undefined;
     const usableEmailExtraction = emailExtraction && hasUsefulEmailFields(emailExtraction.fields) ? emailExtraction : undefined;
@@ -55,7 +68,7 @@ export async function processListingLinks(supabase: SupabaseClient, links: strin
       const ingestionStatus = fetchResult.status === "BLOCKED" ? "BLOCKED" : fetchResult.status === "TIMEOUT" ? "TIMEOUT" : "NOT_AVAILABLE";
       const { error } = await supabase.from("listings").upsert(
         {
-          canonical_url: url,
+          canonical_url: resolvedUrl,
           source,
           ingestion_status: ingestionStatus,
           last_fetch_http_status: fetchResult.httpStatus ?? null,
@@ -63,14 +76,14 @@ export async function processListingLinks(supabase: SupabaseClient, links: strin
         },
         { onConflict: "canonical_url" },
       );
-      if (error) console.error("[processListingLinks] Upsert (Fehlerfall) fehlgeschlagen", url, error);
+      if (error) console.error("[processListingLinks] Upsert (Fehlerfall) fehlgeschlagen", resolvedUrl, error);
       continue;
     }
 
     const ingestionStatus = extraction.method === "ANTHROPIC" ? "PARTIAL" : "MANUAL_INPUT_REQUIRED";
     const { error } = await supabase.from("listings").upsert(
       {
-        canonical_url: url,
+        canonical_url: resolvedUrl,
         source,
         title: extraction.fields.title,
         description: extraction.fields.description,
@@ -88,12 +101,12 @@ export async function processListingLinks(supabase: SupabaseClient, links: strin
       { onConflict: "canonical_url" },
     );
     if (error) {
-      console.error("[processListingLinks] Upsert fehlgeschlagen", url, error);
+      console.error("[processListingLinks] Upsert fehlgeschlagen", resolvedUrl, error);
       continue;
     }
 
     await maybeSendListingAlert(supabase, {
-      canonical_url: url,
+      canonical_url: resolvedUrl,
       title: extraction.fields.title,
       address_text: extraction.fields.addressText,
       canton: extraction.fields.canton ?? null,

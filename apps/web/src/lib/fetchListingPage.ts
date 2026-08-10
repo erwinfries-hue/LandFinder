@@ -10,6 +10,11 @@
  * gegen JS-Challenges (Cloudflare-artig) — von hier aus nicht gegen die echten
  * Portale testbar, Wirkung erst in Produktion sichtbar (siehe `last_fetch_http_status`
  * auf der Quellen-Detailseite).
+ *
+ * `finalUrl` (2026-08-08): `fetch()` folgt Weiterleitungen automatisch (Standard-
+ * verhalten); `res.url` ist danach die tatsächliche Ziel-URL. Wichtig für Klick-
+ * Tracking-Links (z.B. SendGrid), die Suchabo-Mails statt eines direkten Portal-Links
+ * enthalten können — processListingLinks.ts prüft damit, wo der Link wirklich landet.
  */
 
 export type FetchListingStatus = "OK" | "BLOCKED" | "TIMEOUT" | "ERROR";
@@ -18,6 +23,7 @@ export interface FetchListingResult {
   status: FetchListingStatus;
   html: string;
   httpStatus?: number;
+  finalUrl?: string;
 }
 
 export async function fetchListingPage(url: string, timeoutMs = 8000): Promise<FetchListingResult> {
@@ -34,13 +40,13 @@ export async function fetchListingPage(url: string, timeoutMs = 8000): Promise<F
       },
     });
     if (res.status === 403 || res.status === 429) {
-      return { status: "BLOCKED", html: "", httpStatus: res.status };
+      return { status: "BLOCKED", html: "", httpStatus: res.status, finalUrl: res.url };
     }
     if (!res.ok) {
-      return { status: "ERROR", html: "", httpStatus: res.status };
+      return { status: "ERROR", html: "", httpStatus: res.status, finalUrl: res.url };
     }
     const html = await res.text();
-    return { status: "OK", html, httpStatus: res.status };
+    return { status: "OK", html, httpStatus: res.status, finalUrl: res.url };
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       return { status: "TIMEOUT", html: "" };

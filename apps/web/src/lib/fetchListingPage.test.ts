@@ -46,6 +46,18 @@ describe("fetchListingPage", () => {
     expect(result).toEqual({ status: "ERROR", html: "" });
   });
 
+  it("liefert die finale Ziel-URL nach einer automatischen Weiterleitung (z.B. Klick-Tracking-Link)", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      url: "https://www.homegate.ch/kaufen/echtes-inserat-12345",
+      text: async () => "<html>Echtes Inserat</html>",
+    }) as unknown as typeof fetch;
+
+    const result = await fetchListingPage("https://u123.ct.sendgrid.net/uni/ls/click?upn=abc");
+    expect(result.finalUrl).toBe("https://www.homegate.ch/kaufen/echtes-inserat-12345");
+  });
+
   it("sendet einen browserähnlichen User-Agent samt Accept-Headern (Entscheid 2026-08-07, siehe OPEN_DECISIONS.md Punkt A)", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "<html></html>" });
     global.fetch = fetchMock as unknown as typeof fetch;

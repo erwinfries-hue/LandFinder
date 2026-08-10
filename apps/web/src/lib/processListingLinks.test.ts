@@ -202,6 +202,50 @@ describe("processListingLinks", () => {
     });
   });
 
+  it("verwendet die aufgelöste Ziel-URL nach einer Weiterleitung (z.B. SendGrid-Tracking-Link) als canonical_url", async () => {
+    const supabase = createSupabaseMock();
+    mockFetchListingPage.mockResolvedValue({
+      status: "OK",
+      html: "<html>Echtes Inserat</html>",
+      finalUrl: "https://www.homegate.ch/kaufen/echtes-inserat-12345",
+    });
+    mockExtractListingFields.mockResolvedValue({
+      fields: { title: "Echtes Inserat", askingPriceChf: 2_970_000 },
+      method: "MOCK_HEURISTIC",
+      confidence: 25,
+    });
+
+    await processListingLinks(supabase, ["https://u123.ct.sendgrid.net/uni/ls/click?upn=abc"]);
+
+    expect(mockExtractListingFields).toHaveBeenCalledWith("<html>Echtes Inserat</html>");
+    const [record] = supabase.upsert.mock.calls[0];
+    expect(record.canonical_url).toBe("https://www.homegate.ch/kaufen/echtes-inserat-12345");
+    expect(record.source).toBe("HOMEGATE");
+    expect(record.title).toBe("Echtes Inserat");
+  });
+
+  it("behandelt eine Weiterleitung auf eine unbekannte Domain nicht als Inserat-Seite", async () => {
+    const supabase = createSupabaseMock();
+    mockFetchListingPage.mockResolvedValue({
+      status: "OK",
+      html: "<html>Irgendetwas Fremdes</html>",
+      finalUrl: "https://voellig-unbekannt.example.com/xyz",
+    });
+
+    await processListingLinks(supabase, ["https://u123.ct.sendgrid.net/uni/ls/click?upn=abc"], {
+      subject: "1 neuer Treffer",
+      htmlBody: "<p>CHF 500'000.-</p><p>Musterstrasse 1<br/>8000 Zürich</p>",
+    });
+
+    // Seiteninhalt einer unerwarteten Domain wird nicht als Inserat-Daten interpretiert.
+    expect(mockExtractListingFields).not.toHaveBeenCalled();
+    // canonical_url bleibt der ursprüngliche Tracking-Link, da die Ziel-Domain nicht bekannt ist.
+    const [record] = supabase.upsert.mock.calls[0];
+    expect(record.canonical_url).toBe("https://u123.ct.sendgrid.net/uni/ls/click?upn=abc");
+    // Mail-Fallback greift trotzdem, da wir wenigstens den Mailinhalt haben.
+    expect(record.asking_price_chf).toBe(500_000);
+  });
+
   it("verarbeitet mehrere Links nacheinander und loggt einen Upsert-Fehler statt zu werfen", async () => {
     const supabase = createSupabaseMock();
     supabase.upsert.mockResolvedValueOnce({ error: new Error("db down") }).mockResolvedValueOnce({ error: null });

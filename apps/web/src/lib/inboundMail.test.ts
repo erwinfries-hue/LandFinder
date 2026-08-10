@@ -33,6 +33,38 @@ describe("extractPortalListingLinks", () => {
     const text = "Schau mal hier: https://www.homegate.ch/kaufen/999, das sieht gut aus.";
     expect(extractPortalListingLinks({ textBody: text })).toEqual(["https://www.homegate.ch/kaufen/999"]);
   });
+
+  it("erkennt einen SendGrid-Tracking-Link als Inserat-Link, wenn der Link-Text auf eine Inserat-Aktion hindeutet", () => {
+    const html = `
+      <img src="https://media2.homegate.ch/f_auto/listings/v2/s010/12345/image/x.jpg" />
+      <a href="https://u123.ct.sendgrid.net/uni/ls/click?upn=abc">Anbieter kontaktieren ›</a>
+    `;
+    expect(extractPortalListingLinks({ htmlBody: html })).toEqual([
+      "https://u123.ct.sendgrid.net/uni/ls/click?upn=abc",
+      "https://media2.homegate.ch/f_auto/listings/v2/s010/12345/image/x.jpg",
+    ]);
+  });
+
+  it("ignoriert einen Tracking-Link, dessen Text auf Abmelden/Impressum statt auf das Inserat hindeutet", () => {
+    const html = `
+      <a href="https://u123.ct.sendgrid.net/uni/ls/click?upn=unsub">Suchabo abbestellen</a>
+      <a href="https://u123.ct.sendgrid.net/uni/ls/click?upn=impressum">Impressum</a>
+    `;
+    expect(extractPortalListingLinks({ htmlBody: html })).toEqual([]);
+  });
+
+  it("stellt einen erkannten Tracking-Link vor Bild-/Vorschau-Links derselben Mail (Reihenfolge für MAX_LINKS_PER_RUN)", () => {
+    const html = `
+      <img src="https://media2.homegate.ch/f_auto/listings/v2/s010/12345/image/a.jpg" />
+      <img src="https://media.homegate.ch/logo.png" />
+      <a href="https://u123.ct.sendgrid.net/uni/ls/click?upn=abc">Anbieter kontaktieren ›</a>
+    `;
+    expect(extractPortalListingLinks({ htmlBody: html })).toEqual([
+      "https://u123.ct.sendgrid.net/uni/ls/click?upn=abc",
+      "https://media2.homegate.ch/f_auto/listings/v2/s010/12345/image/a.jpg",
+      "https://media.homegate.ch/logo.png",
+    ]);
+  });
 });
 
 describe("parsePostmarkInboundPayload", () => {
