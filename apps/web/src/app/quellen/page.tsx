@@ -52,134 +52,159 @@ export default async function QuellenPage() {
           </Panel>
         ) : (
           <>
-            <Panel style={{ padding: "1.4rem 1.6rem", marginBottom: "1.6rem" }}>
-              <div className="eyebrow">
-                Übersicht · Stufe 2 · {listings!.length} Inserat{listings!.length === 1 ? "" : "e"}
-              </div>
-              <p style={{ color: "var(--ink-soft)", fontSize: ".875rem", margin: "0.4rem 0 1.1rem" }}>
-                Aus den Links der Suchabo-Mails abgerufene und extrahierte Inserate. Der Link führt jeweils direkt zum
-                Original-Inserat beim Portal.
-              </p>
-              {listings!.length === 0 ? (
-                <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Noch keine Inserate erfasst.</p>
-              ) : (
-                <div className="twrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: "left" }}>Inserat</th>
-                        <th style={{ textAlign: "left" }}>Kanton</th>
-                        <th style={{ textAlign: "left" }}>Typ</th>
-                        <th>Preis</th>
-                        <th>Fläche</th>
-                        <th style={{ textAlign: "left" }}>Status</th>
-                        <th style={{ textAlign: "left" }}>
-                          Suchprofil <InfoHint text="Automatische Vorprüfung: Kanton, Objektart, Preis-Obergrenze, Preis/m²-Obergrenze, Flächen-Spanne — keine volle Score/Empfehlung, dafür fehlen Zonendaten." />
-                        </th>
-                        <th>Zuletzt gesehen</th>
-                        <th>Original</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {listings!.map((l) => {
-                        const st = listingStatus(l.ingestion_status);
-                        const prescreen = prescreenListing(l, searchProfile);
-                        const prescreenChip = PRESCREEN_STATUS_CHIP[prescreen.status];
-                        return (
-                          <tr key={l.id}>
+            <input type="checkbox" id="widen-listings" className="widen-toggle" />
+            <div className="widen-scope">
+              <Panel style={{ padding: "1.4rem 1.6rem", marginBottom: "1.6rem" }}>
+                <div className="widen-head">
+                  <div className="eyebrow">
+                    Übersicht · Stufe 2 · {listings!.length} Inserat{listings!.length === 1 ? "" : "e"}
+                  </div>
+                  <label htmlFor="widen-listings" className="widen-btn widen-btn-open">
+                    Volle Breite
+                  </label>
+                  <label htmlFor="widen-listings" className="widen-btn widen-btn-close">
+                    Normalansicht
+                  </label>
+                </div>
+                <p style={{ color: "var(--ink-soft)", fontSize: ".875rem", margin: "0.4rem 0 1.1rem" }}>
+                  Aus den Links der Suchabo-Mails abgerufene und extrahierte Inserate. Der Link führt jeweils direkt
+                  zum Original-Inserat beim Portal.
+                </p>
+                {listings!.length === 0 ? (
+                  <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Noch keine Inserate erfasst.</p>
+                ) : (
+                  <div className="twrap scroll-y">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left" }}>Inserat</th>
+                          <th style={{ textAlign: "left" }}>Kanton</th>
+                          <th style={{ textAlign: "left" }}>Typ</th>
+                          <th>Preis</th>
+                          <th>Fläche</th>
+                          <th style={{ textAlign: "left" }}>Status</th>
+                          <th style={{ textAlign: "left" }}>
+                            Suchprofil{" "}
+                            <InfoHint text="Automatische Vorprüfung: Kanton, Objektart, Preis-Obergrenze, Preis/m²-Obergrenze, Flächen-Spanne — keine volle Score/Empfehlung, dafür fehlen Zonendaten." />
+                          </th>
+                          <th>Zuletzt gesehen</th>
+                          <th>Original</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {listings!.map((l) => {
+                          const st = listingStatus(l.ingestion_status);
+                          const prescreen = prescreenListing(l, searchProfile);
+                          const prescreenChip = PRESCREEN_STATUS_CHIP[prescreen.status];
+                          return (
+                            <tr key={l.id}>
+                              <td style={{ textAlign: "left" }}>
+                                <Link
+                                  href={`/quellen/${l.id}`}
+                                  className="objcell"
+                                  style={{ display: "block" }}
+                                  title={l.title || l.address_text || "Ohne Titel"}
+                                >
+                                  <div className="m">{l.title || l.address_text || "Ohne Titel"}</div>
+                                  <div className="g">{l.source}</div>
+                                </Link>
+                              </td>
+                              <td style={{ textAlign: "left" }} className="mono">
+                                {l.canton ?? "—"}
+                              </td>
+                              <td style={{ textAlign: "left" }}>{objectTypeLabel(l.object_type)}</td>
+                              <td className="num mono">
+                                {l.asking_price_chf != null ? `CHF ${formatChf(l.asking_price_chf)}` : "—"}
+                              </td>
+                              <td className="num mono">
+                                {l.parcel_area_m2 != null ? `${formatChf(l.parcel_area_m2)} m²` : "—"}
+                              </td>
+                              <td style={{ textAlign: "left" }}>
+                                <Chip tone={st.tone}>{st.label}</Chip>
+                              </td>
+                              <td style={{ textAlign: "left" }}>
+                                <Link href={`/quellen/${l.id}`}>
+                                  <Chip tone={prescreenChip.tone}>{prescreenChip.label}</Chip>
+                                </Link>
+                              </td>
+                              <td className="num mono">{formatDateTime(l.last_seen_at)}</td>
+                              <td>
+                                <ListingLink url={l.canonical_url} label="Öffnen" />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Panel>
+            </div>
+
+            <input type="checkbox" id="widen-mails" className="widen-toggle" />
+            <div className="widen-scope">
+              <Panel style={{ padding: "1.4rem 1.6rem" }}>
+                <div className="widen-head">
+                  <div className="eyebrow">
+                    Eingehende Suchabo-Mails · {alerts!.length} Mail{alerts!.length === 1 ? "" : "s"}
+                  </div>
+                  <label htmlFor="widen-mails" className="widen-btn widen-btn-open">
+                    Volle Breite
+                  </label>
+                  <label htmlFor="widen-mails" className="widen-btn widen-btn-close">
+                    Normalansicht
+                  </label>
+                </div>
+                <p style={{ color: "var(--ink-soft)", fontSize: ".875rem", margin: "0.4rem 0 1.1rem" }}>
+                  Rohdaten-Ablage der Discovery-Stufe (Abschnitt 22), bevor die Links oben in strukturierte Inserate
+                  überführt werden.
+                </p>
+                {alerts!.length === 0 ? (
+                  <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>
+                    Noch keine Suchabo-Mails empfangen.
+                  </p>
+                ) : (
+                  <div className="twrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left" }}>Empfangen</th>
+                          <th style={{ textAlign: "left" }}>Von</th>
+                          <th style={{ textAlign: "left" }}>Betreff</th>
+                          <th style={{ textAlign: "left" }}>Verarbeitet</th>
+                          <th style={{ textAlign: "left" }}>Links im Inserat</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {alerts!.map((a) => (
+                          <tr key={a.id}>
+                            <td className="mono">{formatDateTime(a.received_at)}</td>
+                            <td>{a.from_address}</td>
+                            <td style={{ textAlign: "left" }}>{a.subject}</td>
                             <td style={{ textAlign: "left" }}>
-                              <Link
-                                href={`/quellen/${l.id}`}
-                                className="objcell"
-                                style={{ display: "block" }}
-                                title={l.title || l.address_text || "Ohne Titel"}
-                              >
-                                <div className="m">{l.title || l.address_text || "Ohne Titel"}</div>
-                                <div className="g">{l.source}</div>
-                              </Link>
-                            </td>
-                            <td style={{ textAlign: "left" }} className="mono">
-                              {l.canton ?? "—"}
-                            </td>
-                            <td style={{ textAlign: "left" }}>{objectTypeLabel(l.object_type)}</td>
-                            <td className="num mono">
-                              {l.asking_price_chf != null ? `CHF ${formatChf(l.asking_price_chf)}` : "—"}
-                            </td>
-                            <td className="num mono">
-                              {l.parcel_area_m2 != null ? `${formatChf(l.parcel_area_m2)} m²` : "—"}
+                              <Chip tone={a.processed ? "good" : "neutral"}>
+                                {a.processed ? "Verarbeitet" : "Ausstehend"}
+                              </Chip>
                             </td>
                             <td style={{ textAlign: "left" }}>
-                              <Chip tone={st.tone}>{st.label}</Chip>
-                            </td>
-                            <td style={{ textAlign: "left" }}>
-                              <Link href={`/quellen/${l.id}`}>
-                                <Chip tone={prescreenChip.tone}>{prescreenChip.label}</Chip>
-                              </Link>
-                            </td>
-                            <td className="num mono">{formatDateTime(l.last_seen_at)}</td>
-                            <td>
-                              <ListingLink url={l.canonical_url} label="Öffnen" />
+                              {a.listing_links.length === 0 ? (
+                                <span style={{ color: "var(--ink-faint)" }}>—</span>
+                              ) : (
+                                <div style={{ display: "flex", flexDirection: "column", gap: ".25rem" }}>
+                                  {a.listing_links.map((url, i) => (
+                                    <ListingLink key={url} url={url} label={`Link ${i + 1}`} />
+                                  ))}
+                                </div>
+                              )}
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Panel>
-
-            <Panel style={{ padding: "1.4rem 1.6rem" }}>
-              <div className="eyebrow">
-                Eingehende Suchabo-Mails · {alerts!.length} Mail{alerts!.length === 1 ? "" : "s"}
-              </div>
-              <p style={{ color: "var(--ink-soft)", fontSize: ".875rem", margin: "0.4rem 0 1.1rem" }}>
-                Rohdaten-Ablage der Discovery-Stufe (Abschnitt 22), bevor die Links oben in strukturierte Inserate
-                überführt werden.
-              </p>
-              {alerts!.length === 0 ? (
-                <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Noch keine Suchabo-Mails empfangen.</p>
-              ) : (
-                <div className="twrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: "left" }}>Empfangen</th>
-                        <th style={{ textAlign: "left" }}>Von</th>
-                        <th style={{ textAlign: "left" }}>Betreff</th>
-                        <th style={{ textAlign: "left" }}>Verarbeitet</th>
-                        <th style={{ textAlign: "left" }}>Links im Inserat</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {alerts!.map((a) => (
-                        <tr key={a.id}>
-                          <td className="mono">{formatDateTime(a.received_at)}</td>
-                          <td>{a.from_address}</td>
-                          <td style={{ textAlign: "left" }}>{a.subject}</td>
-                          <td style={{ textAlign: "left" }}>
-                            <Chip tone={a.processed ? "good" : "neutral"}>
-                              {a.processed ? "Verarbeitet" : "Ausstehend"}
-                            </Chip>
-                          </td>
-                          <td style={{ textAlign: "left" }}>
-                            {a.listing_links.length === 0 ? (
-                              <span style={{ color: "var(--ink-faint)" }}>—</span>
-                            ) : (
-                              <div style={{ display: "flex", flexDirection: "column", gap: ".25rem" }}>
-                                {a.listing_links.map((url, i) => (
-                                  <ListingLink key={url} url={url} label={`Link ${i + 1}`} />
-                                ))}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Panel>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Panel>
+            </div>
           </>
         )}
       </main>

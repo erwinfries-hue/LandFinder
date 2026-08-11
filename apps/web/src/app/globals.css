@@ -398,6 +398,75 @@ tr.row-clickable {
 .twrap {
   overflow-x: auto;
 }
+/* Eigener Scroll-Bereich statt Mitwachsen mit der Seite — nötig, damit
+   `position: sticky` im `thead` (siehe unten) tatsächlich etwas zu "sticken" hat, und
+   damit der fixierte Header beim Scrollen über die zweite Tabelle hinweg optisch
+   verschwindet, sobald diese Box selbst aus dem Sichtfeld scrollt. */
+.twrap.scroll-y {
+  overflow-y: auto;
+  max-height: min(620px, 65vh);
+}
+.twrap.scroll-y thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 2;
+}
+
+/* ---------- Quellen: "Volle Breite"-Umschalter pro Tabelle ---------- */
+.widen-toggle {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.widen-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+.widen-head .eyebrow {
+  margin-right: auto;
+}
+.widen-btn {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.widen-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.widen-btn-close {
+  display: none;
+}
+.widen-toggle:checked ~ .widen-scope .widen-btn-open {
+  display: none;
+}
+.widen-toggle:checked ~ .widen-scope .widen-btn-close {
+  display: inline-flex;
+}
+.widen-toggle:checked ~ .widen-scope {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: auto;
+  background: var(--paper);
+  padding: 1.6rem clamp(1rem, 3vw, 2.4rem);
+}
+.widen-toggle:checked ~ .widen-scope .twrap.scroll-y {
+  max-height: calc(100vh - 13rem);
+}
 .objcell .m {
   font-weight: 600;
   max-width: 220px;
