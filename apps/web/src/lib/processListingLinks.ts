@@ -36,6 +36,13 @@ function hasUsefulEmailFields(fields: ExtractedListingFields): boolean {
 }
 
 export async function processListingLinks(supabase: SupabaseClient, links: string[], mailContext?: AlertMailContent): Promise<void> {
+  // Wird `true`, sobald der Mailinhalt-Fallback einmal brauchbare Felder geliefert hat.
+  // Verhindert, dass mehrere Links derselben Mail (z.B. Logo- + Tracking-Link zum
+  // selben Treffer) alle denselben Mailinhalt als jeweils eigene Zeile speichern —
+  // Bug gefunden 2026-08-11 anhand echter Produktionsdaten (doppelte Zeilen mit
+  // identischem Inhalt unter unterschiedlichen canonical_url).
+  let emailFallbackConsumed = false;
+
   for (const url of links.slice(0, MAX_LINKS_PER_RUN)) {
     const fetchResult = await fetchListingPage(url);
 
@@ -58,8 +65,11 @@ export async function processListingLinks(supabase: SupabaseClient, links: strin
     // ergab (z.B. weil der Link auf ein Logo-/Vorschaubild zeigte oder blockiert
     // wurde — siehe listingExtraction.ts, extractFromEmailContent).
     const emailExtraction =
-      mailContext && (!pageExtraction || !hasUsefulFields(pageExtraction.fields)) ? extractFromEmailContent(mailContext) : undefined;
+      mailContext && !emailFallbackConsumed && (!pageExtraction || !hasUsefulFields(pageExtraction.fields))
+        ? extractFromEmailContent(mailContext)
+        : undefined;
     const usableEmailExtraction = emailExtraction && hasUsefulEmailFields(emailExtraction.fields) ? emailExtraction : undefined;
+    if (usableEmailExtraction) emailFallbackConsumed = true;
 
     const extraction = usableEmailExtraction ?? pageExtraction;
 

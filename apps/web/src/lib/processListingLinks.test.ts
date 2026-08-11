@@ -246,6 +246,34 @@ describe("processListingLinks", () => {
     expect(record.asking_price_chf).toBe(500_000);
   });
 
+  it("verwendet den Mailinhalt-Fallback nur für den ersten Link, nicht für jeden Link derselben Mail (Bug 2026-08-11: doppelte Zeilen)", async () => {
+    const supabase = createSupabaseMock();
+    // Zwei Links derselben Mail (z.B. Logo- und Tracking-Link), beide ohne brauchbare
+    // Seiten-Extraktion — vorher wurde für beide derselbe Mailinhalt gespeichert, was zu
+    // zwei fast identischen Zeilen mit unterschiedlicher canonical_url führte.
+    mockFetchListingPage.mockResolvedValue({ status: "BLOCKED", html: "", httpStatus: 403 });
+
+    await processListingLinks(
+      supabase,
+      ["https://media2.homegate.ch/.../logo.jpg", "https://u123.ct.sendgrid.net/uni/ls/click?upn=abc"],
+      {
+        subject: "1 neuer Treffer für 'Bauland zum Kaufen'",
+        htmlBody: "<p>CHF 2'970'000.–</p><p>Friedhofweg 2<br/>4414 Füllinsdorf</p>",
+      },
+    );
+
+    expect(supabase.upsert).toHaveBeenCalledTimes(2);
+    const [firstRecord] = supabase.upsert.mock.calls[0];
+    const [secondRecord] = supabase.upsert.mock.calls[1];
+    expect(firstRecord.asking_price_chf).toBe(2_970_000);
+    expect(firstRecord.address_text).toBe("Friedhofweg 2, 4414 Füllinsdorf");
+    // Der zweite Link bekommt keine Kopie desselben Mailinhalts, sondern bleibt beim
+    // eigenen (Fehler-)Status stehen.
+    expect(secondRecord.asking_price_chf).toBeUndefined();
+    expect(secondRecord.address_text).toBeUndefined();
+    expect(secondRecord.ingestion_status).toBe("BLOCKED");
+  });
+
   it("verarbeitet mehrere Links nacheinander und loggt einen Upsert-Fehler statt zu werfen", async () => {
     const supabase = createSupabaseMock();
     supabase.upsert.mockResolvedValueOnce({ error: new Error("db down") }).mockResolvedValueOnce({ error: null });

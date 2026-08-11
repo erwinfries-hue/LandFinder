@@ -35,9 +35,28 @@ function stripHtml(html: string): string {
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
+    // Numerische HTML-Entities (z.B. "&#847;") vor der Textanalyse entfernen statt
+    // dekodieren: manche Suchabo-Mails enthalten sie wiederholt als unsichtbaren
+    // Anti-Spam-Füllstoff (Bug gefunden 2026-08-11: die dekodierten, unsichtbaren
+    // Zeichen erschienen als literaler "&#847; &#847; ..."-Müll in der Beschreibung).
+    .replace(/&#x[0-9a-f]+;/gi, " ")
+    .replace(/&#\d+;/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * Unterhalb dieser Schwelle ist ein per Regex gefundener "CHF"-Betrag mit hoher
+ * Sicherheit kein Kaufpreis für Bauland/Abbruchobjekt, sondern ein Fehltreffer (z.B.
+ * eine Monatsmiete oder eine Nebenangabe) — dann lieber weglassen als einen falschen
+ * Preis zu speichern (Bug gefunden 2026-08-11, echte Produktionsdaten: "CHF 1'150" als
+ * Kaufpreis übernommen). Konsistent mit "nichts wird erfunden".
+ */
+const MIN_PLAUSIBLE_PRICE_CHF = 50_000;
+
+function plausiblePrice(value: number | undefined): number | undefined {
+  return value !== undefined && value >= MIN_PLAUSIBLE_PRICE_CHF ? value : undefined;
 }
 
 /**
@@ -50,7 +69,7 @@ export function extractWithHeuristic(html: string): ExtractionResult {
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
 
   const priceMatch = text.match(/CHF\s*([\d'’.]{4,})/i);
-  const askingPriceChf = priceMatch ? Number(priceMatch[1].replace(/[^\d]/g, "")) || undefined : undefined;
+  const askingPriceChf = plausiblePrice(priceMatch ? Number(priceMatch[1].replace(/[^\d]/g, "")) || undefined : undefined);
 
   const areaMatch = text.match(/([\d'’]{2,})\s*m[²2]/i);
   const parcelAreaM2 = areaMatch ? Number(areaMatch[1].replace(/[^\d]/g, "")) || undefined : undefined;
@@ -91,21 +110,29 @@ export interface AlertMailContent {
  * Bewusst konservativ: Kanton wird NICHT aus dem Betreff geraten, weil Suchabo-Mails
  * oft mehrere Kantone gleichzeitig auflisten (die Suchkriterien, nicht die Lage des
  * konkreten Treffers) — eine falsche Zuordnung wäre schlimmer als keine Angabe.
+ *
+ * Aus demselben Grund: enthält die Mail mehrere Treffer ("3 neue Treffer"), lassen sich
+ * Preis/Adresse/Fläche im Fliesstext keinem der Treffer sicher zuordnen (welcher der
+ * drei?) — dann werden auch diese Felder nicht extrahiert (Bug gefunden 2026-08-11).
  */
+const MULTI_MATCH_SUBJECT_PATTERN = /(\d+)\s+neue?r?\s+Treffer/i;
+
 export function extractFromEmailContent(mail: AlertMailContent): ExtractionResult {
   const text = stripHtml(`${mail.subject}\n${mail.htmlBody ?? mail.textBody ?? ""}`);
+  const matchCount = Number(mail.subject.match(MULTI_MATCH_SUBJECT_PATTERN)?.[1] ?? "1");
+  const isMultiMatch = matchCount > 1;
 
-  const priceMatch = text.match(/CHF\s*([\d'’.]{4,})/i);
-  const askingPriceChf = priceMatch ? Number(priceMatch[1].replace(/[^\d]/g, "")) || undefined : undefined;
+  const priceMatch = isMultiMatch ? null : text.match(/CHF\s*([\d'’.]{4,})/i);
+  const askingPriceChf = plausiblePrice(priceMatch ? Number(priceMatch[1].replace(/[^\d]/g, "")) || undefined : undefined);
 
-  const areaMatch = text.match(/([\d'’]{2,})\s*m[²2]/i);
+  const areaMatch = isMultiMatch ? null : text.match(/([\d'’]{2,})\s*m[²2]/i);
   const parcelAreaM2 = areaMatch ? Number(areaMatch[1].replace(/[^\d]/g, "")) || undefined : undefined;
 
   // Strasse + Hausnummer, dann 4-stellige PLZ, dann Ortsname — alles auf einer Zeile,
   // da stripHtml() Zeilenumbrüche zu Leerzeichen zusammenzieht.
-  const addressMatch = text.match(
-    /([A-ZÄÖÜ][\wÀ-ÿ.\- ]{1,40}?\s\d{1,4}[a-z]?)\s+(\d{4})\s+([A-ZÄÖÜ][\wÀ-ÿ\- ]{1,40}?)(?=\s|$)/,
-  );
+  const addressMatch = isMultiMatch
+    ? null
+    : text.match(/([A-ZÄÖÜ][\wÀ-ÿ.\- ]{1,40}?\s\d{1,4}[a-z]?)\s+(\d{4})\s+([A-ZÄÖÜ][\wÀ-ÿ\- ]{1,40}?)(?=\s|$)/);
   const addressText = addressMatch ? `${addressMatch[1].trim()}, ${addressMatch[2]} ${addressMatch[3].trim()}` : undefined;
 
   const objectType = /abbruch|rückbau|abriss/i.test(text) ? "ABBRUCHOBJEKT" : /bauland|baulandparzelle|unbebaut/i.test(text) ? "BAULAND" : undefined;

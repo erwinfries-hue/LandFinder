@@ -33,6 +33,11 @@ describe("extractWithHeuristic", () => {
     const html = "<title>Test</title><style>.x{color:red}</style><script>var chf='CHF 9999999';</script><p>CHF 1'200'000</p>";
     expect(extractWithHeuristic(html).fields.askingPriceChf).toBe(1_200_000);
   });
+
+  it("erfindet keinen unplausibel niedrigen Preis", () => {
+    const html = "<title>Test</title><p>Verwaltungsgebühr CHF 1'150.-</p>";
+    expect(extractWithHeuristic(html).fields.askingPriceChf).toBeUndefined();
+  });
 });
 
 describe("extractFromEmailContent", () => {
@@ -81,5 +86,31 @@ describe("extractFromEmailContent", () => {
     });
     expect(result.fields.askingPriceChf).toBe(500_000);
     expect(result.fields.addressText).toBe("Musterstrasse 1, 8000 Zürich");
+  });
+
+  it("erfindet keinen unplausibel niedrigen Preis (Bug 2026-08-11: CHF 1'150 als Kaufpreis)", () => {
+    const result = extractFromEmailContent({
+      subject: "1 neuer Treffer",
+      textBody: "CHF 1'150.- Verwaltungsgebühr, siehe Details im Inserat.",
+    });
+    expect(result.fields.askingPriceChf).toBeUndefined();
+  });
+
+  it("extrahiert bei mehreren Treffern in einer Mail weder Preis noch Adresse (nicht zuordenbar)", () => {
+    const result = extractFromEmailContent({
+      subject: "3 neue Treffer für 'Bauland zum Kaufen in Kanton Zug'",
+      htmlBody: "<p>CHF 2'970'000.–</p><p>Friedhofweg 2<br/>4414 Füllinsdorf</p><p>150 m²</p>",
+    });
+    expect(result.fields.askingPriceChf).toBeUndefined();
+    expect(result.fields.addressText).toBeUndefined();
+    expect(result.fields.parcelAreaM2).toBeUndefined();
+  });
+
+  it("entfernt wiederholte numerische HTML-Entities aus der Beschreibung (Bug 2026-08-11)", () => {
+    const result = extractFromEmailContent({
+      subject: "1 neuer Treffer",
+      htmlBody: "<p>&#847;&#847;&#847; Attraktives Bauland &#847;&#847;</p>",
+    });
+    expect(result.fields.description).not.toContain("&#847;");
   });
 });
