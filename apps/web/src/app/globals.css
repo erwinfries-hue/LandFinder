@@ -456,13 +456,22 @@ tr.row-clickable {
 .widen-toggle:checked ~ .widen-scope .widen-btn-close {
   display: inline-flex;
 }
-.widen-toggle:checked ~ .widen-scope {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  overflow: auto;
-  background: var(--paper);
-  padding: 1.6rem clamp(1rem, 3vw, 2.4rem);
+/* Bewusst NICHT als fixiertes Vollbild-Overlay (das liess die jeweils andere Tabelle
+   dahinter "verschwinden" — Bug gefunden 2026-08-11, von dir gemeldet): stattdessen
+   bleibt der normale Seitenfluss erhalten, nur die Seitennavigation weicht kurz und
+   `.main` nutzt die volle Fensterbreite — beide Tabellen bleiben erreichbar. */
+.shell:has(.widen-toggle:checked) {
+  /* Nur noch eine Spalte, nicht bloss die erste auf 0 gesetzt: `.side` fällt durch
+     `display: none` aus dem Grid-Auto-Placement heraus, sonst würde `.main` in die
+     (jetzt leere) erste Spalte rutschen statt die zweite auszufüllen. */
+  grid-template-columns: minmax(0, 1fr);
+}
+.shell:has(.widen-toggle:checked) .side,
+.shell:has(.widen-toggle:checked) .sidenav-collapse-btn {
+  display: none;
+}
+.shell:has(.widen-toggle:checked) .main {
+  max-width: none;
 }
 .widen-toggle:checked ~ .widen-scope .twrap.scroll-y {
   max-height: calc(100vh - 13rem);
