@@ -163,7 +163,7 @@ export default async function QuellenPage() {
                             ) : (
                               <div style={{ display: "flex", flexDirection: "column", gap: ".25rem" }}>
                                 {a.listing_links.map((url, i) => (
-                                  <ListingLink key={url} url={url} label={`Link ${i + 1} öffnen`} />
+                                  <ListingLink key={url} url={url} label={`Link ${i + 1}`} />
                                 ))}
                               </div>
                             )}
