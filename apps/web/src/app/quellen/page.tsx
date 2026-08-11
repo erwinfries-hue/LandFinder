@@ -88,7 +88,12 @@ export default async function QuellenPage() {
                         return (
                           <tr key={l.id}>
                             <td style={{ textAlign: "left" }}>
-                              <Link href={`/quellen/${l.id}`} className="objcell" style={{ display: "block" }}>
+                              <Link
+                                href={`/quellen/${l.id}`}
+                                className="objcell"
+                                style={{ display: "block" }}
+                                title={l.title || l.address_text || "Ohne Titel"}
+                              >
                                 <div className="m">{l.title || l.address_text || "Ohne Titel"}</div>
                                 <div className="g">{l.source}</div>
                               </Link>
