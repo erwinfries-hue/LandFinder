@@ -10,7 +10,7 @@ import {
   InfoHint,
   type Column,
 } from "@landfinder/ui";
-import { formatChf, type Objekt } from "@/lib/demo-data";
+import { formatChf, formatDate, type Objekt } from "@/lib/demo-data";
 import { METRIC_HINTS } from "@/lib/metricHints";
 
 /**
@@ -115,6 +115,12 @@ export function RankingTable({ rows }: { rows: Objekt[] }) {
       ),
       sortValue: (o) => o.yieldOnCost,
       render: (o) => <span className="mono">{o.yieldOnCost.toFixed(1)}%</span>,
+    },
+    {
+      key: "erfasstAm",
+      header: "Erfasst am",
+      sortValue: (o) => o.erfasstAm,
+      render: (o) => <span className="mono">{formatDate(o.erfasstAm)}</span>,
     },
   ];
 

@@ -21,6 +21,8 @@ export type Objekt = {
   preisChf: number;
   preisProM2: number;
   yieldOnCost: number;
+  /** ISO-Datum (YYYY-MM-DD), an dem das Objekt erfasst wurde. */
+  erfasstAm: string;
   /** Stufe-2-Vertiefung — nur vorhanden, wenn die Vertiefung bereits ausgeführt wurde. */
   vertiefung?: {
     egrid: string;
@@ -72,6 +74,7 @@ export const demoObjekte: Objekt[] = [
     preisChf: 3_450_000,
     preisProM2: 1855,
     yieldOnCost: 4.6,
+    erfasstAm: "2026-07-18",
     vertiefung: {
       egrid: "CH685284972",
       zone: "W3, amtlich bestätigt",
@@ -130,6 +133,7 @@ export const demoObjekte: Objekt[] = [
     preisChf: 4_120_000,
     preisProM2: 1916,
     yieldOnCost: 4.9,
+    erfasstAm: "2026-07-25",
   },
   {
     slug: "neuenhof-industriestrasse-3381",
@@ -150,6 +154,7 @@ export const demoObjekte: Objekt[] = [
     preisChf: 2_890_000,
     preisProM2: 2157,
     yieldOnCost: 4.1,
+    erfasstAm: "2026-07-29",
   },
   {
     slug: "root-bahnhofstrasse-512",
@@ -170,6 +175,7 @@ export const demoObjekte: Objekt[] = [
     preisChf: 2_340_000,
     preisProM2: 1581,
     yieldOnCost: 3.8,
+    erfasstAm: "2026-08-02",
   },
   {
     slug: "freienbach-seestrasse-145",
@@ -190,6 +196,7 @@ export const demoObjekte: Objekt[] = [
     preisChf: 5_950_000,
     preisProM2: 2254,
     yieldOnCost: 3.4,
+    erfasstAm: "2026-08-05",
   },
   {
     slug: "baar-rigistrasse-664",
@@ -210,6 +217,7 @@ export const demoObjekte: Objekt[] = [
     preisChf: 3_780_000,
     preisProM2: 1919,
     yieldOnCost: 3.2,
+    erfasstAm: "2026-08-09",
   },
 ];
 
@@ -227,4 +235,13 @@ export function formatChf(value: number): string {
 
 export function mapsUrl(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
+/**
+ * Formatiert ein ISO-Datum (YYYY-MM-DD) im Schweizer Stil (DD.MM.YYYY) — manuell statt
+ * via `toLocaleDateString("de-CH")`, aus demselben Hydration-Grund wie `formatChf`.
+ */
+export function formatDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-");
+  return `${day}.${month}.${year}`;
 }

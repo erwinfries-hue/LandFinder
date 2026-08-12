@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatChf, mapsUrl } from "./demo-data";
+import { formatChf, formatDate, mapsUrl } from "./demo-data";
 
 describe("formatChf", () => {
   it("gruppiert Tausender mit Schweizer Apostroph", () => {
@@ -26,5 +26,12 @@ describe("mapsUrl", () => {
   it("baut eine Google-Maps-Such-URL mit korrekt kodierter Adresse", () => {
     const url = mapsUrl("Chamerstrasse 1, 6330 Cham");
     expect(url).toBe("https://www.google.com/maps/search/?api=1&query=Chamerstrasse%201%2C%206330%20Cham");
+  });
+});
+
+describe("formatDate", () => {
+  it("wandelt ein ISO-Datum in den Schweizer Stil DD.MM.YYYY um", () => {
+    expect(formatDate("2026-08-09")).toBe("09.08.2026");
+    expect(formatDate("2026-01-01")).toBe("01.01.2026");
   });
 });
