@@ -48,6 +48,15 @@ export async function createSessionToken(secret: string): Promise<string> {
   return `${payload}.${bytesToHex(signature)}`;
 }
 
+/** Prüft das Session-Cookie eines eingehenden Requests gegen `APP_PASSWORD` — gemeinsame Prüfung für API-Routen ausserhalb der Middleware (defense in depth). */
+export async function hasValidSession(request: Request): Promise<boolean> {
+  const appPassword = process.env.APP_PASSWORD;
+  if (!appPassword) return false;
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
+  return isValidSessionToken(match?.[1], appPassword);
+}
+
 export async function isValidSessionToken(token: string | undefined | null, secret: string): Promise<boolean> {
   if (!token) return false;
   const [payload, signatureHex] = token.split(".");

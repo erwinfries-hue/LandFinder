@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { createSessionToken, isValidSessionToken } from "./authSession";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { createSessionToken, isValidSessionToken, hasValidSession, SESSION_COOKIE_NAME } from "./authSession";
 
 describe("createSessionToken / isValidSessionToken", () => {
   it("akzeptiert ein frisch erzeugtes Token mit dem richtigen Secret", async () => {
@@ -41,5 +41,37 @@ describe("createSessionToken / isValidSessionToken", () => {
   it("lehnt Tokens mit ungültigem Format ab", async () => {
     expect(await isValidSessionToken("kein-punkt-drin", "secret")).toBe(false);
     expect(await isValidSessionToken("123.nicht-hex!!", "secret")).toBe(false);
+  });
+});
+
+describe("hasValidSession", () => {
+  afterEach(() => {
+    delete process.env.APP_PASSWORD;
+  });
+
+  it("lehnt ab, wenn APP_PASSWORD nicht gesetzt ist (fail closed)", async () => {
+    delete process.env.APP_PASSWORD;
+    const request = new Request("https://example.test", { headers: { cookie: `${SESSION_COOKIE_NAME}=irrelevant` } });
+    expect(await hasValidSession(request)).toBe(false);
+  });
+
+  it("lehnt ab, wenn kein Cookie mitgeschickt wird", async () => {
+    process.env.APP_PASSWORD = "correct-secret";
+    const request = new Request("https://example.test");
+    expect(await hasValidSession(request)).toBe(false);
+  });
+
+  it("akzeptiert ein gültiges Session-Cookie", async () => {
+    process.env.APP_PASSWORD = "correct-secret";
+    const token = await createSessionToken("correct-secret");
+    const request = new Request("https://example.test", { headers: { cookie: `${SESSION_COOKIE_NAME}=${token}` } });
+    expect(await hasValidSession(request)).toBe(true);
+  });
+
+  it("lehnt ein Cookie mit falschem Secret ab", async () => {
+    process.env.APP_PASSWORD = "correct-secret";
+    const token = await createSessionToken("wrong-secret");
+    const request = new Request("https://example.test", { headers: { cookie: `${SESSION_COOKIE_NAME}=${token}` } });
+    expect(await hasValidSession(request)).toBe(false);
   });
 });

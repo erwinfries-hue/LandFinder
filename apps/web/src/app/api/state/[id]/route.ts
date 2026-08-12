@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
-import { isValidSessionToken, SESSION_COOKIE_NAME } from "@/lib/authSession";
+import { hasValidSession } from "@/lib/authSession";
 
 /**
  * Generischer Key-Value-Endpunkt über die `app_state`-Tabelle (Migration 0002) —
@@ -15,14 +15,6 @@ import { isValidSessionToken, SESSION_COOKIE_NAME } from "@/lib/authSession";
  */
 
 const ALLOWED_IDS = new Set(["search-profile", "annahmen-overrides"]);
-
-async function hasValidSession(request: Request): Promise<boolean> {
-  const appPassword = process.env.APP_PASSWORD;
-  if (!appPassword) return false;
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const match = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
-  return isValidSessionToken(match?.[1], appPassword);
-}
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   if (!(await hasValidSession(request))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

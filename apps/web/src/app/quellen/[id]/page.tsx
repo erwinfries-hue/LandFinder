@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import type { Objektart } from "@landfinder/domain";
 import { Panel, Chip, ListingLink } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { Metric } from "@/components/objekte/MetricPrimitives";
+import { ListingVertiefungForm } from "@/components/quellen/ListingVertiefungForm";
+import { ListingLiveAnalysis, type ComparisonPoolEntry } from "@/components/quellen/ListingLiveAnalysis";
 import { formatChf } from "@/lib/demo-data";
-import { getListingById, listingStatus, objectTypeLabel, formatDateTime } from "@/lib/listings";
+import { getListingById, getVertieftePeersInCanton, listingStatus, objectTypeLabel, formatDateTime } from "@/lib/listings";
 import { getPersistedSearchProfile } from "@/lib/searchProfile";
 import { prescreenListing, type PrescreenRuleStatus } from "@/lib/listingPrescreen";
+import { parseListingVertiefungFacts, type ListingAnalysisInput } from "@/lib/listingVertiefung";
 
 const RULE_STATUS_CHIP: Record<PrescreenRuleStatus, { label: string; tone: "good" | "bad" | "neutral" }> = {
   PASSED: { label: "Erfüllt", tone: "good" },
@@ -61,6 +65,41 @@ export default async function QuellenDetailPage({ params }: { params: Promise<{ 
   const extractionMethod = typeof listing.extraction?.method === "string" ? listing.extraction.method : undefined;
   const extractionConfidence =
     typeof listing.extraction?.confidence === "number" ? listing.extraction.confidence : undefined;
+
+  // "Objekt vertiefen" (docs/OPEN_DECISIONS.md) braucht mindestens diese vier Felder,
+  // bevor die Engine überhaupt rechnen kann — ohne sie bleibt nur die Vorprüfung oben.
+  const canDeepen = listing.asking_price_chf != null && listing.parcel_area_m2 != null && Boolean(listing.canton) && Boolean(listing.object_type);
+  const vertiefungParsed = listing.vertiefung ? parseListingVertiefungFacts(listing.vertiefung) : null;
+  const vertiefungFacts = vertiefungParsed && "facts" in vertiefungParsed ? vertiefungParsed.facts : null;
+  const listingAnalysisInput: ListingAnalysisInput | null = canDeepen
+    ? {
+        canton: listing.canton!,
+        objectType: listing.object_type as Objektart,
+        askingPriceChf: listing.asking_price_chf!,
+        parcelAreaM2: listing.parcel_area_m2!,
+      }
+    : null;
+
+  let comparisonPool: ComparisonPoolEntry[] = [];
+  if (vertiefungFacts && listing.canton) {
+    const peers = await getVertieftePeersInCanton(listing.canton, listing.id);
+    comparisonPool = peers.flatMap((p) => {
+      const parsed = p.vertiefung ? parseListingVertiefungFacts(p.vertiefung) : null;
+      if (!parsed || !("facts" in parsed) || p.asking_price_chf == null || p.parcel_area_m2 == null || !p.canton || !p.object_type) return [];
+      return [
+        {
+          listingId: p.id,
+          listing: {
+            canton: p.canton,
+            objectType: p.object_type as Objektart,
+            askingPriceChf: p.asking_price_chf,
+            parcelAreaM2: p.parcel_area_m2,
+          },
+          facts: parsed.facts,
+        },
+      ];
+    });
+  }
 
   return (
     <div className="shell">
@@ -138,6 +177,31 @@ export default async function QuellenDetailPage({ params }: { params: Promise<{ 
             </p>
           ) : null}
         </Panel>
+
+        {!canDeepen ? (
+          <Panel style={{ padding: "1.3rem 1.4rem", marginTop: "1.6rem" }}>
+            <div className="eyebrow">Objekt vertiefen</div>
+            <p style={{ color: "var(--ink-soft)", fontSize: ".875rem", margin: "0.4rem 0 0" }}>
+              Noch nicht möglich — Preis, Fläche, Kanton und Objektart müssen zuerst vorhanden sein (mindestens eines
+              fehlt aktuell).
+            </p>
+          </Panel>
+        ) : vertiefungFacts && listingAnalysisInput ? (
+          <>
+            <ListingLiveAnalysis
+              listingId={listing.id}
+              listing={listingAnalysisInput}
+              facts={vertiefungFacts}
+              comparisonPool={comparisonPool}
+            />
+            <details style={{ marginTop: "1.2rem" }}>
+              <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>Vertiefungsdaten bearbeiten</summary>
+              <ListingVertiefungForm listingId={listing.id} existing={vertiefungFacts} />
+            </details>
+          </>
+        ) : (
+          <ListingVertiefungForm listingId={listing.id} existing={null} />
+        )}
 
         <p style={{ marginTop: "1.2rem" }}>
           <Link href="/quellen" className="maplink">

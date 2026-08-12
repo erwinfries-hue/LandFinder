@@ -25,6 +25,24 @@ import {
   type HardGateContext,
 } from "@landfinder/scoring-engine";
 import { overrideKey, type AnnahmenOverrides } from "./annahmen";
+import {
+  resolveMarketAssumptions,
+  toBaupotenzialInputFields,
+  type BaupotenzialFacts,
+  type ListingAnalysisInput,
+  type ListingVertiefungFacts,
+} from "./listingVertiefung";
+
+function baupotenzialLabel(facts: BaupotenzialFacts): string {
+  switch (facts.method) {
+    case "DENSITY_RATIO":
+      return `Ausnützungsziffer ${facts.densityRatio}`;
+    case "VOLUME_RATIO":
+      return `Baumassenziffer ${facts.volumeRatio} m³/m²`;
+    case "COVERAGE_RATIO":
+      return `Überbauungsziffer ${facts.siteCoverageRatio}, ${facts.effectiveFloors} Geschosse`;
+  }
+}
 
 /**
  * Rohfakten für "Chamerstrasse, Cham ZG" — bewusst nur für dieses eine Demo-Objekt,
@@ -79,7 +97,7 @@ function resolveGroup(groupId: string, registry: Record<string, { key: string; d
   return result;
 }
 
-export interface ChamAnalysisResult {
+export interface ObjektAnalysisResult {
   baupotenzial: { estimatedGfaM2: number; adjustedNraM2: number };
   base: {
     totalDevelopmentCostChf: number;
@@ -106,18 +124,32 @@ export interface ChamAnalysisResult {
 }
 
 /**
- * Rechnet "Chamerstrasse, Cham ZG" komplett durch financial-engine + scoring-engine,
- * mit den aktuellen Suchprofil-Annahmen und Annahmen-Register-Overrides — ändert der
- * Nutzer im Wizard z.B. die Baukosten, ändert sich dieses Ergebnis entsprechend.
+ * Rechnet ein beliebiges Objekt (echtes Inserat + manuell erfasste Vertiefungsdaten)
+ * komplett durch financial-engine + scoring-engine, mit den aktuellen
+ * Suchprofil-Annahmen und Annahmen-Register-Overrides. `computeChamAnalysis` (unten)
+ * ist nur noch ein dünner Wrapper darüber, der die Cham-Demo-Fakten übersetzt —
+ * dieselbe Funktion treibt sowohl die Cham-Detailseite als auch "Objekt vertiefen"
+ * für echte `/quellen`-Treffer.
  */
-export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: AnnahmenOverrides): ChamAnalysisResult {
+export function computeListingAnalysis(
+  profile: SearchProfile,
+  annahmenOverrides: AnnahmenOverrides,
+  listing: ListingAnalysisInput,
+  facts: ListingVertiefungFacts,
+): ObjektAnalysisResult {
+  const market = resolveMarketAssumptions(facts.marktAnnahmen, profile.marktannahmen.vacancyRatePercent);
   const assumptionNotes: string[] = [
-    "Ausnützungsziffer 0.6 und Zone W3 aus der ursprünglichen Objektbeschreibung übernommen, nicht durch ein amtliches Dokument in diesem System verifiziert.",
-    "Erreichbare Bevölkerung (30 Min.), Bevölkerungswachstum, Mietniveau-Verhältnis und Bautätigkeit: keine Wüest-Daten für Kanton ZG hinterlegt (nur Baden/Wohlen AG) — grobe Schätzungen bzw. neutrale Werte, siehe UNVERIFIED_MARKET_ASSUMPTIONS.",
-    "Zielmieter-Fit noch nicht manuell beurteilt — Bandmitte (0.5) angenommen.",
-    "Zufahrt gilt als gesichert (Hard Gate passiert), aber als weicher Risikofaktor markiert — laut Objektbeschreibung ein gemeinsames Erschliessungsrecht mit ausstehendem ÖREB-Auszug.",
+    `${baupotenzialLabel(facts.baupotenzial)} und Zone "${facts.zoneLabel}" wie erfasst übernommen (Verifikationsstufe ${facts.zoneVerification}), nicht durch ein amtliches Dokument in diesem System verifiziert.`,
+    ...market.assumptionNotes,
     "Parkplatzanzahl nicht erfasst — Parkplatzkosten/-erträge mit 0 angenommen.",
   ];
+  if (listing.objectType === "ABBRUCHOBJEKT" && facts.existingBuildingAreaM2 === undefined) {
+    assumptionNotes.push("Abbruchobjekt ohne erfasste bestehende Gebäudefläche — Abbruchkosten mit 0 angenommen statt eine Fläche zu erfinden.");
+  }
+  if (facts.risiken.zufahrt || facts.risiken.erschliessung) {
+    assumptionNotes.push("Zufahrt/Erschliessung als weicher Risikofaktor markiert, auch wenn das zugehörige Hard Gate bestanden hat.");
+  }
+  if (facts.notes) assumptionNotes.push(facts.notes);
 
   const baupotenzialFactors = resolveGroup("baupotenzial", BAUPOTENZIAL_PARAMETERS, annahmenOverrides) as Record<
     keyof typeof BAUPOTENZIAL_PARAMETERS,
@@ -140,9 +172,8 @@ export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: A
   >;
 
   const baupotenzial = estimateBaupotenzial({
-    method: "DENSITY_RATIO",
-    parcelAreaM2: CHAM_FACTS.parcelAreaM2,
-    densityRatio: CHAM_FACTS.densityRatio,
+    ...toBaupotenzialInputFields(facts.baupotenzial),
+    parcelAreaM2: listing.parcelAreaM2,
     factors: baupotenzialFactors,
   });
 
@@ -155,10 +186,15 @@ export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: A
     nraM2: baupotenzial.adjustedNraM2,
   });
 
+  const demolitionChf =
+    listing.objectType === "ABBRUCHOBJEKT" && facts.existingBuildingAreaM2 !== undefined
+      ? (profile.baukosten.demolitionCostChfPerM2 ?? 0) * facts.existingBuildingAreaM2
+      : 0;
+
   const projektkosten = calculateProjektkosten({
-    landCostChf: CHAM_FACTS.askingPriceChf,
+    landCostChf: listing.askingPriceChf,
     purchaseCostsChf: 0, // Handänderungssteuer/Notariat: nicht separat im Suchprofil erfasst
-    demolitionChf: 0, // Bauland, kein Abbruchobjekt
+    demolitionChf,
     remediationChf: 0,
     sitePreparationChf: profile.baukosten.erschliessungCostChf ?? 0,
     buildingCostChf: buildingCost,
@@ -196,9 +232,9 @@ export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: A
     fixedNonRecoverableCostsChfPerYear: 0,
     annualCapexReserveChfPerYear: 0,
 
-    landCostChf: CHAM_FACTS.askingPriceChf,
+    landCostChf: listing.askingPriceChf,
     purchaseCostsChf: 0,
-    demolitionChf: 0,
+    demolitionChf,
     remediationChf: 0,
     sitePreparationChf: profile.baukosten.erschliessungCostChf ?? 0,
     buildingCostBasis: profile.baukosten.costBasis,
@@ -219,7 +255,7 @@ export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: A
 
     exitCapRatePercent: profile.marktannahmen.exitCapRatePercent,
     targetProfitMarginPercent: profile.renditeziele.targetMarginPercent,
-    askingLandPriceChf: CHAM_FACTS.askingPriceChf,
+    askingLandPriceChf: listing.askingPriceChf,
   };
 
   const { base, stress } = runBaseAndStress(scenarioInputs, stressParams);
@@ -248,7 +284,7 @@ export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: A
     totalDevelopmentCostChf: projektkosten.totalDevelopmentCostChf,
     totalCostExcludingLandChf: projektkosten.totalCostExcludingLandChf,
     targetProfitMarginPercent: profile.renditeziele.targetMarginPercent,
-    askingLandPriceChf: CHAM_FACTS.askingPriceChf,
+    askingLandPriceChf: listing.askingPriceChf,
   });
 
   const yieldOnCostPercent = (base.noiChf / projektkosten.totalDevelopmentCostChf) * 100;
@@ -264,36 +300,27 @@ export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: A
       maxTotalProjectVolumeChf: profile.budget.maxTotalProjectVolumeChf,
     },
     baupotenzial: {
-      zoneVerification: CHAM_FACTS.zoneVerification,
-      overallVerification: CHAM_FACTS.overallVerification,
+      zoneVerification: facts.zoneVerification,
+      overallVerification: facts.overallVerification,
       achievedNraM2: baupotenzial.adjustedNraM2,
       targetMinNraM2: profile.projektziel.minNraM2,
       targetMaxNraM2: profile.projektziel.maxNraM2,
       formTopografieFactor,
-      erschliessungOk: true,
-      zufahrtOk: true,
+      erschliessungOk: facts.erschliessungOk,
+      zufahrtOk: facts.zufahrtOk,
     },
     markt: {
-      vacancyRatePercent: CHAM_FACTS.localVacancyRatePercent,
-      populationGrowth3yPercent: UNVERIFIED_MARKET_ASSUMPTIONS.populationGrowth3yPercent,
-      rentLevelRatio: UNVERIFIED_MARKET_ASSUMPTIONS.rentLevelRatio,
-      constructionActivityRatePercent: UNVERIFIED_MARKET_ASSUMPTIONS.constructionActivityRatePercent,
+      vacancyRatePercent: market.localVacancyRatePercent,
+      populationGrowth3yPercent: market.populationGrowth3yPercent,
+      rentLevelRatio: market.rentLevelRatio,
+      constructionActivityRatePercent: market.constructionActivityRatePercent,
     },
     lage: {
-      oevGueteklasse: CHAM_FACTS.oevGueteklasse,
-      reachableResidents30min: UNVERIFIED_MARKET_ASSUMPTIONS.reachableResidents30min,
-      zielmieterFitRatio: UNVERIFIED_MARKET_ASSUMPTIONS.zielmieterFitRatio,
+      oevGueteklasse: facts.oevGueteklasse,
+      reachableResidents30min: market.reachableResidents30min,
+      zielmieterFitRatio: market.zielmieterFitRatio,
     },
-    risiko: {
-      altlasten: false,
-      naturgefahren: false,
-      gewaesser: false,
-      laerm: false,
-      planungszone: false,
-      zufahrt: true, // gemeinsames Erschliessungsrecht, ÖREB ausstehend
-      erschliessung: false,
-      baukostenrisiken: true, // Baukosten nur Inseratsangabe, extern nicht bestätigt
-    },
+    risiko: facts.risiken,
   };
   const score = calculateScore(scoreInput, { weights: scoreWeights, bands: scoreBands, riskDeductions });
 
@@ -303,33 +330,56 @@ export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: A
   ];
   const confidence = calculateConfidence(
     {
-      adresseParzelle: point("Chamerstrasse, 6330 Cham, Parzelle 2214, EGRID CH685284972", 95, "OFFICIAL_AUTOMATED", true),
-      zoneBauparameter: point(
-        "W3, Ausnützungsziffer 0.6",
-        65,
-        "OFFICIAL_AUTOMATED",
-        false,
-        "Amtliches Dokument vorhanden, nutzerseitig nicht bestätigt (Stufe B)",
+      adresseParzelle: point(
+        facts.egrid ? `EGRID ${facts.egrid}, Kanton ${listing.canton}` : `Kanton ${listing.canton}, kein EGRID erfasst`,
+        facts.egrid ? 95 : 60,
+        facts.egrid ? "OFFICIAL_AUTOMATED" : "LISTING_EXTRACTED",
+        Boolean(facts.egrid),
+        facts.egrid ? undefined : "Kein amtlicher Parzellennachweis (EGRID) hinterlegt.",
       ),
-      risikenOereb: point("ÖREB-Auszug ausstehend", 30, "LISTING_EXTRACTED", false, "Erschliessungsrecht gemeinsam, Auszug noch nicht vorliegend"),
-      mietdaten: point(profile.marktannahmen.netRentChfPerM2Month, 10, "USER_ASSUMPTION", false, "Kein Wüest-Mietvergleich für Cham hinterlegt"),
-      baukosten: point(profile.baukosten.buildingCostChfPerM2, 35, "LISTING_EXTRACTED", false, "Nur Inseratsangabe, extern nicht bestätigt"),
-      inseratsvollstaendigkeit: point("Adresse, Preis, Fläche, Zone vorhanden", 75, "LISTING_EXTRACTED", false),
-      finanzierung: point(profile.finanzierung.interestRateBasePercent, 40, "USER_ASSUMPTION", false, "Generische Suchprofil-Annahme, kein Bankangebot"),
+      zoneBauparameter: point(
+        `${facts.zoneLabel}, ${baupotenzialLabel(facts.baupotenzial)}`,
+        facts.zoneVerification === "A" ? 90 : facts.zoneVerification === "B" ? 65 : 35,
+        "OFFICIAL_AUTOMATED",
+        facts.zoneVerification === "A",
+        `Verifikationsstufe ${facts.zoneVerification}${facts.zoneVerification === "A" ? "" : " — amtliches Dokument nicht (vollständig) nutzerseitig bestätigt"}.`,
+      ),
+      risikenOereb: point(
+        facts.notes || "Keine ergänzenden Risiko-/ÖREB-Angaben erfasst",
+        facts.overallVerification === "A" ? 80 : facts.overallVerification === "B" ? 50 : 25,
+        "LISTING_EXTRACTED",
+        facts.overallVerification === "A",
+      ),
+      mietdaten: point(
+        profile.marktannahmen.netRentChfPerM2Month,
+        10,
+        "USER_ASSUMPTION",
+        false,
+        "Generische Suchprofil-Annahme, kein lokaler Mietvergleich hinterlegt.",
+      ),
+      baukosten: point(
+        profile.baukosten.buildingCostChfPerM2,
+        35,
+        "LISTING_EXTRACTED",
+        false,
+        "Nur Suchprofil-Annahme bzw. Inseratsangabe, extern nicht bestätigt.",
+      ),
+      inseratsvollstaendigkeit: point("Preis, Fläche, Kanton vorhanden", 75, "LISTING_EXTRACTED", false),
+      finanzierung: point(profile.finanzierung.interestRateBasePercent, 40, "USER_ASSUMPTION", false, "Generische Suchprofil-Annahme, kein Bankangebot."),
     },
     confidenceWeights,
   );
 
   const hardGateCtx: HardGateContext = {
     listing: {
-      canton: CHAM_FACTS.canton,
-      objectType: "BAULAND",
+      canton: listing.canton,
+      objectType: listing.objectType,
       baurecht: false,
-      erschliessung: true,
-      coordinates: CHAM_FACTS.coordinates,
+      erschliessung: facts.erschliessungOk,
+      coordinates: facts.coordinates,
       municipalityBfsId: undefined,
-      askingPriceChf: CHAM_FACTS.askingPriceChf,
-      parcelAreaM2: CHAM_FACTS.parcelAreaM2,
+      askingPriceChf: listing.askingPriceChf,
+      parcelAreaM2: listing.parcelAreaM2,
     },
     profile: {
       regions: profile.regions,
@@ -344,9 +394,9 @@ export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: A
     achievedNraM2: baupotenzial.adjustedNraM2,
     isInBuildingZone: true,
     residentialUsePermitted: true,
-    zufahrtOk: true,
-    prohibitedNaturalHazard: false,
-    prohibitedContamination: false,
+    zufahrtOk: facts.zufahrtOk,
+    prohibitedNaturalHazard: facts.risiken.naturgefahren,
+    prohibitedContamination: facts.risiken.altlasten,
   };
   const hardGate = evaluateHardGates(hardGateCtx);
 
@@ -377,4 +427,51 @@ export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: A
     empfehlung,
     assumptionNotes,
   };
+}
+
+const CHAM_LISTING_INPUT: ListingAnalysisInput = {
+  canton: CHAM_FACTS.canton,
+  objectType: "BAULAND",
+  askingPriceChf: CHAM_FACTS.askingPriceChf,
+  parcelAreaM2: CHAM_FACTS.parcelAreaM2,
+};
+
+const CHAM_VERTIEFUNG_FACTS: ListingVertiefungFacts = {
+  baupotenzial: { method: "DENSITY_RATIO", densityRatio: CHAM_FACTS.densityRatio },
+  zoneLabel: "W3",
+  zoneVerification: CHAM_FACTS.zoneVerification,
+  overallVerification: CHAM_FACTS.overallVerification,
+  oevGueteklasse: CHAM_FACTS.oevGueteklasse,
+  erschliessungOk: true,
+  zufahrtOk: true,
+  risiken: {
+    altlasten: false,
+    naturgefahren: false,
+    gewaesser: false,
+    laerm: false,
+    planungszone: false,
+    zufahrt: true, // gemeinsames Erschliessungsrecht, ÖREB ausstehend
+    erschliessung: false,
+    baukostenrisiken: true, // Baukosten nur Inseratsangabe, extern nicht bestätigt
+  },
+  coordinates: CHAM_FACTS.coordinates,
+  egrid: "CH685284972",
+  marktAnnahmen: {
+    localVacancyRatePercent: CHAM_FACTS.localVacancyRatePercent,
+    populationGrowth3yPercent: UNVERIFIED_MARKET_ASSUMPTIONS.populationGrowth3yPercent,
+    rentLevelRatio: UNVERIFIED_MARKET_ASSUMPTIONS.rentLevelRatio,
+    constructionActivityRatePercent: UNVERIFIED_MARKET_ASSUMPTIONS.constructionActivityRatePercent,
+    zielmieterFitRatio: UNVERIFIED_MARKET_ASSUMPTIONS.zielmieterFitRatio,
+    reachableResidents30min: UNVERIFIED_MARKET_ASSUMPTIONS.reachableResidents30min,
+  },
+  notes: "Erschliessungsrecht gemeinsam, ÖREB-Auszug noch nicht vorliegend.",
+};
+
+/**
+ * Rechnet "Chamerstrasse, Cham ZG" durch — dünner Wrapper um `computeListingAnalysis`
+ * mit den Cham-Demo-Fakten. Ändert der Nutzer im Wizard z.B. die Baukosten, ändert
+ * sich dieses Ergebnis entsprechend.
+ */
+export function computeChamAnalysis(profile: SearchProfile, annahmenOverrides: AnnahmenOverrides): ObjektAnalysisResult {
+  return computeListingAnalysis(profile, annahmenOverrides, CHAM_LISTING_INPUT, CHAM_VERTIEFUNG_FACTS);
 }

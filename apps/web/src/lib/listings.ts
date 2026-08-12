@@ -31,6 +31,9 @@ export interface ListingRow {
   last_fetch_at: string | null;
   /** Zeitpunkt der Alert-Mail, falls je eine ausgelöst wurde (Migration 0005, siehe listingAlerts.ts). */
   alert_sent_at: string | null;
+  /** Manuell erfasste Vertiefungsdaten (Migration 0007, siehe listingVertiefung.ts) — `null`, bis "Objekt vertiefen" ausgeführt wurde. */
+  vertiefung: Record<string, unknown> | null;
+  vertiefung_updated_at: string | null;
 }
 
 export interface InboundAlertRow {
@@ -68,6 +71,31 @@ export async function getListingById(id: string): Promise<ListingRow | null | un
     return null;
   }
   return data as ListingRow | null;
+}
+
+/**
+ * Andere bereits vertiefte echte Inserate im selben Kanton — die Vergleichsgruppe für
+ * den Kantonsvergleich auf `/quellen/[id]` (siehe ListingLiveAnalysis.tsx). Bewusst nur
+ * unter vertieften Inseraten, nicht allen — ohne Vertiefungsdaten liesse sich für sie
+ * gar kein Score berechnen.
+ */
+export async function getVertieftePeersInCanton(
+  canton: string,
+  excludeId: string,
+): Promise<Pick<ListingRow, "id" | "canton" | "object_type" | "asking_price_chf" | "parcel_area_m2" | "vertiefung">[]> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("listings")
+    .select("id, canton, object_type, asking_price_chf, parcel_area_m2, vertiefung")
+    .eq("canton", canton)
+    .not("vertiefung", "is", null)
+    .neq("id", excludeId);
+  if (error) {
+    console.error("[listings] getVertieftePeersInCanton fehlgeschlagen", canton, error);
+    return [];
+  }
+  return data;
 }
 
 export async function getInboundAlerts(limit = 50): Promise<InboundAlertRow[] | null> {
