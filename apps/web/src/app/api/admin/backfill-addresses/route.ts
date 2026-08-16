@@ -64,18 +64,24 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   let updated = 0;
-  let stillUnresolved = 0;
+  const unresolved: { id: string; canonicalUrl: string; reason: string; subject?: string; bodySnippet?: string }[] = [];
 
   await Promise.all(
     candidates.map(async (listing) => {
       const mail = linkToMail.get(listing.canonical_url);
       if (!mail) {
-        stillUnresolved++;
+        unresolved.push({ id: listing.id, canonicalUrl: listing.canonical_url, reason: "keine passende Mail gefunden (canonical_url nicht in listing_links)" });
         return;
       }
       const result = extractFromEmailContent({ subject: mail.subject, htmlBody: mail.rawPayload.HtmlBody, textBody: mail.rawPayload.TextBody });
       if (!result.fields.addressText) {
-        stillUnresolved++;
+        unresolved.push({
+          id: listing.id,
+          canonicalUrl: listing.canonical_url,
+          reason: "Mail gefunden, aber keine Adresse im Text erkannt",
+          subject: mail.subject,
+          bodySnippet: (mail.rawPayload.HtmlBody ?? mail.rawPayload.TextBody ?? "").slice(0, 600),
+        });
         return;
       }
 
@@ -93,12 +99,12 @@ export async function GET(request: Request): Promise<Response> {
         .eq("id", listing.id);
       if (updateError) {
         console.error("[admin/backfill-addresses] Update fehlgeschlagen", listing.id, updateError);
-        stillUnresolved++;
+        unresolved.push({ id: listing.id, canonicalUrl: listing.canonical_url, reason: `Update fehlgeschlagen: ${updateError.message}` });
         return;
       }
       updated++;
     }),
   );
 
-  return NextResponse.json({ checked: candidates.length, updated, stillUnresolved });
+  return NextResponse.json({ checked: candidates.length, updated, stillUnresolved: unresolved.length, unresolved });
 }
