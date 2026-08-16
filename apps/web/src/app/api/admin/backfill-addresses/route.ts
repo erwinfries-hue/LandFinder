@@ -10,25 +10,31 @@ export const maxDuration = 30;
 /**
  * Wartungs-Route, bewusst als Dauerfeature angelegt (nicht wie /api/debug-supabase-url
  * temporär) — mehrfach und gefahrlos wiederholt aufrufbar: verarbeitet bei jedem
- * Aufruf nur, was zu diesem Zeitpunkt tatsächlich noch fehlt (`address_text IS NULL`),
- * bereits erfolgreich nachgetragene Zeilen werden beim nächsten Lauf automatisch
- * übersprungen. Sinnvoll erneut auszuführen, wann immer sich an der
- * Mailinhalt-Extraktion (`extractFromEmailContent()`) etwas ändert, das zuvor
- * gespeicherte Zeilen betreffen könnte — nicht nur für den unten beschriebenen Anlass.
+ * Aufruf nur, was zu diesem Zeitpunkt tatsächlich noch fehlt, bereits erfolgreich
+ * nachgetragene Zeilen werden beim nächsten Lauf automatisch übersprungen. Sinnvoll
+ * erneut auszuführen, wann immer sich an der Mailinhalt-Extraktion
+ * (`extractFromEmailContent()`) etwas ändert, das zuvor gespeicherte Zeilen betreffen
+ * könnte — nicht nur für den unten beschriebenen Anlass.
  *
  * Ursprünglicher Anlass (2026-08-16, docs/OPEN_DECISIONS.md): `extractFromEmailContent()`
  * fand bei einer Adresse ohne Strassenangabe (nur PLZ + Ort, z.B. "8545 Rickenbach
  * Sulz") bisher gar nichts. Der Code-Fix wirkt nur auf künftig neu verarbeitete Mails —
- * diese Route trägt es für bereits gespeicherte `listings`-Zeilen ohne `address_text`
- * nach, indem die zugehörige Original-Mail aus `inbound_alerts` erneut mit der jeweils
- * aktuellen Extraktionsfunktion durchlaufen wird. Ändert ausschliesslich `address_text`
- * und — falls noch nicht gesetzt — `canton`; alle anderen Felder bleiben unangetastet.
+ * diese Route trägt es für bereits gespeicherte `listings`-Zeilen nach, indem die
+ * zugehörige Original-Mail aus `inbound_alerts` erneut mit der jeweils aktuellen
+ * Extraktionsfunktion durchlaufen wird.
  *
  * Bewusst NICHT auf Zeilen mit Methode EMAIL_HEURISTIC eingeschränkt (Fix 2026-08-16):
  * bei blockiertem Seitenabruf (`ingestion_status` BLOCKED/TIMEOUT/NOT_AVAILABLE)
  * speichert `processListingLinks.ts` gar kein `extraction`-Feld — solche Zeilen wurden
  * hier bisher übersprungen, obwohl der Mailinhalt-Fallback nachträglich trotzdem etwas
  * finden kann.
+ *
+ * Erweitert auf Fläche und Zone (2026-08-16, Anlass: eine echte Inseratsbeschreibung
+ * enthielt "1'706 m²" und "Kernzone: Überkommunal", aber `parcel_area_m2`/`known_zone`
+ * blieben leer — `known_zone` wurde bis dahin von keiner Extraktionsmethode überhaupt
+ * befüllt, siehe `matchKnownZone()` in `listingExtraction.ts`). Ändert pro Zeile nur die
+ * Felder, die dort noch NULL sind UND die die erneute Extraktion tatsächlich findet —
+ * nie ein bereits gesetztes Feld überschreiben.
  */
 
 /**
@@ -78,8 +84,8 @@ export async function GET(request: Request): Promise<Response> {
 
   const { data: listings, error: listingsError } = await supabase
     .from("listings")
-    .select("id, canonical_url, canton, extraction")
-    .is("address_text", null);
+    .select("id, canonical_url, canton, address_text, parcel_area_m2, known_zone, extraction")
+    .or("address_text.is.null,parcel_area_m2.is.null,known_zone.is.null");
   if (listingsError) {
     console.error("[admin/backfill-addresses] Lesen von listings fehlgeschlagen", listingsError);
     return NextResponse.json({ error: "read listings failed" }, { status: 500 });
@@ -90,8 +96,7 @@ export async function GET(request: Request): Promise<Response> {
   // NOT_AVAILABLE) speichert processListingLinks.ts gar kein `extraction`-Feld
   // (siehe dort, Fehlerfall-Zweig) — solche Zeilen wurden bisher hier übersprungen,
   // obwohl der Mailinhalt-Fallback (extractFromEmailContent) durchaus etwas finden
-  // kann, das beim ursprünglichen Verarbeitungslauf noch nicht erkannt wurde. Einzige
-  // Voraussetzung bleibt `address_text IS NULL` — das reicht als Filter.
+  // kann, das beim ursprünglichen Verarbeitungslauf noch nicht erkannt wurde.
   const candidates = listings ?? [];
   if (candidates.length === 0) {
     return NextResponse.json({ checked: 0, updated: 0, stillUnresolved: 0 });
@@ -161,30 +166,49 @@ export async function GET(request: Request): Promise<Response> {
         return;
       }
       const result = extractFromEmailContent({ subject: mail.subject, htmlBody: mail.rawPayload.HtmlBody, textBody: mail.rawPayload.TextBody });
-      if (!result.fields.addressText) {
+
+      // Nur Felder anfassen, die bei dieser Zeile noch fehlen UND die die Extraktion
+      // tatsächlich liefert — nie ein bereits gesetztes Feld überschreiben.
+      const updates: { address_text?: string; parcel_area_m2?: number; known_zone?: string; canton?: string } = {};
+      if (listing.address_text == null && result.fields.addressText) updates.address_text = result.fields.addressText;
+      if (listing.parcel_area_m2 == null && result.fields.parcelAreaM2 != null) updates.parcel_area_m2 = result.fields.parcelAreaM2;
+      if (listing.known_zone == null && result.fields.knownZone) updates.known_zone = result.fields.knownZone;
+
+      const addressForCanton = updates.address_text ?? listing.address_text ?? undefined;
+      if (listing.canton == null && addressForCanton) {
+        const canton = deriveCantonFromAddress(addressForCanton);
+        if (canton) updates.canton = canton;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        const stillMissing = [
+          listing.address_text == null ? "Adresse" : null,
+          listing.parcel_area_m2 == null ? "Fläche" : null,
+          listing.known_zone == null ? "Zone" : null,
+        ].filter((s): s is string => s !== null);
         unresolved.push({
           id: listing.id,
           canonicalUrl: listing.canonical_url,
           reason: isMultiMatchSubject(mail.subject)
-            ? "Mail bündelt mehrere Treffer — Adresse lässt sich keinem einzelnen Inserat sicher zuordnen (bewusst, siehe extractFromEmailContent)"
-            : "Mail gefunden, aber keine Adresse im Text erkannt",
+            ? `Mail bündelt mehrere Treffer — ${stillMissing.join("/")} lässt/lassen sich keinem einzelnen Inserat sicher zuordnen (bewusst, siehe extractFromEmailContent)`
+            : `Mail gefunden, aber ${stillMissing.join("/")} nicht im Text erkannt`,
           subject: mail.subject,
           bodySnippet: (mail.rawPayload.HtmlBody ?? mail.rawPayload.TextBody ?? "").slice(0, 600),
         });
         return;
       }
 
-      const canton = listing.canton ?? deriveCantonFromAddress(result.fields.addressText) ?? null;
       const extraction = (listing.extraction as Record<string, unknown>) ?? {};
       const fields = (extraction.fields as Record<string, unknown>) ?? {};
+      const fieldsOverlay = { ...fields };
+      if (updates.address_text !== undefined) fieldsOverlay.addressText = updates.address_text;
+      if (updates.canton !== undefined) fieldsOverlay.canton = updates.canton;
+      if (updates.parcel_area_m2 !== undefined) fieldsOverlay.parcelAreaM2 = updates.parcel_area_m2;
+      if (updates.known_zone !== undefined) fieldsOverlay.knownZone = updates.known_zone;
 
       const { error: updateError } = await supabase
         .from("listings")
-        .update({
-          address_text: result.fields.addressText,
-          canton,
-          extraction: { ...extraction, fields: { ...fields, addressText: result.fields.addressText, canton: canton ?? fields.canton } },
-        })
+        .update({ ...updates, extraction: { ...extraction, fields: fieldsOverlay } })
         .eq("id", listing.id);
       if (updateError) {
         console.error("[admin/backfill-addresses] Update fehlgeschlagen", listing.id, updateError);

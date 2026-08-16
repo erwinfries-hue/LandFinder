@@ -116,6 +116,24 @@ function matchAddress(text: string): string | undefined {
 }
 
 /**
+ * Bekannte Schweizer Zonenbezeichnungen (öffentlich dokumentierte Planungsbegriffe,
+ * keine erfundene Liste) — z.B. "Kernzone: Überkommunal" aus einem echten Inserattext
+ * (Anlass 2026-08-16). Bewusst nur ein einzelnes Wort nach dem Doppelpunkt erfasst
+ * (kein Mehrwort-Raten): dieselbe "known-first, safe-single-word"-Lektion wie bei
+ * captureOrt() oben — ein Fliesstext ohne Zeilenumbrüche (nach stripHtml) würde bei
+ * zwei erlaubten Wörtern sonst leicht den Anfang des nächsten Aufzählungspunkts
+ * mit einbeziehen.
+ */
+const ZONE_LABEL_PATTERN =
+  /\b((?:Wohn|Kern|Gewerbe|Industrie|Landwirtschafts|Misch|Dorf|Zentrums|Erholungs|Bau)zone)\b(?:\s*[:\-]\s*([A-ZÄÖÜ][\wÀ-ÿ.-]*))?/;
+
+function matchKnownZone(text: string): string | undefined {
+  const m = text.match(ZONE_LABEL_PATTERN);
+  if (!m) return undefined;
+  return m[2] ? `${m[1]}: ${m[2]}` : m[1];
+}
+
+/**
  * Regelbasierte Mindest-Extraktion ohne LLM — bewusst simpel und nur das, was sich
  * mit hoher Sicherheit aus dem Text lesen lässt. Erfindet nie einen Wert: fehlt ein
  * Muster im Text, bleibt das Feld undefined statt geraten.
@@ -142,6 +160,7 @@ export function extractWithHeuristic(html: string): ExtractionResult {
       canton: cantonMatch,
       askingPriceChf,
       parcelAreaM2,
+      knownZone: matchKnownZone(text),
     },
     method: "MOCK_HEURISTIC",
     confidence: 25,
@@ -189,6 +208,7 @@ export function extractFromEmailContent(mail: AlertMailContent): ExtractionResul
   const parcelAreaM2 = areaMatch ? Number(areaMatch[1].replace(/[^\d]/g, "")) || undefined : undefined;
 
   const addressText = isMultiMatch ? undefined : matchAddress(text);
+  const knownZone = isMultiMatch ? undefined : matchKnownZone(text);
 
   const objectType = /abbruch|rückbau|abriss/i.test(text) ? "ABBRUCHOBJEKT" : /bauland|baulandparzelle|unbebaut/i.test(text) ? "BAULAND" : undefined;
 
@@ -200,6 +220,7 @@ export function extractFromEmailContent(mail: AlertMailContent): ExtractionResul
       addressText,
       askingPriceChf,
       parcelAreaM2,
+      knownZone,
     },
     method: "EMAIL_HEURISTIC",
     confidence: 30,

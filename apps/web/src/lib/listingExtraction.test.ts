@@ -38,6 +38,38 @@ describe("extractWithHeuristic", () => {
     const html = "<title>Test</title><p>Verwaltungsgebühr CHF 1'150.-</p>";
     expect(extractWithHeuristic(html).fields.askingPriceChf).toBeUndefined();
   });
+
+  // Reale Inseratsbeschreibung (2026-08-16, vom Auftraggeber geteilt): Fläche und Zone
+  // stehen in Aufzählungspunkten ("* Grundstück mit 1'706 m²", "* Kernzone:
+  // Überkommunal"), die nach stripHtml() ohne Zeilenumbrüche in einer einzigen
+  // Textzeile landen — genau das Szenario, das die Ortsnamen-Erkennung (captureOrt)
+  // bereits einmal zum Über-Erfassen verleitet hat.
+  const realDescriptionHtml = `
+    <title>Attraktives Baulandgrundstück</title>
+    <p>Dieses attraktive Grundstück mit einer Fläche von 1'706 m² bietet eine seltene Gelegenheit.</p>
+    <ul>
+      <li>Exklusive Parzelle mit bestehendem Haus</li>
+      <li>Grundstück mit 1'706 m²</li>
+      <li>Kernzone: Überkommunal</li>
+      <li>Vielseitiges Entwicklungspotenzial</li>
+    </ul>
+  `;
+
+  it("liest Fläche und Zone aus einer echten Inseratsbeschreibung mit Aufzählungspunkten", () => {
+    const result = extractWithHeuristic(realDescriptionHtml);
+    expect(result.fields.parcelAreaM2).toBe(1706);
+    expect(result.fields.knownZone).toBe("Kernzone: Überkommunal");
+  });
+
+  it("zieht bei der Zonen-Erkennung nicht den nächsten Aufzählungspunkt mit ein", () => {
+    const result = extractWithHeuristic(realDescriptionHtml);
+    expect(result.fields.knownZone).not.toContain("Vielseitiges");
+  });
+
+  it("erkennt eine Zonen-Bezeichnung auch ohne Doppelpunkt-Wert", () => {
+    const html = "<title>Test</title><p>Das Grundstück liegt in der Wohnzone.</p>";
+    expect(extractWithHeuristic(html).fields.knownZone).toBe("Wohnzone");
+  });
 });
 
 describe("extractFromEmailContent", () => {
@@ -123,11 +155,20 @@ describe("extractFromEmailContent", () => {
   it("extrahiert bei mehreren Treffern in einer Mail weder Preis noch Adresse (nicht zuordenbar)", () => {
     const result = extractFromEmailContent({
       subject: "3 neue Treffer für 'Bauland zum Kaufen in Kanton Zug'",
-      htmlBody: "<p>CHF 2'970'000.–</p><p>Friedhofweg 2<br/>4414 Füllinsdorf</p><p>150 m²</p>",
+      htmlBody: "<p>CHF 2'970'000.–</p><p>Friedhofweg 2<br/>4414 Füllinsdorf</p><p>150 m²</p><p>Kernzone: Zentrum</p>",
     });
     expect(result.fields.askingPriceChf).toBeUndefined();
     expect(result.fields.addressText).toBeUndefined();
     expect(result.fields.parcelAreaM2).toBeUndefined();
+    expect(result.fields.knownZone).toBeUndefined();
+  });
+
+  it("liest eine Zonen-Bezeichnung aus dem Mailinhalt (2026-08-16, echter Fund: 'Kernzone: Überkommunal' fehlte bisher komplett)", () => {
+    const result = extractFromEmailContent({
+      subject: "1 neuer Treffer",
+      htmlBody: "<p>CHF 2'165'000.- 8545 Rickenbach Sulz</p><p>Kernzone: Überkommunal</p>",
+    });
+    expect(result.fields.knownZone).toBe("Kernzone: Überkommunal");
   });
 
   it("entfernt wiederholte numerische HTML-Entities aus der Beschreibung (Bug 2026-08-11)", () => {

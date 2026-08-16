@@ -47,6 +47,12 @@ export function QuellenListingsTable({ rows, searchProfile }: { rows: ListingRow
       render: (l) => <span className="mono">{l.canton ?? "—"}</span>,
     },
     {
+      key: "original",
+      header: "Original",
+      sortValue: () => 0,
+      render: (l) => <ListingLink url={l.canonical_url} label="Öffnen" />,
+    },
+    {
       key: "preis",
       header: "Preis",
       sortValue: (l) => l.asking_price_chf ?? -1,
@@ -98,12 +104,6 @@ export function QuellenListingsTable({ rows, searchProfile }: { rows: ListingRow
       header: "Zuletzt gesehen",
       sortValue: (l) => l.last_seen_at,
       render: (l) => <span className="num mono">{formatDateTime(l.last_seen_at)}</span>,
-    },
-    {
-      key: "original",
-      header: "Original",
-      sortValue: () => 0,
-      render: (l) => <ListingLink url={l.canonical_url} label="Öffnen" />,
     },
   ];
 
