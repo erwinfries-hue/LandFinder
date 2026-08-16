@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { hasValidSession } from "@/lib/authSession";
 import { extractFromEmailContent, isMultiMatchSubject } from "@/lib/listingExtraction";
@@ -76,19 +77,20 @@ function listingIdFromUrl(url: string): string | undefined {
   }
 }
 
-export async function GET(request: Request): Promise<Response> {
-  if (!(await hasValidSession(request))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
-  const supabase = createSupabaseServerClient();
-  if (!supabase) return NextResponse.json({ error: "not configured" }, { status: 503 });
-
+/**
+ * Als eigenständige Funktion exportiert (statt nur inline im GET-Handler unten), damit
+ * sowohl die Session-geschützte manuelle Route als auch der tägliche Cron-Job
+ * (`api/cron/maintenance/route.ts`) dieselbe Logik nutzen, ohne sich per HTTP
+ * gegenseitig aufzurufen. Verhalten unverändert gegenüber dem bisherigen Inline-Code.
+ */
+export async function runBackfillAddresses(supabase: SupabaseClient) {
   const { data: listings, error: listingsError } = await supabase
     .from("listings")
     .select("id, canonical_url, canton, address_text, parcel_area_m2, known_zone, extraction")
     .or("address_text.is.null,parcel_area_m2.is.null,known_zone.is.null");
   if (listingsError) {
-    console.error("[admin/backfill-addresses] Lesen von listings fehlgeschlagen", listingsError);
-    return NextResponse.json({ error: "read listings failed" }, { status: 500 });
+    console.error("[backfill-addresses] Lesen von listings fehlgeschlagen", listingsError);
+    return { error: "read listings failed" as const };
   }
 
   // Bewusst NICHT mehr auf extraction.method === "EMAIL_HEURISTIC" eingeschränkt: bei
@@ -99,15 +101,15 @@ export async function GET(request: Request): Promise<Response> {
   // kann, das beim ursprünglichen Verarbeitungslauf noch nicht erkannt wurde.
   const candidates = listings ?? [];
   if (candidates.length === 0) {
-    return NextResponse.json({ checked: 0, updated: 0, stillUnresolved: 0 });
+    return { checked: 0, updated: 0, stillUnresolved: 0 };
   }
 
   const { data: alerts, error: alertsError } = await supabase
     .from("inbound_alerts")
     .select("subject, raw_payload, listing_links");
   if (alertsError) {
-    console.error("[admin/backfill-addresses] Lesen von inbound_alerts fehlgeschlagen", alertsError);
-    return NextResponse.json({ error: "read inbound_alerts failed" }, { status: 500 });
+    console.error("[backfill-addresses] Lesen von inbound_alerts fehlgeschlagen", alertsError);
+    return { error: "read inbound_alerts failed" as const };
   }
 
   type Mail = { subject: string; rawPayload: { HtmlBody?: string; TextBody?: string } };
@@ -211,7 +213,7 @@ export async function GET(request: Request): Promise<Response> {
         .update({ ...updates, extraction: { ...extraction, fields: fieldsOverlay } })
         .eq("id", listing.id);
       if (updateError) {
-        console.error("[admin/backfill-addresses] Update fehlgeschlagen", listing.id, updateError);
+        console.error("[backfill-addresses] Update fehlgeschlagen", listing.id, updateError);
         unresolved.push({ id: listing.id, canonicalUrl: listing.canonical_url, reason: `Update fehlgeschlagen: ${updateError.message}` });
         return;
       }
@@ -219,5 +221,16 @@ export async function GET(request: Request): Promise<Response> {
     }),
   );
 
-  return NextResponse.json({ checked: candidates.length, updated, stillUnresolved: unresolved.length, unresolved });
+  return { checked: candidates.length, updated, stillUnresolved: unresolved.length, unresolved };
+}
+
+export async function GET(request: Request): Promise<Response> {
+  if (!(await hasValidSession(request))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return NextResponse.json({ error: "not configured" }, { status: 503 });
+
+  const result = await runBackfillAddresses(supabase);
+  if ("error" in result) return NextResponse.json(result, { status: 500 });
+  return NextResponse.json(result);
 }

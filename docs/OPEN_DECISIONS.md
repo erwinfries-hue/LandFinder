@@ -170,3 +170,31 @@ gespeicherten abweicht (inkl. des allerersten Preises je Inserat, damit ein
 Startpunkt existiert). Bewusst nur bei echtem Preiswechsel, nicht bei jeder
 Verarbeitung — sonst würde jeder erneute Abruf desselben Inserats einen
 Historien-Eintrag erzeugen, obwohl sich nichts geändert hat.
+
+## K. Automatisierung (Vercel Cron) — Wartungslauf umgesetzt (2026-08-16)
+
+Zweiter Baustein aus Punkt I.4 ("jetzt angehen"). Löst den in Punkt C genannten
+fehlenden Baustein teilweise: `apps/web/vercel.json` registriert einen täglichen
+Vercel-Cron-Job (`0 5 * * *`, einmal täglich — passend zum Hobby-Plan-Limit) auf die
+neue Route `GET /api/cron/maintenance`. Diese führt automatisch aus, was bisher nur
+manuell per eingeloggtem Aufruf im Browser angestossen wurde:
+`runBackfillAddresses()` und `runCleanupSearchResultListings()` — beide Funktionen aus
+den bestehenden Admin-Routen (`api/admin/backfill-addresses`,
+`api/admin/cleanup-search-result-listings`) extrahiert, damit Cron-Route und
+Session-geschützte manuelle Route dieselbe Logik nutzen, statt sich per HTTP
+gegenseitig aufzurufen (Verhalten der manuellen Routen unverändert).
+
+Zugriffsschutz über `CRON_SECRET` (neue Umgebungsvariable, `apps/web/src/lib/
+cronAuth.ts`) statt Login-Session — ein Cron-Job hat keine — nach demselben
+Fail-closed-Muster wie `APP_PASSWORD` (Punkt D): fehlt `CRON_SECRET`, bleibt die Route
+gesperrt. Vercel schickt bei gesetztem `CRON_SECRET` automatisch den Header
+`Authorization: Bearer <CRON_SECRET>` mit (offizielles Vercel-Cron-Muster, kein
+zusätzlicher Code nötig). **Noch zu setzen:** `CRON_SECRET` in den
+Vercel-Projekteinstellungen, sonst bleibt auch dieser Cron-Job wirkungslos (wie
+`RESEND_API_KEY`/`ANTHROPIC_API_KEY`, Punkt C).
+
+**Bewusst nicht Teil dieses Bausteins:** der eigentliche Digest-Versand (neue
+B-Treffer, Preisänderungen, Statusänderungen, Top-10 — `workers/digest`). Mit aktuell
+so gut wie keinen vertieften echten Inseraten (Punkt F) wäre ein Score-basierter
+Digest heute fast leer; Inhalt/Format sind ein eigener, noch zu klärender Umfang statt
+ein Nebeneffekt der Cron-Infrastruktur.
