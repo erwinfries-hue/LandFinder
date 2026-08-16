@@ -150,6 +150,13 @@ export function objectTypeLabel(objectType: string | null): string {
   return OBJECT_TYPE_LABELS[objectType] ?? objectType;
 }
 
+/** Baujahr eines erkannten bestehenden Gebäudes — liegt nur in `extraction.fields` (jsonb), keine eigene Spalte (siehe listingExtraction.ts). */
+export function extractionBuildYear(row: ListingRow): number | undefined {
+  const fields = row.extraction?.fields as Record<string, unknown> | undefined;
+  const year = fields?.buildYear;
+  return typeof year === "number" ? year : undefined;
+}
+
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("de-CH", {
     dateStyle: "medium",

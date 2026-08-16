@@ -20,6 +20,12 @@ export interface ExtractedListingFields {
   askingPriceChf?: number;
   parcelAreaM2?: number;
   knownZone?: string;
+  /** Hinweis auf ein bestehendes Gebäude auf dem Grundstück laut Inseratstext — z.B.
+   *  wichtig bei reinem Bauland-Interesse. `undefined` heisst "kein Hinweis gefunden",
+   *  NICHT "sicher keines vorhanden" (Abwesenheit eines Hinweises ist kein Beweis). */
+  existingBuilding?: boolean;
+  /** Baujahr des bestehenden Gebäudes, falls im Text genannt (z.B. "Baujahr 1837"). */
+  buildYear?: number;
 }
 
 export type ExtractionMethod = "MOCK_HEURISTIC" | "EMAIL_HEURISTIC" | "ANTHROPIC";
@@ -134,6 +140,35 @@ function matchKnownZone(text: string): string | undefined {
 }
 
 /**
+ * Baujahr eines bestehenden Gebäudes (Anlass 2026-08-16, echter Fund: "historisches
+ * Fachwerkhaus aus dem Jahr 1837" bei einem als reines Bauland gelisteten Inserat —
+ * eine starke Einschränkung, die bisher nirgends erfasst wurde). Nur ein plausibler
+ * Baujahr-Bereich (1200–[laufendes Jahr]+1), damit kein anderer vierstelliger
+ * Zahlenwert (Postleitzahl, Fläche, Preisfragment) fälschlich als Baujahr gilt.
+ */
+const CURRENT_YEAR = new Date().getFullYear();
+const BUILD_YEAR_PATTERN = new RegExp(`\\bBaujahr\\s*:?\\s*(1[2-9]\\d{2}|${CURRENT_YEAR + 1})\\b|\\baus dem Jahr\\s*(1[2-9]\\d{2}|${CURRENT_YEAR + 1})\\b`, "i");
+
+/**
+ * Konkrete, im echten Inseratstext vorgefundene Formulierungen für ein bestehendes
+ * Gebäude auf dem Grundstück — bewusst eine enge, belegte Liste statt eines breiten
+ * Ratens (z.B. "Neubau" oder "Baurecht" würden sonst fälschlich mitgezählt).
+ */
+const EXISTING_BUILDING_KEYWORDS = /\b(Altbau|Bestandsbau|bestehendes\s+(?:Wohn-?)?(?:Haus|Gebäude)|vorhandenes\s+(?:Wohn-?)?(?:Haus|Gebäude)|Fachwerkhaus)\b/i;
+
+function matchBuildYear(text: string): number | undefined {
+  const m = text.match(BUILD_YEAR_PATTERN);
+  const year = m ? Number(m[1] ?? m[2]) : undefined;
+  return year;
+}
+
+/** `undefined` (nicht `false`) wenn kein Hinweis gefunden wird — Fehlen eines Hinweises ist kein Beweis für die Abwesenheit eines Gebäudes. */
+function matchExistingBuilding(text: string, buildYear: number | undefined): boolean | undefined {
+  if (buildYear !== undefined || EXISTING_BUILDING_KEYWORDS.test(text)) return true;
+  return undefined;
+}
+
+/**
  * Regelbasierte Mindest-Extraktion ohne LLM — bewusst simpel und nur das, was sich
  * mit hoher Sicherheit aus dem Text lesen lässt. Erfindet nie einen Wert: fehlt ein
  * Muster im Text, bleibt das Feld undefined statt geraten.
@@ -151,6 +186,7 @@ export function extractWithHeuristic(html: string): ExtractionResult {
   const cantonMatch = SWISS_CANTONS.find((code) => new RegExp(`\\b${code}\\b`).test(text));
 
   const objectType = /abbruch|rückbau|abriss/i.test(text) ? "ABBRUCHOBJEKT" : /bauland|baulandparzelle|unbebaut/i.test(text) ? "BAULAND" : undefined;
+  const buildYear = matchBuildYear(text);
 
   return {
     fields: {
@@ -161,6 +197,8 @@ export function extractWithHeuristic(html: string): ExtractionResult {
       askingPriceChf,
       parcelAreaM2,
       knownZone: matchKnownZone(text),
+      buildYear,
+      existingBuilding: matchExistingBuilding(text, buildYear),
     },
     method: "MOCK_HEURISTIC",
     confidence: 25,
@@ -209,6 +247,7 @@ export function extractFromEmailContent(mail: AlertMailContent): ExtractionResul
 
   const addressText = isMultiMatch ? undefined : matchAddress(text);
   const knownZone = isMultiMatch ? undefined : matchKnownZone(text);
+  const buildYear = isMultiMatch ? undefined : matchBuildYear(text);
 
   const objectType = /abbruch|rückbau|abriss/i.test(text) ? "ABBRUCHOBJEKT" : /bauland|baulandparzelle|unbebaut/i.test(text) ? "BAULAND" : undefined;
 
@@ -221,6 +260,8 @@ export function extractFromEmailContent(mail: AlertMailContent): ExtractionResul
       askingPriceChf,
       parcelAreaM2,
       knownZone,
+      buildYear,
+      existingBuilding: isMultiMatch ? undefined : matchExistingBuilding(text, buildYear),
     },
     method: "EMAIL_HEURISTIC",
     confidence: 30,
@@ -228,7 +269,7 @@ export function extractFromEmailContent(mail: AlertMailContent): ExtractionResul
 }
 
 const EXTRACTION_SYSTEM_PROMPT = `Du extrahierst strukturierte Immobilien-Inseratsdaten aus Schweizer Portalseiten (Homegate, ImmoScout24, newhome). Gib ausschliesslich ein JSON-Objekt zurück, ohne Erklärtext, mit genau diesen Feldern (jedes optional, weglassen statt raten, wenn nicht im Text vorhanden):
-{"title": string, "description": string (max. 400 Zeichen Zusammenfassung), "objectType": "BAULAND" | "ABBRUCHOBJEKT", "addressText": string, "canton": string (2-Buchstaben-Kürzel, z.B. ZH), "askingPriceChf": number, "parcelAreaM2": number, "knownZone": string}
+{"title": string, "description": string (max. 400 Zeichen Zusammenfassung), "objectType": "BAULAND" | "ABBRUCHOBJEKT", "addressText": string, "canton": string (2-Buchstaben-Kürzel, z.B. ZH), "askingPriceChf": number, "parcelAreaM2": number, "knownZone": string, "existingBuilding": boolean (true nur, wenn der Text ausdrücklich ein bestehendes Gebäude auf dem Grundstück erwähnt), "buildYear": number}
 Erfinde nie einen Wert, der nicht im Text steht.`;
 
 async function extractWithAnthropic(html: string, apiKey: string): Promise<ExtractionResult> {

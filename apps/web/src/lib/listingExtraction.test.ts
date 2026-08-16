@@ -70,6 +70,37 @@ describe("extractWithHeuristic", () => {
     const html = "<title>Test</title><p>Das Grundstück liegt in der Wohnzone.</p>";
     expect(extractWithHeuristic(html).fields.knownZone).toBe("Wohnzone");
   });
+
+  // Reale Inseratsbeschreibung (2026-08-16, vom Auftraggeber geteilt): ein als
+  // "Bauland" gelistetes Grundstück mit einem historischen Fachwerkhaus, Baujahr
+  // 1837 — eine starke Einschränkung, die bisher nirgends erfasst wurde.
+  const buildingDescriptionHtml = `
+    <title>Attraktives Baulandgrundstück</title>
+    <p>Auf dem Grundstück befindet sich ein historisches Fachwerkhaus aus dem Jahr 1837,
+    das der Liegenschaft einen besonderen Charakter verleiht.</p>
+  `;
+
+  it("erkennt Baujahr und bestehendes Gebäude aus einer echten Inseratsbeschreibung", () => {
+    const result = extractWithHeuristic(buildingDescriptionHtml);
+    expect(result.fields.buildYear).toBe(1837);
+    expect(result.fields.existingBuilding).toBe(true);
+  });
+
+  it("erkennt ein bestehendes Gebäude auch ohne explizites Baujahr, an bekannten Formulierungen", () => {
+    const html = "<title>Test</title><p>Bestehendes Haus auf dem Grundstück, Zustand renovationsbedürftig.</p>";
+    expect(extractWithHeuristic(html).fields.existingBuilding).toBe(true);
+  });
+
+  it("erfindet kein bestehendes Gebäude ohne jeden Hinweis im Text (undefined, nicht false)", () => {
+    const html = "<title>Test</title><p>Unbebautes Bauland, ideal für einen Neubau.</p>";
+    expect(extractWithHeuristic(html).fields.existingBuilding).toBeUndefined();
+    expect(extractWithHeuristic(html).fields.buildYear).toBeUndefined();
+  });
+
+  it("hält eine Postleitzahl oder andere vierstellige Zahl nicht fälschlich für ein Baujahr", () => {
+    const html = "<title>Test</title><p>8545 Rickenbach Sulz, Fläche 1'706 m², CHF 2'165'000.-</p>";
+    expect(extractWithHeuristic(html).fields.buildYear).toBeUndefined();
+  });
 });
 
 describe("extractFromEmailContent", () => {
@@ -169,6 +200,24 @@ describe("extractFromEmailContent", () => {
       htmlBody: "<p>CHF 2'165'000.- 8545 Rickenbach Sulz</p><p>Kernzone: Überkommunal</p>",
     });
     expect(result.fields.knownZone).toBe("Kernzone: Überkommunal");
+  });
+
+  it("liest Baujahr und bestehendes Gebäude aus dem Mailinhalt (2026-08-16, echter Fund: Fachwerkhaus Baujahr 1837 bei einem 'Bauland'-Inserat)", () => {
+    const result = extractFromEmailContent({
+      subject: "1 neuer Treffer",
+      htmlBody: "<p>Historisches Fachwerkhaus aus dem Jahr 1837 auf dem Grundstück.</p>",
+    });
+    expect(result.fields.buildYear).toBe(1837);
+    expect(result.fields.existingBuilding).toBe(true);
+  });
+
+  it("extrahiert bei mehreren Treffern in einer Mail auch kein Baujahr/Gebäude-Signal (nicht zuordenbar)", () => {
+    const result = extractFromEmailContent({
+      subject: "3 neue Treffer für 'Bauland zum Kaufen in Kanton Zug'",
+      htmlBody: "<p>Fachwerkhaus, Baujahr 1837.</p>",
+    });
+    expect(result.fields.buildYear).toBeUndefined();
+    expect(result.fields.existingBuilding).toBeUndefined();
   });
 
   it("entfernt wiederholte numerische HTML-Entities aus der Beschreibung (Bug 2026-08-11)", () => {

@@ -35,6 +35,13 @@ export const maxDuration = 30;
  * befüllt, siehe `matchKnownZone()` in `listingExtraction.ts`). Ändert pro Zeile nur die
  * Felder, die dort noch NULL sind UND die die erneute Extraktion tatsächlich findet —
  * nie ein bereits gesetztes Feld überschreiben.
+ *
+ * Zusätzlich opportunistisch auch `existing_building`/Baujahr (2026-08-16, Anlass: ein
+ * als "Bauland" gelistetes Inserat mit einem Fachwerkhaus Baujahr 1837 — eine starke
+ * Einschränkung) — aber bewusst NICHT als eigenes Auswahlkriterium im `.or()`-Filter,
+ * da die meisten echten Bauland-Inserate zurecht nie ein Gebäude erwähnen; das würde
+ * sie dauerhaft und unnötig als "unresolved" melden. Wird nur mitgenommen, wenn eine
+ * Zeile ohnehin schon wegen fehlender Adresse/Fläche/Zone verarbeitet wird.
  */
 
 /**
@@ -84,7 +91,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const { data: listings, error: listingsError } = await supabase
     .from("listings")
-    .select("id, canonical_url, canton, address_text, parcel_area_m2, known_zone, extraction")
+    .select("id, canonical_url, canton, address_text, parcel_area_m2, known_zone, existing_building, extraction")
     .or("address_text.is.null,parcel_area_m2.is.null,known_zone.is.null");
   if (listingsError) {
     console.error("[admin/backfill-addresses] Lesen von listings fehlgeschlagen", listingsError);
@@ -169,10 +176,18 @@ export async function GET(request: Request): Promise<Response> {
 
       // Nur Felder anfassen, die bei dieser Zeile noch fehlen UND die die Extraktion
       // tatsächlich liefert — nie ein bereits gesetztes Feld überschreiben.
-      const updates: { address_text?: string; parcel_area_m2?: number; known_zone?: string; canton?: string } = {};
+      const updates: { address_text?: string; parcel_area_m2?: number; known_zone?: string; canton?: string; existing_building?: boolean } = {};
       if (listing.address_text == null && result.fields.addressText) updates.address_text = result.fields.addressText;
       if (listing.parcel_area_m2 == null && result.fields.parcelAreaM2 != null) updates.parcel_area_m2 = result.fields.parcelAreaM2;
       if (listing.known_zone == null && result.fields.knownZone) updates.known_zone = result.fields.knownZone;
+      // existing_building/buildYear sind bewusst kein eigenes Auswahlkriterium (siehe
+      // .or()-Filter oben) — die meisten echten Bauland-Inserate erwähnen zurecht nie
+      // ein Gebäude, das dauerhaft als "unresolved" zu melden wäre reine Störung.
+      // Trotzdem opportunistisch mitnehmen, wann immer eine Zeile aus anderem Grund
+      // ohnehin schon verarbeitet wird.
+      if (listing.existing_building == null && result.fields.existingBuilding === true) updates.existing_building = true;
+      const buildYearAlreadyKnown = typeof (listing.extraction as { fields?: { buildYear?: unknown } } | null)?.fields?.buildYear === "number";
+      const buildYear = !buildYearAlreadyKnown ? result.fields.buildYear : undefined;
 
       const addressForCanton = updates.address_text ?? listing.address_text ?? undefined;
       if (listing.canton == null && addressForCanton) {
@@ -180,7 +195,7 @@ export async function GET(request: Request): Promise<Response> {
         if (canton) updates.canton = canton;
       }
 
-      if (Object.keys(updates).length === 0) {
+      if (Object.keys(updates).length === 0 && buildYear === undefined) {
         const stillMissing = [
           listing.address_text == null ? "Adresse" : null,
           listing.parcel_area_m2 == null ? "Fläche" : null,
@@ -205,6 +220,8 @@ export async function GET(request: Request): Promise<Response> {
       if (updates.canton !== undefined) fieldsOverlay.canton = updates.canton;
       if (updates.parcel_area_m2 !== undefined) fieldsOverlay.parcelAreaM2 = updates.parcel_area_m2;
       if (updates.known_zone !== undefined) fieldsOverlay.knownZone = updates.known_zone;
+      if (updates.existing_building !== undefined) fieldsOverlay.existingBuilding = updates.existing_building;
+      if (buildYear !== undefined) fieldsOverlay.buildYear = buildYear;
 
       const { error: updateError } = await supabase
         .from("listings")
