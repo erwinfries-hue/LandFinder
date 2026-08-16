@@ -54,15 +54,26 @@ export function QuellenListingsTable({ rows, searchProfile }: { rows: ListingRow
     },
     {
       key: "preis",
-      header: "Preis",
+      header: "Preis CHF",
       sortValue: (l) => l.asking_price_chf ?? -1,
-      render: (l) => <span className="num mono">{l.asking_price_chf != null ? `CHF ${formatChf(l.asking_price_chf)}` : "—"}</span>,
+      render: (l) => <span className="num mono">{l.asking_price_chf != null ? formatChf(l.asking_price_chf) : "—"}</span>,
     },
     {
       key: "flaeche",
       header: "Fläche",
       sortValue: (l) => l.parcel_area_m2 ?? -1,
       render: (l) => <span className="num mono">{l.parcel_area_m2 != null ? `${formatChf(l.parcel_area_m2)} m²` : "—"}</span>,
+    },
+    {
+      key: "wohnzone",
+      header: (
+        <>
+          WZ <InfoHint text="Wohnzone — bekannte Zonenbezeichnung, soweit im Inseratstext erkannt." />
+        </>
+      ),
+      align: "left",
+      sortValue: (l) => l.known_zone ?? "",
+      render: (l) => l.known_zone ?? "—",
     },
     {
       key: "status",
