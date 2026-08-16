@@ -31,12 +31,17 @@ export const maxDuration = 30;
  * `inbound_alerts.listing_links` gespeicherte Link zeigen zwar auf dasselbe Inserat,
  * unterscheiden sich aber in den Tracking-Query-Parametern (z.B. `utm_campaign=(...)`)
  * — je nachdem, ob/wie der Link zwischenzeitlich kodiert oder aufgelöst wurde. Der
- * Pfad allein identifiziert ein Inserat auf einem Portal eindeutig.
+ * Pfad allein identifiziert ein Inserat auf einem Portal eindeutig. Hostname zusätzlich
+ * ohne "www."-Präfix und klein geschrieben sowie Pfad ohne abschliessenden Slash
+ * normalisiert, da derselbe Link mit/ohne "www." oder mit/ohne Slash am Ende zwischen
+ * Mail-Extraktion und tatsächlichem Seitenabruf (`fetchResult.finalUrl`) auftreten kann.
  */
 function pathKey(url: string): string | undefined {
   try {
     const parsed = new URL(url);
-    return `${parsed.hostname}${parsed.pathname}`;
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    const pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    return `${hostname}${pathname}`;
   } catch {
     return undefined;
   }
