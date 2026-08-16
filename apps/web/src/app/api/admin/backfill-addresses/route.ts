@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { hasValidSession } from "@/lib/authSession";
-import { extractFromEmailContent } from "@/lib/listingExtraction";
+import { extractFromEmailContent, isMultiMatchSubject } from "@/lib/listingExtraction";
 import { deriveCantonFromAddress } from "@/lib/plzKanton";
+import { isSearchResultsUrl } from "@/lib/inboundMail";
 
 export const maxDuration = 30;
 
@@ -121,6 +122,19 @@ export async function GET(request: Request): Promise<Response> {
 
   await Promise.all(
     candidates.map(async (listing) => {
+      // Kein Extraktionsfall, sondern eine falsch als Inserat behandelte
+      // Trefferlisten-/Such-URL (Bug in extractPortalListingLinks, seit 2026-08-16
+      // behoben — betrifft nur bereits vorher gespeicherte Zeilen). Lässt sich nicht
+      // nachträglich mit einer Adresse befüllen, da es kein einzelnes Inserat ist.
+      if (isSearchResultsUrl(listing.canonical_url)) {
+        unresolved.push({
+          id: listing.id,
+          canonicalUrl: listing.canonical_url,
+          reason: "kein einzelnes Inserat, sondern eine Trefferlisten-/Such-URL — sollte gelöscht statt ergänzt werden",
+        });
+        return;
+      }
+
       const key = pathKey(listing.canonical_url);
       let mail = key ? linkToMail.get(key) : undefined;
 
@@ -151,7 +165,9 @@ export async function GET(request: Request): Promise<Response> {
         unresolved.push({
           id: listing.id,
           canonicalUrl: listing.canonical_url,
-          reason: "Mail gefunden, aber keine Adresse im Text erkannt",
+          reason: isMultiMatchSubject(mail.subject)
+            ? "Mail bündelt mehrere Treffer — Adresse lässt sich keinem einzelnen Inserat sicher zuordnen (bewusst, siehe extractFromEmailContent)"
+            : "Mail gefunden, aber keine Adresse im Text erkannt",
           subject: mail.subject,
           bodySnippet: (mail.rawPayload.HtmlBody ?? mail.rawPayload.TextBody ?? "").slice(0, 600),
         });

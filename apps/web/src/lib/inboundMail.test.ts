@@ -53,6 +53,14 @@ describe("extractPortalListingLinks", () => {
     expect(extractPortalListingLinks({ htmlBody: html })).toEqual([]);
   });
 
+  it("ignoriert Trefferlisten-/Such-Links (z.B. 'Alle Treffer ansehen') — kein einzelnes Inserat", () => {
+    const html = `
+      <a href="https://www.homegate.ch/kaufen/12345">Inserat</a>
+      <a href="https://www.homegate.ch/kaufen/bauland/kanton-zug/trefferliste?ay=1000&o=dateCreated-desc">Alle Treffer ansehen</a>
+    `;
+    expect(extractPortalListingLinks({ htmlBody: html })).toEqual(["https://www.homegate.ch/kaufen/12345"]);
+  });
+
   it("stellt einen erkannten Tracking-Link vor Bild-/Vorschau-Links derselben Mail (Reihenfolge für MAX_LINKS_PER_RUN)", () => {
     const html = `
       <img src="https://media2.homegate.ch/f_auto/listings/v2/s010/12345/image/a.jpg" />

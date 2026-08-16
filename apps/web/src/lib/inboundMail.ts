@@ -58,6 +58,22 @@ function isLikelyImageAsset(url: string): boolean {
 }
 
 /**
+ * Such-/Trefferlisten-Seite eines Portals (z.B. Homegate: ".../trefferliste") statt
+ * eines einzelnen Inserats — z.B. ein "Alle Treffer ansehen"-Link am Ende einer
+ * Suchabo-Mail. Bug gefunden 2026-08-16 anhand echter Produktionsdaten: ein solcher
+ * Link wurde als Inserat-Link weiterverarbeitet und landete als eigene, komplett leere
+ * `listings`-Zeile (Kaufpreis/Fläche/Adresse gibt es auf einer Trefferliste nicht) —
+ * kein Extraktionsfehler, sondern eine Verwechslung der URL-Art selbst.
+ */
+export function isSearchResultsUrl(url: string): boolean {
+  try {
+    return /\/trefferliste(\/|$)/i.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Findet Klick-Tracking-Links (z.B. SendGrid) im HTML-Teil, aber nur wenn der
  * sichtbare Link-Text eindeutig auf eine Inserat-Aktion hindeutet ("Anbieter
  * kontaktieren" o.ä.) — nie z.B. Abmelde- oder Impressum-Links, die über denselben
@@ -86,16 +102,19 @@ function extractActionTrackingLinks(html: string): string[] {
  * beim Abruf nichts Extrahierbares liefern (siehe processListingLinks.ts).
  * Eindeutig als Inserat-Aktion erkannte Tracking-Links (z.B. "Anbieter kontaktieren")
  * werden zuerst aufgeführt, weil sie am ehesten zur echten Inserat-Seite führen.
+ * Trefferlisten-/Such-Links (z.B. "Alle Treffer ansehen") werden komplett ausgefiltert,
+ * nicht nur nachrangig behandelt — sie sind kein einzelnes Inserat (siehe
+ * isSearchResultsUrl()).
  */
 export function extractPortalListingLinks(mail: { htmlBody?: string; textBody?: string }): string[] {
   const raw = `${mail.htmlBody ?? ""}\n${mail.textBody ?? ""}`;
   const found = raw.match(URL_PATTERN) ?? [];
   const cleaned = found.map((url) => url.replace(/[.,;]+$/, ""));
 
-  const portalLinks = cleaned.filter(isPortalUrl);
+  const portalLinks = cleaned.filter((url) => isPortalUrl(url) && !isSearchResultsUrl(url));
   const directPageLinks = portalLinks.filter((url) => !isLikelyImageAsset(url));
   const imageAssetLinks = portalLinks.filter(isLikelyImageAsset);
-  const actionTrackingLinks = mail.htmlBody ? extractActionTrackingLinks(mail.htmlBody) : [];
+  const actionTrackingLinks = mail.htmlBody ? extractActionTrackingLinks(mail.htmlBody).filter((url) => !isSearchResultsUrl(url)) : [];
 
   return Array.from(new Set([...actionTrackingLinks, ...directPageLinks, ...imageAssetLinks]));
 }

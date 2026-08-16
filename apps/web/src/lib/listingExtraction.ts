@@ -173,10 +173,14 @@ export interface AlertMailContent {
  */
 const MULTI_MATCH_SUBJECT_PATTERN = /(\d+)\s+neue?r?\s+Treffer/i;
 
+/** Ob eine Suchabo-Mail laut Betreff mehrere Treffer bündelt (siehe extractFromEmailContent()). */
+export function isMultiMatchSubject(subject: string): boolean {
+  return Number(subject.match(MULTI_MATCH_SUBJECT_PATTERN)?.[1] ?? "1") > 1;
+}
+
 export function extractFromEmailContent(mail: AlertMailContent): ExtractionResult {
   const text = stripHtml(`${mail.subject}\n${mail.htmlBody ?? mail.textBody ?? ""}`);
-  const matchCount = Number(mail.subject.match(MULTI_MATCH_SUBJECT_PATTERN)?.[1] ?? "1");
-  const isMultiMatch = matchCount > 1;
+  const isMultiMatch = isMultiMatchSubject(mail.subject);
 
   const priceMatch = isMultiMatch ? null : text.match(/CHF\s*([\d'’.]{4,})/i);
   const askingPriceChf = plausiblePrice(priceMatch ? Number(priceMatch[1].replace(/[^\d]/g, "")) || undefined : undefined);
