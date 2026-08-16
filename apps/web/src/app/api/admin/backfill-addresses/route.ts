@@ -24,6 +24,24 @@ export const maxDuration = 30;
  * wird. Ändert ausschliesslich `address_text` und — falls noch nicht gesetzt —
  * `canton`; alle anderen Felder bleiben unangetastet.
  */
+
+/**
+ * Domain + Pfad ohne Query-String als Zuordnungsschlüssel statt exaktem URL-Vergleich
+ * (Bug gefunden 2026-08-16, echte Diagnosedaten): `listings.canonical_url` und der in
+ * `inbound_alerts.listing_links` gespeicherte Link zeigen zwar auf dasselbe Inserat,
+ * unterscheiden sich aber in den Tracking-Query-Parametern (z.B. `utm_campaign=(...)`)
+ * — je nachdem, ob/wie der Link zwischenzeitlich kodiert oder aufgelöst wurde. Der
+ * Pfad allein identifiziert ein Inserat auf einem Portal eindeutig.
+ */
+function pathKey(url: string): string | undefined {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}${parsed.pathname}`;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function GET(request: Request): Promise<Response> {
   if (!(await hasValidSession(request))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -57,8 +75,9 @@ export async function GET(request: Request): Promise<Response> {
   const linkToMail = new Map<string, { subject: string; rawPayload: { HtmlBody?: string; TextBody?: string } }>();
   for (const alert of alerts ?? []) {
     for (const link of (alert.listing_links as string[] | null) ?? []) {
-      if (!linkToMail.has(link)) {
-        linkToMail.set(link, { subject: alert.subject, rawPayload: alert.raw_payload as { HtmlBody?: string; TextBody?: string } });
+      const key = pathKey(link);
+      if (key && !linkToMail.has(key)) {
+        linkToMail.set(key, { subject: alert.subject, rawPayload: alert.raw_payload as { HtmlBody?: string; TextBody?: string } });
       }
     }
   }
@@ -68,9 +87,10 @@ export async function GET(request: Request): Promise<Response> {
 
   await Promise.all(
     candidates.map(async (listing) => {
-      const mail = linkToMail.get(listing.canonical_url);
+      const key = pathKey(listing.canonical_url);
+      const mail = key ? linkToMail.get(key) : undefined;
       if (!mail) {
-        unresolved.push({ id: listing.id, canonicalUrl: listing.canonical_url, reason: "keine passende Mail gefunden (canonical_url nicht in listing_links)" });
+        unresolved.push({ id: listing.id, canonicalUrl: listing.canonical_url, reason: "keine passende Mail gefunden (Domain+Pfad nicht in listing_links)" });
         return;
       }
       const result = extractFromEmailContent({ subject: mail.subject, htmlBody: mail.rawPayload.HtmlBody, textBody: mail.rawPayload.TextBody });
