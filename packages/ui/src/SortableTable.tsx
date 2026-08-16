@@ -24,6 +24,7 @@ export function SortableTable<Row>({
   rows,
   rowKey,
   onRowClick,
+  wrapClassName = "twrap",
 }: {
   columns: Column<Row>[];
   rows: Row[];
@@ -32,6 +33,8 @@ export function SortableTable<Row>({
    * verschachtelte Links (z.B. die Kartenlink-Spalte) lösen dabei nicht zusätzlich
    * die Zeilennavigation aus. */
   onRowClick?: (row: Row) => void;
+  /** Überschreibt die Standard-Klasse des scrollenden Wrapper-Divs (z.B. um "scroll-y" für einen fixierten Header zu ergänzen). */
+  wrapClassName?: string;
 }) {
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
 
@@ -55,7 +58,7 @@ export function SortableTable<Row>({
   }
 
   return (
-    <div className="twrap">
+    <div className={wrapClassName}>
       <table className="sortable">
         <thead>
           <tr>

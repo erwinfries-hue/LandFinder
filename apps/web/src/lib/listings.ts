@@ -1,5 +1,6 @@
 import type { ChipTone } from "@landfinder/ui";
 import { createSupabaseServerClient } from "./supabaseServer";
+import { deriveCantonFromAddress } from "./plzKanton";
 
 /**
  * Lesezugriff auf die echten Stufe-1/2-Daten (`inbound_alerts`, `listings`) für die
@@ -46,6 +47,18 @@ export interface InboundAlertRow {
   processed: boolean;
 }
 
+/**
+ * Ergänzt einen fehlenden Kanton anhand der PLZ im Adresstext (`plzKanton.ts`) — rein
+ * in der Anzeige-/Anwendungsschicht, schreibt nichts in die Datenbank zurück. Betrifft
+ * z.B. Inserate, deren Kanton nicht separat extrahiert wurde, aber deren Adresstext
+ * bereits eine eindeutige PLZ enthält.
+ */
+export function withDerivedCanton(row: ListingRow): ListingRow {
+  if (row.canton) return row;
+  const derived = deriveCantonFromAddress(row.address_text);
+  return derived ? { ...row, canton: derived } : row;
+}
+
 /** `null` = Supabase nicht konfiguriert; sonst die (ggf. leere) Ergebnisliste. */
 export async function getListings(limit = 100): Promise<ListingRow[] | null> {
   const supabase = createSupabaseServerClient();
@@ -59,7 +72,7 @@ export async function getListings(limit = 100): Promise<ListingRow[] | null> {
     console.error("[listings] getListings fehlgeschlagen", error);
     return [];
   }
-  return data as ListingRow[];
+  return (data as ListingRow[]).map(withDerivedCanton);
 }
 
 export async function getListingById(id: string): Promise<ListingRow | null | undefined> {
@@ -70,7 +83,7 @@ export async function getListingById(id: string): Promise<ListingRow | null | un
     console.error("[listings] getListingById fehlgeschlagen", id, error);
     return null;
   }
-  return data as ListingRow | null;
+  return data ? withDerivedCanton(data as ListingRow) : null;
 }
 
 /**

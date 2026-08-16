@@ -1,11 +1,10 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { Panel, Chip, ListingLink, InfoHint } from "@landfinder/ui";
+import { Panel } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
-import { formatChf } from "@/lib/demo-data";
-import { getListings, getInboundAlerts, listingStatus, objectTypeLabel, formatDateTime } from "@/lib/listings";
+import { getListings, getInboundAlerts } from "@/lib/listings";
 import { getPersistedSearchProfile } from "@/lib/searchProfile";
-import { prescreenListing } from "@/lib/listingPrescreen";
+import { QuellenListingsTable } from "@/components/quellen/QuellenListingsTable";
+import { QuellenMailsTable } from "@/components/quellen/QuellenMailsTable";
 
 export const metadata: Metadata = { title: "Quellen — SIPIS LandFinder" };
 
@@ -24,12 +23,6 @@ export const dynamic = "force-dynamic";
  * (`listings`) — bisher nur über das Supabase-Dashboard einsehbar. Jeder Link führt
  * als aktiver Link zum Original-Inserat beim Portal.
  */
-const PRESCREEN_STATUS_CHIP: Record<"PASSED" | "REJECTED" | "INSUFFICIENT_DATA", { label: string; tone: "good" | "bad" | "neutral" }> = {
-  PASSED: { label: "Passt", tone: "good" },
-  REJECTED: { label: "Ausserhalb", tone: "bad" },
-  INSUFFICIENT_DATA: { label: "Zu wenig Daten", tone: "neutral" },
-};
-
 export default async function QuellenPage() {
   const [listings, alerts, searchProfile] = await Promise.all([getListings(), getInboundAlerts(), getPersistedSearchProfile()]);
   const configured = listings !== null && alerts !== null;
@@ -68,75 +61,12 @@ export default async function QuellenPage() {
                 </div>
                 <p style={{ color: "var(--ink-soft)", fontSize: ".875rem", margin: "0.4rem 0 1.1rem" }}>
                   Aus den Links der Suchabo-Mails abgerufene und extrahierte Inserate. Der Link führt jeweils direkt
-                  zum Original-Inserat beim Portal.
+                  zum Original-Inserat beim Portal. Spalten sind sortierbar (Klick auf den Titel).
                 </p>
                 {listings!.length === 0 ? (
                   <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Noch keine Inserate erfasst.</p>
                 ) : (
-                  <div className="twrap scroll-y">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th style={{ textAlign: "left" }}>Inserat</th>
-                          <th style={{ textAlign: "left" }}>Kanton</th>
-                          <th style={{ textAlign: "left" }}>Typ</th>
-                          <th>Preis</th>
-                          <th>Fläche</th>
-                          <th style={{ textAlign: "left" }}>Status</th>
-                          <th style={{ textAlign: "left" }}>
-                            Suchprofil{" "}
-                            <InfoHint text="Automatische Vorprüfung: Kanton, Objektart, Preis-Obergrenze, Preis/m²-Obergrenze, Flächen-Spanne — keine volle Score/Empfehlung, dafür fehlen Zonendaten." />
-                          </th>
-                          <th>Zuletzt gesehen</th>
-                          <th>Original</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {listings!.map((l) => {
-                          const st = listingStatus(l.ingestion_status);
-                          const prescreen = prescreenListing(l, searchProfile);
-                          const prescreenChip = PRESCREEN_STATUS_CHIP[prescreen.status];
-                          return (
-                            <tr key={l.id}>
-                              <td style={{ textAlign: "left" }}>
-                                <Link
-                                  href={`/quellen/${l.id}`}
-                                  className="objcell"
-                                  style={{ display: "block" }}
-                                  title={l.title || l.address_text || "Ohne Titel"}
-                                >
-                                  <div className="m">{l.title || l.address_text || "Ohne Titel"}</div>
-                                  <div className="g">{l.source}</div>
-                                </Link>
-                              </td>
-                              <td style={{ textAlign: "left" }} className="mono">
-                                {l.canton ?? "—"}
-                              </td>
-                              <td style={{ textAlign: "left" }}>{objectTypeLabel(l.object_type)}</td>
-                              <td className="num mono">
-                                {l.asking_price_chf != null ? `CHF ${formatChf(l.asking_price_chf)}` : "—"}
-                              </td>
-                              <td className="num mono">
-                                {l.parcel_area_m2 != null ? `${formatChf(l.parcel_area_m2)} m²` : "—"}
-                              </td>
-                              <td style={{ textAlign: "left" }}>
-                                <Chip tone={st.tone}>{st.label}</Chip>
-                              </td>
-                              <td style={{ textAlign: "left" }}>
-                                <Link href={`/quellen/${l.id}`}>
-                                  <Chip tone={prescreenChip.tone}>{prescreenChip.label}</Chip>
-                                </Link>
-                              </td>
-                              <td className="num mono">{formatDateTime(l.last_seen_at)}</td>
-                              <td>
-                                <ListingLink url={l.canonical_url} label="Öffnen" />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <QuellenListingsTable rows={listings!} searchProfile={searchProfile} />
                 )}
               </Panel>
             </div>
@@ -160,48 +90,9 @@ export default async function QuellenPage() {
                   überführt werden.
                 </p>
                 {alerts!.length === 0 ? (
-                  <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>
-                    Noch keine Suchabo-Mails empfangen.
-                  </p>
+                  <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Noch keine Suchabo-Mails empfangen.</p>
                 ) : (
-                  <div className="twrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th style={{ textAlign: "left" }}>Empfangen</th>
-                          <th style={{ textAlign: "left" }}>Von</th>
-                          <th style={{ textAlign: "left" }}>Betreff</th>
-                          <th style={{ textAlign: "left" }}>Verarbeitet</th>
-                          <th style={{ textAlign: "left" }}>Links im Inserat</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {alerts!.map((a) => (
-                          <tr key={a.id}>
-                            <td className="mono">{formatDateTime(a.received_at)}</td>
-                            <td>{a.from_address}</td>
-                            <td style={{ textAlign: "left" }}>{a.subject}</td>
-                            <td style={{ textAlign: "left" }}>
-                              <Chip tone={a.processed ? "good" : "neutral"}>
-                                {a.processed ? "Verarbeitet" : "Ausstehend"}
-                              </Chip>
-                            </td>
-                            <td style={{ textAlign: "left" }}>
-                              {a.listing_links.length === 0 ? (
-                                <span style={{ color: "var(--ink-faint)" }}>—</span>
-                              ) : (
-                                <div style={{ display: "flex", flexDirection: "column", gap: ".25rem" }}>
-                                  {a.listing_links.map((url, i) => (
-                                    <ListingLink key={url} url={url} label={`Link ${i + 1}`} />
-                                  ))}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <QuellenMailsTable rows={alerts!} />
                 )}
               </Panel>
             </div>
