@@ -19,10 +19,15 @@ export const maxDuration = 30;
  * fand bei einer Adresse ohne Strassenangabe (nur PLZ + Ort, z.B. "8545 Rickenbach
  * Sulz") bisher gar nichts. Der Code-Fix wirkt nur auf künftig neu verarbeitete Mails —
  * diese Route trägt es für bereits gespeicherte `listings`-Zeilen ohne `address_text`
- * (Methode EMAIL_HEURISTIC) nach, indem die zugehörige Original-Mail aus
- * `inbound_alerts` erneut mit der jeweils aktuellen Extraktionsfunktion durchlaufen
- * wird. Ändert ausschliesslich `address_text` und — falls noch nicht gesetzt —
- * `canton`; alle anderen Felder bleiben unangetastet.
+ * nach, indem die zugehörige Original-Mail aus `inbound_alerts` erneut mit der jeweils
+ * aktuellen Extraktionsfunktion durchlaufen wird. Ändert ausschliesslich `address_text`
+ * und — falls noch nicht gesetzt — `canton`; alle anderen Felder bleiben unangetastet.
+ *
+ * Bewusst NICHT auf Zeilen mit Methode EMAIL_HEURISTIC eingeschränkt (Fix 2026-08-16):
+ * bei blockiertem Seitenabruf (`ingestion_status` BLOCKED/TIMEOUT/NOT_AVAILABLE)
+ * speichert `processListingLinks.ts` gar kein `extraction`-Feld — solche Zeilen wurden
+ * hier bisher übersprungen, obwohl der Mailinhalt-Fallback nachträglich trotzdem etwas
+ * finden kann.
  */
 
 /**
@@ -79,9 +84,14 @@ export async function GET(request: Request): Promise<Response> {
     return NextResponse.json({ error: "read listings failed" }, { status: 500 });
   }
 
-  const candidates = (listings ?? []).filter(
-    (l) => (l.extraction as { method?: string } | null)?.method === "EMAIL_HEURISTIC",
-  );
+  // Bewusst NICHT mehr auf extraction.method === "EMAIL_HEURISTIC" eingeschränkt: bei
+  // blockiertem/fehlgeschlagenem Seitenabruf (ingestion_status BLOCKED/TIMEOUT/
+  // NOT_AVAILABLE) speichert processListingLinks.ts gar kein `extraction`-Feld
+  // (siehe dort, Fehlerfall-Zweig) — solche Zeilen wurden bisher hier übersprungen,
+  // obwohl der Mailinhalt-Fallback (extractFromEmailContent) durchaus etwas finden
+  // kann, das beim ursprünglichen Verarbeitungslauf noch nicht erkannt wurde. Einzige
+  // Voraussetzung bleibt `address_text IS NULL` — das reicht als Filter.
+  const candidates = listings ?? [];
   if (candidates.length === 0) {
     return NextResponse.json({ checked: 0, updated: 0, stillUnresolved: 0 });
   }
