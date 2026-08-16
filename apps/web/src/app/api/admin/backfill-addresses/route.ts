@@ -47,6 +47,23 @@ function pathKey(url: string): string | undefined {
   }
 }
 
+/**
+ * Numerische Inserat-ID aus dem Pfad (z.B. "4003380223" aus "/kaufen/4003380223") —
+ * Diagnose-Hilfsmittel für den Fall, dass Domain+Pfad NICHT reicht: `canonical_url`
+ * kann die per Redirect aufgelöste Ziel-URL sein (`fetchListingPage.ts`, `finalUrl`),
+ * während `listing_links` noch den ursprünglichen Tracking-Link (z.B. SendGrid) aus der
+ * Mail enthält — dessen Pfad hat dann gar nichts mit dem echten Portal-Pfad zu tun. Die
+ * Inserat-ID taucht aber oft trotzdem irgendwo im Tracking-Link auf (Query-Parameter),
+ * deshalb hier als Fallback-Suche über den rohen Link-Text statt über `pathKey()`.
+ */
+function listingIdFromUrl(url: string): string | undefined {
+  try {
+    return new URL(url).pathname.match(/\d{5,}/)?.[0];
+  } catch {
+    return undefined;
+  }
+}
+
 export async function GET(request: Request): Promise<Response> {
   if (!(await hasValidSession(request))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -77,13 +94,15 @@ export async function GET(request: Request): Promise<Response> {
     return NextResponse.json({ error: "read inbound_alerts failed" }, { status: 500 });
   }
 
-  const linkToMail = new Map<string, { subject: string; rawPayload: { HtmlBody?: string; TextBody?: string } }>();
+  type Mail = { subject: string; rawPayload: { HtmlBody?: string; TextBody?: string } };
+  const linkToMail = new Map<string, Mail>();
+  const allLinks: { link: string; mail: Mail }[] = [];
   for (const alert of alerts ?? []) {
+    const mail = { subject: alert.subject, rawPayload: alert.raw_payload as { HtmlBody?: string; TextBody?: string } };
     for (const link of (alert.listing_links as string[] | null) ?? []) {
       const key = pathKey(link);
-      if (key && !linkToMail.has(key)) {
-        linkToMail.set(key, { subject: alert.subject, rawPayload: alert.raw_payload as { HtmlBody?: string; TextBody?: string } });
-      }
+      if (key && !linkToMail.has(key)) linkToMail.set(key, mail);
+      allLinks.push({ link, mail });
     }
   }
 
@@ -93,7 +112,26 @@ export async function GET(request: Request): Promise<Response> {
   await Promise.all(
     candidates.map(async (listing) => {
       const key = pathKey(listing.canonical_url);
-      const mail = key ? linkToMail.get(key) : undefined;
+      let mail = key ? linkToMail.get(key) : undefined;
+
+      // Fallback: `canonical_url` kann per Redirect aufgelöst worden sein (siehe
+      // listingIdFromUrl()), sodass Domain+Pfad nicht mehr mit dem rohen Mail-Link
+      // übereinstimmt. Dann über die Inserat-ID im Pfad suchen statt aufzugeben.
+      if (!mail) {
+        const listingId = listingIdFromUrl(listing.canonical_url);
+        const idMatches = listingId ? allLinks.filter((l) => l.link.includes(listingId)) : [];
+        if (idMatches.length > 0) {
+          mail = idMatches[0].mail;
+        } else if (listingId) {
+          unresolved.push({
+            id: listing.id,
+            canonicalUrl: listing.canonical_url,
+            reason: "keine passende Mail gefunden (auch Inserat-ID nicht in listing_links)",
+          });
+          return;
+        }
+      }
+
       if (!mail) {
         unresolved.push({ id: listing.id, canonicalUrl: listing.canonical_url, reason: "keine passende Mail gefunden (Domain+Pfad nicht in listing_links)" });
         return;
