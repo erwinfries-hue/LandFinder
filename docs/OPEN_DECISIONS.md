@@ -124,3 +124,49 @@ Wie angenommen: `land-finder-web.vercel.app` ist die aktive MVP-Adresse (siehe P
 
 ## H. Design-Sprache — entschieden
 "Vermessung/Kataster": kühles Vermessungspapier-Blau-Grün statt warmem Creme-Ton, Petrol-Akzent (`#0E6E68` / `#4FC2B4` dunkel), Newsreader (Display-Serife) + Public Sans (UI) + IBM Plex Mono (Zahlen/Daten). Umgesetzt in `packages/ui` und `apps/web`. Referenz-Mockups wurden iterativ abgenommen (Login, Dashboard, Objekt-Detail).
+
+## I. HOME4efFINDER-Scope & Priorisierung (2026-08-16)
+
+Ausgangspunkt: `docs/HOME4EFFINDER_BESTANDSAUFNAHME.md` (Ist-Zustand-Analyse von
+LandFinder + Gap-Analyse gegen die HOME4efFINDER-Vision). Auf Rückfrage vier
+Entscheidungen getroffen:
+
+1. **4efHOME-Zweck:** ausschliesslich Eigennutzung (Kauf zum Selberwohnen) — nicht
+   Bestandsrendite. Niedrigere Priorität als der Punkt 2 unten.
+2. **Neue, priorisierte Objektart — "Bestandsrendite auf Eigentumswohnungen":** nicht
+   Teil von 4efHOME, sondern eine Erweiterung des Rendite-Zwecks (bisher nur
+   Bauland/Development). Konkret: bestehende Eigentumswohnungen (keine
+   Mehrfamilienhäuser zum Start), renovierbar oder bereits saniert, ausschliesslich
+   zur Vermietung — möbliert als Business Apartment oder unmöbliert langfristig,
+   nie zur Eigennutzung. Das ist die im Bestandsaufnahme-Dokument (Abschnitt 3.2)
+   beschriebene dritte Rechenlogik (Kaufpreisfaktor/Bestandsrendite statt
+   Residualwert/Baupotenzial) — noch nicht gebaut, siehe Punkt 4 unten für die
+   Priorisierung.
+3. **Priorität der gemeinsamen Infrastruktur:** dem in der Bestandsaufnahme
+   vorgeschlagenen Vorschlag gefolgt — zuerst Vergleich-Persistenz + Preis-Historie
+   (**umgesetzt**, siehe unten), danach Karten/Gemeindedaten, Dokumenten-KI (inkl.
+   STWEG, relevant auch für die Bestandsrendite-Objektart aus Punkt 2) erst wenn der
+   Scope dafür steht.
+4. **Automatisierung:** jetzt angehen (nicht zurückstellen) — nächster Baustein nach
+   Vergleich/Preis-Historie.
+
+## J. Vergleich-Persistenz + Preis-Historie — umgesetzt (2026-08-16)
+
+Erster Baustein aus Punkt I.3. `/vergleich` war bis dahin ein reiner Platzhalter,
+obwohl `comparison-engine` (Rang/Perzentil/Vor-Nachteil je Kanton) seit Phase 1
+fertig war. Analog zu `computeListingAnalysis`/`analyses` (Punkt F) bewusst **keine**
+neue `comparisons`-Tabelle — der Vergleich wird bei jedem Seitenaufruf live über alle
+vertieften echten Inserate berechnet (`apps/web/src/components/vergleich/
+VergleichTable.tsx`, Client-Komponente wie `ListingLiveAnalysis.tsx`), reagiert also
+sofort auf Suchprofil-/Annahmen-Änderungen statt auf einen Neuberechnungs-Job zu
+warten. Zeigt Gesamt-/Kantonsrang, Score, Vertrauen, Empfehlung, Yield on Cost,
+CHF/m² Land, Eigenkapitalbedarf und Preisänderung.
+
+Für die Preisänderung gab es bisher keine Grundlage — `listings.asking_price_chf`
+kennt nur den aktuellen Wert. Neue Tabelle `listing_price_history` (Migration
+`0008_listing_price_history.sql`): `apps/web/src/lib/processListingLinks.ts` schreibt
+bei jeder Stufe-2-Verarbeitung einen Eintrag, wenn der extrahierte Preis vom zuletzt
+gespeicherten abweicht (inkl. des allerersten Preises je Inserat, damit ein
+Startpunkt existiert). Bewusst nur bei echtem Preiswechsel, nicht bei jeder
+Verarbeitung — sonst würde jeder erneute Abruf desselben Inserats einen
+Historien-Eintrag erzeugen, obwohl sich nichts geändert hat.

@@ -13,11 +13,38 @@ vi.mock("./listingExtraction", async (importOriginal) => {
 const mockFetchListingPage = vi.mocked(fetchListingPage);
 const mockExtractListingFields = vi.mocked(extractListingFields);
 
-/** Minimaler Fake für den Teil der Supabase-Query-Builder-API, den processListingLinks nutzt. */
-function createSupabaseMock() {
-  const upsert = vi.fn().mockResolvedValue({ error: null });
-  const from = vi.fn(() => ({ upsert }));
-  return { from, upsert } as unknown as SupabaseClient & { from: typeof from; upsert: typeof upsert };
+/**
+ * Minimaler Fake für den Teil der Supabase-Query-Builder-API, den processListingLinks
+ * nutzt. Der Erfolgsfall-Upsert wird seit der Preis-Historie (Migration
+ * 0008_listing_price_history.sql) mit `.select("id").single()` verkettet UND im
+ * Fehlerfall-Zweig weiterhin direkt awaited — `upsert()` liefert deshalb ein Objekt,
+ * das sowohl thenable ist (`{ error }`) als auch `.select().single()` unterstützt
+ * (`{ data: { id }, error }`). `existingPrice` simuliert den Preis-Vorab-Read
+ * (`existingPrice: undefined` = neues Inserat, kein bisheriger Preis bekannt).
+ */
+function createSupabaseMock(opts?: { existingPrice?: number }) {
+  const single = vi.fn().mockResolvedValue({ data: { id: "listing-1" }, error: null });
+  const upsert = vi.fn(() => ({
+    select: vi.fn(() => ({ single })),
+    then: (resolve: (v: { error: null }) => void) => resolve({ error: null }),
+  }));
+
+  const maybeSingle = vi
+    .fn()
+    .mockResolvedValue({ data: opts?.existingPrice !== undefined ? { id: "existing-1", asking_price_chf: opts.existingPrice } : null, error: null });
+  const selectListings = vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle })) }));
+
+  const insert = vi.fn().mockResolvedValue({ error: null });
+
+  const from = vi.fn((table: string) => (table === "listing_price_history" ? { insert } : { select: selectListings, upsert }));
+
+  return { from, upsert, single, insert, maybeSingle } as unknown as SupabaseClient & {
+    from: typeof from;
+    upsert: typeof upsert;
+    single: typeof single;
+    insert: typeof insert;
+    maybeSingle: typeof maybeSingle;
+  };
 }
 
 describe("processListingLinks", () => {
@@ -276,7 +303,9 @@ describe("processListingLinks", () => {
 
   it("verarbeitet mehrere Links nacheinander und loggt einen Upsert-Fehler statt zu werfen", async () => {
     const supabase = createSupabaseMock();
-    supabase.upsert.mockResolvedValueOnce({ error: new Error("db down") }).mockResolvedValueOnce({ error: null });
+    supabase.single
+      .mockResolvedValueOnce({ data: null, error: new Error("db down") })
+      .mockResolvedValueOnce({ data: { id: "listing-2" }, error: null });
     mockFetchListingPage.mockResolvedValue({ status: "OK", html: "<html></html>" });
     mockExtractListingFields.mockResolvedValue({ fields: {}, method: "MOCK_HEURISTIC", confidence: 25 });
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -288,5 +317,48 @@ describe("processListingLinks", () => {
     expect(supabase.upsert).toHaveBeenCalledTimes(2);
     expect(consoleError).toHaveBeenCalledTimes(1);
     consoleError.mockRestore();
+  });
+
+  describe("Preis-Historie (Migration 0008)", () => {
+    it("speichert den ersten bekannten Preis eines neuen Inserats als Historien-Eintrag", async () => {
+      const supabase = createSupabaseMock(); // kein existingPrice → neues Inserat
+      mockFetchListingPage.mockResolvedValue({ status: "OK", html: "<html></html>" });
+      mockExtractListingFields.mockResolvedValue({ fields: { title: "Bauland Cham", askingPriceChf: 1_000_000 }, method: "MOCK_HEURISTIC", confidence: 25 });
+
+      await processListingLinks(supabase, ["https://www.homegate.ch/kauf/1"]);
+
+      expect(supabase.from).toHaveBeenCalledWith("listing_price_history");
+      expect(supabase.insert).toHaveBeenCalledWith({ listing_id: "listing-1", price_chf: 1_000_000 });
+    });
+
+    it("speichert einen neuen Historien-Eintrag, wenn sich der Preis gegenüber der letzten Verarbeitung geändert hat", async () => {
+      const supabase = createSupabaseMock({ existingPrice: 1_000_000 });
+      mockFetchListingPage.mockResolvedValue({ status: "OK", html: "<html></html>" });
+      mockExtractListingFields.mockResolvedValue({ fields: { title: "Bauland Cham", askingPriceChf: 950_000 }, method: "MOCK_HEURISTIC", confidence: 25 });
+
+      await processListingLinks(supabase, ["https://www.homegate.ch/kauf/1"]);
+
+      expect(supabase.insert).toHaveBeenCalledWith({ listing_id: "listing-1", price_chf: 950_000 });
+    });
+
+    it("speichert KEINEN Historien-Eintrag, wenn sich der Preis gegenüber der letzten Verarbeitung nicht geändert hat", async () => {
+      const supabase = createSupabaseMock({ existingPrice: 1_000_000 });
+      mockFetchListingPage.mockResolvedValue({ status: "OK", html: "<html></html>" });
+      mockExtractListingFields.mockResolvedValue({ fields: { title: "Bauland Cham", askingPriceChf: 1_000_000 }, method: "MOCK_HEURISTIC", confidence: 25 });
+
+      await processListingLinks(supabase, ["https://www.homegate.ch/kauf/1"]);
+
+      expect(supabase.insert).not.toHaveBeenCalled();
+    });
+
+    it("speichert KEINEN Historien-Eintrag, wenn kein Preis extrahiert wurde", async () => {
+      const supabase = createSupabaseMock();
+      mockFetchListingPage.mockResolvedValue({ status: "OK", html: "<html></html>" });
+      mockExtractListingFields.mockResolvedValue({ fields: { title: "Bauland Cham" }, method: "MOCK_HEURISTIC", confidence: 25 });
+
+      await processListingLinks(supabase, ["https://www.homegate.ch/kauf/1"]);
+
+      expect(supabase.insert).not.toHaveBeenCalled();
+    });
   });
 });

@@ -111,6 +111,53 @@ export async function getVertieftePeersInCanton(
   return data;
 }
 
+/**
+ * Alle vertieften echten Inserate — die Grundlage für /vergleich (Abschnitt 20):
+ * nur unter diesen lässt sich überhaupt ein echter Score berechnen (siehe
+ * getVertieftePeersInCanton, dieselbe Einschränkung, hier aber kantonsübergreifend).
+ */
+export async function getVertiefteListings(): Promise<ListingRow[] | null> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase.from("listings").select("*").not("vertiefung", "is", null).order("last_seen_at", { ascending: false });
+  if (error) {
+    console.error("[listings] getVertiefteListings fehlgeschlagen", error);
+    return [];
+  }
+  return (data as ListingRow[]).map(withDerivedCanton);
+}
+
+export interface PriceHistoryEntry {
+  price_chf: number;
+  observed_at: string;
+}
+
+/**
+ * Preis-Historie je Inserat (Migration 0008), gruppiert nach `listing_id` und
+ * chronologisch aufsteigend — so liefert `entries[0]` den ersten und
+ * `entries[entries.length - 1]` den zuletzt bekannten Preis (siehe computeChange in
+ * @landfinder/comparison-engine für die Preisänderung dazwischen).
+ */
+export async function getPriceHistory(listingIds: string[]): Promise<Record<string, PriceHistoryEntry[]>> {
+  if (listingIds.length === 0) return {};
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return {};
+  const { data, error } = await supabase
+    .from("listing_price_history")
+    .select("listing_id, price_chf, observed_at")
+    .in("listing_id", listingIds)
+    .order("observed_at", { ascending: true });
+  if (error) {
+    console.error("[listings] getPriceHistory fehlgeschlagen", error);
+    return {};
+  }
+  const byListing: Record<string, PriceHistoryEntry[]> = {};
+  for (const row of data as { listing_id: string; price_chf: number; observed_at: string }[]) {
+    (byListing[row.listing_id] ??= []).push({ price_chf: row.price_chf, observed_at: row.observed_at });
+  }
+  return byListing;
+}
+
 export async function getInboundAlerts(limit = 50): Promise<InboundAlertRow[] | null> {
   const supabase = createSupabaseServerClient();
   if (!supabase) return null;

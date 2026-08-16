@@ -90,29 +90,45 @@ export async function processListingLinks(supabase: SupabaseClient, links: strin
       continue;
     }
 
+    // Vor dem Upsert lesen, um nach dem Upsert einen echten Preiswechsel erkennen zu
+    // können (der Upsert selbst überschreibt den alten Wert, bevor wir ihn vergleichen
+    // könnten). `maybeSingle()` liefert `null`, wenn dieses Inserat neu ist — dann zählt
+    // der erste bekannte Preis ebenfalls als Historien-Eintrag (Startpunkt des Verlaufs).
+    const { data: existingListing } = await supabase.from("listings").select("id, asking_price_chf").eq("canonical_url", resolvedUrl).maybeSingle();
+
     const ingestionStatus = extraction.method === "ANTHROPIC" ? "PARTIAL" : "MANUAL_INPUT_REQUIRED";
-    const { error } = await supabase.from("listings").upsert(
-      {
-        canonical_url: resolvedUrl,
-        source,
-        title: extraction.fields.title,
-        description: extraction.fields.description,
-        object_type: extraction.fields.objectType,
-        address_text: extraction.fields.addressText,
-        canton: extraction.fields.canton,
-        asking_price_chf: extraction.fields.askingPriceChf,
-        parcel_area_m2: extraction.fields.parcelAreaM2,
-        known_zone: extraction.fields.knownZone,
-        extraction,
-        ingestion_status: ingestionStatus,
-        last_fetch_http_status: fetchResult.httpStatus ?? null,
-        last_fetch_at: new Date().toISOString(),
-      },
-      { onConflict: "canonical_url" },
-    );
+    const { data: upserted, error } = await supabase
+      .from("listings")
+      .upsert(
+        {
+          canonical_url: resolvedUrl,
+          source,
+          title: extraction.fields.title,
+          description: extraction.fields.description,
+          object_type: extraction.fields.objectType,
+          address_text: extraction.fields.addressText,
+          canton: extraction.fields.canton,
+          asking_price_chf: extraction.fields.askingPriceChf,
+          parcel_area_m2: extraction.fields.parcelAreaM2,
+          known_zone: extraction.fields.knownZone,
+          extraction,
+          ingestion_status: ingestionStatus,
+          last_fetch_http_status: fetchResult.httpStatus ?? null,
+          last_fetch_at: new Date().toISOString(),
+        },
+        { onConflict: "canonical_url" },
+      )
+      .select("id")
+      .single();
     if (error) {
       console.error("[processListingLinks] Upsert fehlgeschlagen", resolvedUrl, error);
       continue;
+    }
+
+    const newPrice = extraction.fields.askingPriceChf;
+    if (newPrice != null && existingListing?.asking_price_chf !== newPrice) {
+      const { error: historyError } = await supabase.from("listing_price_history").insert({ listing_id: upserted.id, price_chf: newPrice });
+      if (historyError) console.error("[processListingLinks] Preis-Historie fehlgeschlagen", resolvedUrl, historyError);
     }
 
     await maybeSendListingAlert(supabase, {
