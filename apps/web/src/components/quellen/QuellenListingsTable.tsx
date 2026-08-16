@@ -7,11 +7,11 @@ import { formatChf } from "@/lib/demo-data";
 import { listingStatus, objectTypeLabel, formatDateTime, type ListingRow } from "@/lib/listings";
 import { prescreenListing, type PrescreenStatus } from "@/lib/listingPrescreen";
 
-/** `shortLabel` für die Tabellenspalte (schmal), `label` als voller Begriff für den Hover-Text. */
+/** `shortLabel` (max. 4 Zeichen) für die Tabellenspalte (schmal), `label` als voller Begriff für den Hover-Text. */
 const PRESCREEN_STATUS_CHIP: Record<PrescreenStatus, { label: string; shortLabel: string; tone: "good" | "bad" | "neutral" }> = {
-  PASSED: { label: "Passt", shortLabel: "Passt", tone: "good" },
-  REJECTED: { label: "Ausserhalb", shortLabel: "Ausserh.", tone: "bad" },
-  INSUFFICIENT_DATA: { label: "Zu wenig Daten", shortLabel: "Wenig Daten", tone: "neutral" },
+  PASSED: { label: "Passt", shortLabel: "Ja", tone: "good" },
+  REJECTED: { label: "Ausserhalb", shortLabel: "Nein", tone: "bad" },
+  INSUFFICIENT_DATA: { label: "Zu wenig Daten", shortLabel: "?", tone: "neutral" },
 };
 
 /** Client-Komponente wegen sortValue/render-Funktionen in den Spalten (siehe RankingTable.tsx). */

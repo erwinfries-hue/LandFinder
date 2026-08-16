@@ -31,13 +31,19 @@ function makeRow(overrides: Partial<ListingRow>): ListingRow {
 }
 
 describe("listingStatus", () => {
-  it("mappt bekannte Ingestion-Status auf Label, Kurz-Label und Farbton", () => {
+  it("mappt bekannte Ingestion-Status auf Label, Kurz-Label (max. 4 Zeichen) und Farbton", () => {
     expect(listingStatus("NEW")).toEqual({ label: "Neu", shortLabel: "Neu", tone: "neutral" });
-    expect(listingStatus("PARTIAL")).toEqual({ label: "Teilweise (LLM)", shortLabel: "Teilw.", tone: "warn" });
-    expect(listingStatus("MANUAL_INPUT_REQUIRED")).toEqual({ label: "Manuell prüfen", shortLabel: "Prüfen", tone: "warn" });
-    expect(listingStatus("BLOCKED")).toEqual({ label: "Blockiert", shortLabel: "Blockiert", tone: "bad" });
-    expect(listingStatus("TIMEOUT")).toEqual({ label: "Timeout", shortLabel: "Timeout", tone: "bad" });
-    expect(listingStatus("NOT_AVAILABLE")).toEqual({ label: "Nicht erreichbar", shortLabel: "Fehler", tone: "bad" });
+    expect(listingStatus("PARTIAL")).toEqual({ label: "Teilweise (LLM)", shortLabel: "LLM", tone: "warn" });
+    expect(listingStatus("MANUAL_INPUT_REQUIRED")).toEqual({ label: "Manuell prüfen", shortLabel: "Prüf", tone: "warn" });
+    expect(listingStatus("BLOCKED")).toEqual({ label: "Blockiert", shortLabel: "Blk", tone: "bad" });
+    expect(listingStatus("TIMEOUT")).toEqual({ label: "Timeout", shortLabel: "Zeit", tone: "bad" });
+    expect(listingStatus("NOT_AVAILABLE")).toEqual({ label: "Nicht erreichbar", shortLabel: "Fehl", tone: "bad" });
+  });
+
+  it("hält jedes Kurz-Label auf maximal 4 Zeichen", () => {
+    for (const status of ["NEW", "PARTIAL", "MANUAL_INPUT_REQUIRED", "BLOCKED", "TIMEOUT", "NOT_AVAILABLE"]) {
+      expect(listingStatus(status).shortLabel.length).toBeLessThanOrEqual(4);
+    }
   });
 
   it("fällt bei unbekanntem Status auf den Rohwert mit neutralem Ton zurück, statt abzustürzen", () => {
