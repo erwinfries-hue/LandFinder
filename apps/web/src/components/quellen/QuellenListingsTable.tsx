@@ -7,10 +7,11 @@ import { formatChf } from "@/lib/demo-data";
 import { listingStatus, objectTypeLabel, formatDateTime, type ListingRow } from "@/lib/listings";
 import { prescreenListing, type PrescreenStatus } from "@/lib/listingPrescreen";
 
-const PRESCREEN_STATUS_CHIP: Record<PrescreenStatus, { label: string; tone: "good" | "bad" | "neutral" }> = {
-  PASSED: { label: "Passt", tone: "good" },
-  REJECTED: { label: "Ausserhalb", tone: "bad" },
-  INSUFFICIENT_DATA: { label: "Zu wenig Daten", tone: "neutral" },
+/** `shortLabel` für die Tabellenspalte (schmal), `label` als voller Begriff für den Hover-Text. */
+const PRESCREEN_STATUS_CHIP: Record<PrescreenStatus, { label: string; shortLabel: string; tone: "good" | "bad" | "neutral" }> = {
+  PASSED: { label: "Passt", shortLabel: "Passt", tone: "good" },
+  REJECTED: { label: "Ausserhalb", shortLabel: "Ausserh.", tone: "bad" },
+  INSUFFICIENT_DATA: { label: "Zu wenig Daten", shortLabel: "Wenig Daten", tone: "neutral" },
 };
 
 /** Client-Komponente wegen sortValue/render-Funktionen in den Spalten (siehe RankingTable.tsx). */
@@ -64,7 +65,11 @@ export function QuellenListingsTable({ rows, searchProfile }: { rows: ListingRow
       sortValue: (l) => listingStatus(l.ingestion_status).label,
       render: (l) => {
         const st = listingStatus(l.ingestion_status);
-        return <Chip tone={st.tone}>{st.label}</Chip>;
+        return (
+          <Chip tone={st.tone} title={st.label}>
+            {st.shortLabel}
+          </Chip>
+        );
       },
     },
     {
@@ -81,7 +86,9 @@ export function QuellenListingsTable({ rows, searchProfile }: { rows: ListingRow
         const chip = PRESCREEN_STATUS_CHIP[prescreenListing(l, searchProfile).status];
         return (
           <Link href={`/quellen/${l.id}`}>
-            <Chip tone={chip.tone}>{chip.label}</Chip>
+            <Chip tone={chip.tone} title={chip.label}>
+              {chip.shortLabel}
+            </Chip>
           </Link>
         );
       },

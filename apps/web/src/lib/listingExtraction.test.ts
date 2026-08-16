@@ -88,6 +88,30 @@ describe("extractFromEmailContent", () => {
     expect(result.fields.addressText).toBe("Musterstrasse 1, 8000 Zürich");
   });
 
+  it("liest PLZ + Ort auch ohne Strasse (Bug 2026-08-16: Adresse ohne Strassenangabe blieb unextrahiert)", () => {
+    const result = extractFromEmailContent({
+      subject: "1 neuer Treffer",
+      textBody: "CHF 2'165'000.- 8545 Rickenbach Sulz",
+    });
+    expect(result.fields.addressText).toBe("8545 Rickenbach Sulz");
+  });
+
+  it("zieht bei einem mehrwortigen Ortsnamen nicht fälschlich unbeteiligten Folgetext mit ein (z.B. Link-Text ohne Satzzeichen davor)", () => {
+    const result = extractFromEmailContent({
+      subject: "1 neuer Treffer",
+      textBody: "CHF 500'000.- Musterstrasse 1 8000 Zürich Anbieter kontaktieren",
+    });
+    expect(result.fields.addressText).toBe("Musterstrasse 1, 8000 Zürich");
+  });
+
+  it("fällt auf den ersten Ortsteil zurück, wenn der bekannte mehrwortige Ortsname nicht vollständig im Text steht", () => {
+    const result = extractFromEmailContent({
+      subject: "1 neuer Treffer",
+      textBody: "CHF 2'165'000.- 8545 Rickenbach",
+    });
+    expect(result.fields.addressText).toBe("8545 Rickenbach");
+  });
+
   it("erfindet keinen unplausibel niedrigen Preis (Bug 2026-08-11: CHF 1'150 als Kaufpreis)", () => {
     const result = extractFromEmailContent({
       subject: "1 neuer Treffer",

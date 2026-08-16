@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import plzOrtMultiwordData from "../../../../config/plz-ort-multiword.json";
 
 /**
  * Extraktion strukturierter Felder aus einer Inserat-Detailseite (Stufe 2). Läuft
@@ -57,6 +58,61 @@ const MIN_PLAUSIBLE_PRICE_CHF = 50_000;
 
 function plausiblePrice(value: number | undefined): number | undefined {
   return value !== undefined && value >= MIN_PLAUSIBLE_PRICE_CHF ? value : undefined;
+}
+
+/**
+ * Mehrwortige Ortsnamen je PLZ (config/plz-ort-multiword.json, dieselbe Quelle wie
+ * plzKanton.ts: Swiss-Post-PLZ-Verzeichnis via github.com/gamba/swiss-geolocation) —
+ * z.B. "8545": ["Rickenbach Sulz", "Rickenbach ZH"]. Nur PLZ mit mindestens einem
+ * mehrwortigen Ortsnamen sind enthalten; einwortige Ortsnamen deckt die einfache
+ * Regex unten bereits sicher ab.
+ */
+const PLZ_ORT_MULTIWORD: Record<string, string[]> = plzOrtMultiwordData;
+
+/**
+ * Liest den Ortsnamen direkt nach einer erkannten PLZ. Prüft zuerst gegen die
+ * bekannten, echten Ortsnamen für genau diese PLZ (längster zuerst) — sicherer als
+ * eine zweite grossgeschriebene Wortfolge zu raten, die z.B. bei "... 4414
+ * Füllinsdorf Anbieter kontaktieren" fälschlich "Anbieter" mit einbeziehen würde.
+ * Ohne bekannten Treffer bleibt es beim sicheren einzelnen Wort (kein Rateversuch
+ * über die Wortgrenze hinaus).
+ */
+function captureOrt(textAfterPlz: string, plz: string): string | undefined {
+  const known = PLZ_ORT_MULTIWORD[plz];
+  if (known) {
+    for (const name of [...known].sort((a, b) => b.length - a.length)) {
+      const boundaryChar = textAfterPlz[name.length];
+      if (textAfterPlz.startsWith(name) && (boundaryChar === undefined || /\s/.test(boundaryChar))) {
+        return name;
+      }
+    }
+  }
+  return textAfterPlz.match(/^[A-ZÄÖÜ][\wÀ-ÿ.-]*/)?.[0];
+}
+
+/**
+ * Adresse aus Fliesstext: bevorzugt Strasse + Hausnummer + PLZ + Ort, fällt sonst auf
+ * reine PLZ + Ort zurück. Anlass (2026-08-16, echter Treffer): manche Suchabo-Mails
+ * nennen aus Datenschutz-/Lead-Gen-Gründen nur den Ort, nicht die genaue Strasse (z.B.
+ * "8545 Rickenbach Sulz") — bisher blieb so eine Adresse komplett unextrahiert, obwohl
+ * der Ort im Mailtext stand.
+ */
+function matchAddress(text: string): string | undefined {
+  const withStreet = text.match(/([A-ZÄÖÜ][\wÀ-ÿ.\- ]{1,40}?\s\d{1,4}[a-z]?)\s+(\d{4})\s+(?=[A-ZÄÖÜ])/);
+  if (withStreet) {
+    const plz = withStreet[2];
+    const ort = captureOrt(text.slice(withStreet.index! + withStreet[0].length), plz);
+    if (ort) return `${withStreet[1].trim()}, ${plz} ${ort}`;
+  }
+
+  const plzOnly = text.match(/\b(\d{4})\s+(?=[A-ZÄÖÜ])/);
+  if (plzOnly) {
+    const plz = plzOnly[1];
+    const ort = captureOrt(text.slice(plzOnly.index! + plzOnly[0].length), plz);
+    if (ort) return `${plz} ${ort}`;
+  }
+
+  return undefined;
 }
 
 /**
@@ -128,12 +184,7 @@ export function extractFromEmailContent(mail: AlertMailContent): ExtractionResul
   const areaMatch = isMultiMatch ? null : text.match(/([\d'’]{2,})\s*m[²2]/i);
   const parcelAreaM2 = areaMatch ? Number(areaMatch[1].replace(/[^\d]/g, "")) || undefined : undefined;
 
-  // Strasse + Hausnummer, dann 4-stellige PLZ, dann Ortsname — alles auf einer Zeile,
-  // da stripHtml() Zeilenumbrüche zu Leerzeichen zusammenzieht.
-  const addressMatch = isMultiMatch
-    ? null
-    : text.match(/([A-ZÄÖÜ][\wÀ-ÿ.\- ]{1,40}?\s\d{1,4}[a-z]?)\s+(\d{4})\s+([A-ZÄÖÜ][\wÀ-ÿ\- ]{1,40}?)(?=\s|$)/);
-  const addressText = addressMatch ? `${addressMatch[1].trim()}, ${addressMatch[2]} ${addressMatch[3].trim()}` : undefined;
+  const addressText = isMultiMatch ? undefined : matchAddress(text);
 
   const objectType = /abbruch|rückbau|abriss/i.test(text) ? "ABBRUCHOBJEKT" : /bauland|baulandparzelle|unbebaut/i.test(text) ? "BAULAND" : undefined;
 

@@ -126,17 +126,18 @@ export async function getInboundAlerts(limit = 50): Promise<InboundAlertRow[] | 
   return data as InboundAlertRow[];
 }
 
-const STATUS_LABELS: Record<string, { label: string; tone: ChipTone }> = {
-  NEW: { label: "Neu", tone: "neutral" },
-  PARTIAL: { label: "Teilweise (LLM)", tone: "warn" },
-  MANUAL_INPUT_REQUIRED: { label: "Manuell prüfen", tone: "warn" },
-  BLOCKED: { label: "Blockiert", tone: "bad" },
-  TIMEOUT: { label: "Timeout", tone: "bad" },
-  NOT_AVAILABLE: { label: "Nicht erreichbar", tone: "bad" },
+const STATUS_LABELS: Record<string, { label: string; shortLabel: string; tone: ChipTone }> = {
+  NEW: { label: "Neu", shortLabel: "Neu", tone: "neutral" },
+  PARTIAL: { label: "Teilweise (LLM)", shortLabel: "Teilw.", tone: "warn" },
+  MANUAL_INPUT_REQUIRED: { label: "Manuell prüfen", shortLabel: "Prüfen", tone: "warn" },
+  BLOCKED: { label: "Blockiert", shortLabel: "Blockiert", tone: "bad" },
+  TIMEOUT: { label: "Timeout", shortLabel: "Timeout", tone: "bad" },
+  NOT_AVAILABLE: { label: "Nicht erreichbar", shortLabel: "Fehler", tone: "bad" },
 };
 
-export function listingStatus(status: string): { label: string; tone: ChipTone } {
-  return STATUS_LABELS[status] ?? { label: status, tone: "neutral" };
+/** `shortLabel` ist die abgekürzte Fassung für schmale Tabellenspalten (siehe QuellenListingsTable.tsx) — `label` bleibt der volle Begriff, z.B. für den Hover-Text oder die Detailseite. */
+export function listingStatus(status: string): { label: string; shortLabel: string; tone: ChipTone } {
+  return STATUS_LABELS[status] ?? { label: status, shortLabel: status, tone: "neutral" };
 }
 
 const OBJECT_TYPE_LABELS: Record<string, string> = {
