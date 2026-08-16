@@ -23,7 +23,7 @@ export function QuellenListingsTable({ rows, searchProfile }: { rows: ListingRow
       align: "left",
       sortValue: (l) => (l.title || l.address_text || "").toLowerCase(),
       render: (l) => (
-        <Link href={`/quellen/${l.id}`} className="objcell" style={{ display: "block" }} title={l.title || l.address_text || "Ohne Titel"}>
+        <Link href={`/quellen/${l.id}`} className="objcell objcell-narrow" style={{ display: "block" }} title={l.title || l.address_text || "Ohne Titel"}>
           <div className="m">{l.title || l.address_text || "Ohne Titel"}</div>
           <div className="g">
             {l.source}

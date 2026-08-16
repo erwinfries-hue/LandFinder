@@ -488,6 +488,18 @@ tr.row-clickable {
   font-size: 0.72rem;
   margin-top: 0.1rem;
 }
+/* Quellen-Tabelle: Inserat-Spalte 40% schmäler als die Objekt-Spalte der Rangliste
+   (220px -> 132px) — eigene Modifier-Klasse statt .objcell direkt zu ändern, da
+   RankingTable.tsx dieselbe Klasse für die Homepage-Rangliste verwendet. */
+.objcell-narrow .m {
+  max-width: 132px;
+}
+.objcell-narrow .g {
+  max-width: 132px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .num {
   font-family: var(--font-mono), ui-monospace, monospace;
   white-space: nowrap;
