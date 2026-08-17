@@ -67,6 +67,7 @@ export async function BestandswohnungDetail({ listing }: { listing: ListingRow }
 
         <DueDiligencePanel
           listingId={listing.id}
+          objectLabel={listing.title || listing.address_text || "diesem Objekt"}
           initialDocuments={(documents ?? []) as DueDiligenceDocumentRow[]}
           initialDueDiligence={dueDiligence}
         />

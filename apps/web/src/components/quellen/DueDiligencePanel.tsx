@@ -6,6 +6,7 @@ import { Panel, Chip, type ChipTone } from "@landfinder/ui";
 import type { DueDiligenceDocumentType, DueDiligenceResult, DueDiligenceSeverity } from "@landfinder/domain";
 import { DOCUMENT_TYPE_CATALOG } from "@/lib/documentTypes";
 import { formatDateTime } from "@/lib/listings";
+import { buildSellerQuestionsEmailDraft, buildMailtoUrl } from "@/lib/sellerQuestionsEmail";
 
 export interface DueDiligenceDocumentRow {
   id: string;
@@ -36,10 +37,13 @@ type UploadState = { filename: string; status: "UPLOADING" | "DONE" | "FAILED"; 
 
 export function DueDiligencePanel({
   listingId,
+  objectLabel,
   initialDocuments,
   initialDueDiligence,
 }: {
   listingId: string;
+  /** Adresse/Titel des Objekts — für den Betreff des E-Mail-Entwurfs der Rückfragen. */
+  objectLabel: string;
   initialDocuments: DueDiligenceDocumentRow[];
   initialDueDiligence: { status: string; result: DueDiligenceResult | null; error_message: string | null; generated_at: string | null } | null;
 }) {
@@ -50,6 +54,8 @@ export function DueDiligencePanel({
   const [synthesizing, setSynthesizing] = useState(false);
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [applying, setApplying] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
   async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -108,6 +114,27 @@ export function DueDiligencePanel({
       router.refresh();
     } finally {
       setApplying(null);
+    }
+  }
+
+  async function handleDeleteDocument(documentId: string) {
+    setDeleting(documentId);
+    try {
+      await fetch(`/api/listings/${listingId}/documents/${documentId}`, { method: "DELETE" });
+      router.refresh();
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  async function handleCopyEmailDraft(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 2000);
+    } catch {
+      // Clipboard-API kann in seltenen Browser-/Berechtigungskonstellationen fehlen —
+      // die Textarea daneben bleibt in dem Fall der manuelle Kopierweg.
     }
   }
 
@@ -170,6 +197,15 @@ export function DueDiligencePanel({
               <span style={{ color: "var(--ink-faint)" }}>{d.original_filename}</span>
               <span style={{ color: "var(--ink-faint)" }}>{formatDateTime(d.uploaded_at)}</span>
               {d.analysis_error ? <span style={{ color: "var(--bad)" }}>— {d.analysis_error}</span> : null}
+              <button
+                type="button"
+                className="btn"
+                style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
+                disabled={deleting === d.id}
+                onClick={() => handleDeleteDocument(d.id)}
+              >
+                {deleting === d.id ? "Löscht…" : "Löschen"}
+              </button>
             </li>
           ))}
         </ul>
@@ -241,11 +277,35 @@ export function DueDiligencePanel({
           {result.sellerQuestions.length === 0 ? (
             <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Keine offenen Rückfragen.</p>
           ) : (
-            <ul style={{ margin: "0 0 1.4rem", paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: ".4rem" }}>
-              {result.sellerQuestions.map((q, i) => (
-                <li key={i} style={{ fontSize: ".8125rem" }}>{q.question}</li>
-              ))}
-            </ul>
+            <>
+              <ul style={{ margin: "0 0 .8rem", paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: ".4rem" }}>
+                {result.sellerQuestions.map((q, i) => (
+                  <li key={i} style={{ fontSize: ".8125rem" }}>{q.question}</li>
+                ))}
+              </ul>
+              {(() => {
+                const draft = buildSellerQuestionsEmailDraft(result.sellerQuestions, objectLabel);
+                const fullText = `Betreff: ${draft.subject}\n\n${draft.body}`;
+                return (
+                  <div style={{ marginBottom: "1.4rem" }}>
+                    <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", marginBottom: ".5rem" }}>
+                      <a href={buildMailtoUrl(draft)} className="btn" style={{ width: "auto", padding: ".3rem .7rem", fontSize: ".78rem" }}>
+                        In E-Mail-Programm öffnen
+                      </a>
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ width: "auto", padding: ".3rem .7rem", fontSize: ".78rem" }}
+                        onClick={() => handleCopyEmailDraft(fullText)}
+                      >
+                        {copyFeedback ? "Kopiert!" : "Text kopieren"}
+                      </button>
+                    </div>
+                    <textarea readOnly rows={4} value={fullText} style={{ width: "100%", fontSize: ".76rem", color: "var(--ink-soft)" }} />
+                  </div>
+                );
+              })()}
+            </>
           )}
 
           <div className="sectionhead">

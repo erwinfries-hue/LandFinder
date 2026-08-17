@@ -404,15 +404,23 @@ vorab gestellt.
   rohen PDFs erneut — reduziert Kosten und lässt einzelne Dokumente unabhängig
   nachträglich ergänzen, ohne bereits analysierte neu zu verarbeiten.
 
-**Bewusst NICHT gebaut / offen:**
+**Nachgezogen (2026-08-17), auf Rückmeldung "ja bitte weiter machen":**
 
-- **Kein Dokumenten-Löschen** — nur Upload, kein Entfernen falsch zugeordneter
-  Dateien. Kleiner, klar abgegrenzter Nachtrag, aber nicht Teil dieses Schritts.
-  ↳ *Klärung erbeten, sonst nächster naheliegender Schritt.*
-- **E-Mail-Export der Verkäuferfragen** (Produktvorgabe, Punkt 8: "als
-  E-Mail-Entwurf exportierbar") — aktuell nur als Liste in der UI, kein
-  Copy-to-Clipboard/mailto-Export.
-  ↳ *Klärung erbeten, sonst nächster naheliegender Schritt.*
+- **Dokumenten-Löschen**: `DELETE /api/listings/[id]/documents/[documentId]`
+  entfernt Datei aus dem Storage-Bucket + die `object_documents`-Zeile, "Löschen"-
+  Button pro Dokument in der Liste. Ein bereits gespeichertes
+  `object_due_diligence`-Ergebnis, das das gelöschte Dokument referenziert, wird
+  bewusst nicht automatisch neu berechnet — bleibt bis zum nächsten
+  "Due-Diligence aktualisieren" als Snapshot stehen.
+- **E-Mail-Export der Verkäuferfragen** (Produktvorgabe, Punkt 8):
+  `sellerQuestionsEmail.ts` baut Betreff + nummerierten Fliesstext aus den
+  Rückfragen; in der UI ein `mailto:`-Link ("In E-Mail-Programm öffnen") und ein
+  "Text kopieren"-Button samt Vorschau-Textarea. Bewusst kein eigener
+  Mail-Versand (kein neuer Vendor/keine neue Kostenstelle) — nutzt nur, was der
+  Browser/das lokale Mailprogramm bereits kann.
+
+**Bewusst weiterhin NICHT gebaut / offen:**
+
 - **Scoring/Hard-Gates auf Basis der Due-Diligence** (z.B. "RISIKO in Kategorie
   STWEG senkt den Score um X Punkte") — bleibt wie in Punkt M/N offen, dieselbe
   Investitionskriterien-Frage.
