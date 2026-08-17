@@ -61,6 +61,14 @@ describe("extractPortalListingLinks", () => {
     expect(extractPortalListingLinks({ htmlBody: html })).toEqual(["https://www.homegate.ch/kaufen/12345"]);
   });
 
+  it("ignoriert Versand-/Tracking-Subdomains des Portals selbst (z.B. 'r.mailing.newhome.ch') — kein einzelnes Inserat (Bug 2026-08-16, echter Fund)", () => {
+    const html = `
+      <a href="https://www.newhome.ch/de/immobilien/detail/42">Inserat</a>
+      <a href="https://r.mailing.newhome.ch/tr/op/abc123">Zum Inserat</a>
+    `;
+    expect(extractPortalListingLinks({ htmlBody: html })).toEqual(["https://www.newhome.ch/de/immobilien/detail/42"]);
+  });
+
   it("stellt einen erkannten Tracking-Link vor Bild-/Vorschau-Links derselben Mail (Reihenfolge für MAX_LINKS_PER_RUN)", () => {
     const html = `
       <img src="https://media2.homegate.ch/f_auto/listings/v2/s010/12345/image/a.jpg" />

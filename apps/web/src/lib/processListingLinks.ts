@@ -111,6 +111,7 @@ export async function processListingLinks(supabase: SupabaseClient, links: strin
           asking_price_chf: extraction.fields.askingPriceChf,
           parcel_area_m2: extraction.fields.parcelAreaM2,
           known_zone: extraction.fields.knownZone,
+          existing_building: extraction.fields.existingBuilding ?? null,
           extraction,
           ingestion_status: ingestionStatus,
           last_fetch_http_status: fetchResult.httpStatus ?? null,

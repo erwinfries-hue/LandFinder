@@ -74,6 +74,20 @@ export function isSearchResultsUrl(url: string): boolean {
 }
 
 /**
+ * E-Mail-Versand-/Tracking-Subdomain eines Portals selbst (z.B. "r.mailing.newhome.ch")
+ * statt der eigentlichen Inserat-Seite — Bug gefunden 2026-08-16 anhand echter
+ * Produktionsdaten: `isPortalUrl()` liess so einen Link durch, weil er formal auf
+ * "*.newhome.ch" endet, obwohl es sich um einen Versanddienst-Link handelt (anders als
+ * SendGrid, der eine komplett fremde Domain nutzt und darüber bereits ausgefiltert
+ * wird). Landete als eigene, leere `listings`-Zeile — derselbe Fehlerklasse wie
+ * Trefferlisten-Links, siehe isSearchResultsUrl().
+ */
+function isMailingTrackingUrl(url: string): boolean {
+  const host = hostOf(url);
+  return host !== null && /(^|\.)mailing\./i.test(host);
+}
+
+/**
  * Findet Klick-Tracking-Links (z.B. SendGrid) im HTML-Teil, aber nur wenn der
  * sichtbare Link-Text eindeutig auf eine Inserat-Aktion hindeutet ("Anbieter
  * kontaktieren" o.ä.) — nie z.B. Abmelde- oder Impressum-Links, die über denselben
@@ -102,19 +116,22 @@ function extractActionTrackingLinks(html: string): string[] {
  * beim Abruf nichts Extrahierbares liefern (siehe processListingLinks.ts).
  * Eindeutig als Inserat-Aktion erkannte Tracking-Links (z.B. "Anbieter kontaktieren")
  * werden zuerst aufgeführt, weil sie am ehesten zur echten Inserat-Seite führen.
- * Trefferlisten-/Such-Links (z.B. "Alle Treffer ansehen") werden komplett ausgefiltert,
- * nicht nur nachrangig behandelt — sie sind kein einzelnes Inserat (siehe
- * isSearchResultsUrl()).
+ * Trefferlisten-/Such-Links (z.B. "Alle Treffer ansehen") und Versand-/Tracking-
+ * Subdomains des Portals selbst (z.B. "r.mailing.newhome.ch") werden komplett
+ * ausgefiltert, nicht nur nachrangig behandelt — beides ist kein einzelnes Inserat
+ * (siehe isSearchResultsUrl(), isMailingTrackingUrl()).
  */
 export function extractPortalListingLinks(mail: { htmlBody?: string; textBody?: string }): string[] {
   const raw = `${mail.htmlBody ?? ""}\n${mail.textBody ?? ""}`;
   const found = raw.match(URL_PATTERN) ?? [];
   const cleaned = found.map((url) => url.replace(/[.,;]+$/, ""));
 
-  const portalLinks = cleaned.filter((url) => isPortalUrl(url) && !isSearchResultsUrl(url));
+  const portalLinks = cleaned.filter((url) => isPortalUrl(url) && !isSearchResultsUrl(url) && !isMailingTrackingUrl(url));
   const directPageLinks = portalLinks.filter((url) => !isLikelyImageAsset(url));
   const imageAssetLinks = portalLinks.filter(isLikelyImageAsset);
-  const actionTrackingLinks = mail.htmlBody ? extractActionTrackingLinks(mail.htmlBody).filter((url) => !isSearchResultsUrl(url)) : [];
+  const actionTrackingLinks = mail.htmlBody
+    ? extractActionTrackingLinks(mail.htmlBody).filter((url) => !isSearchResultsUrl(url) && !isMailingTrackingUrl(url))
+    : [];
 
   return Array.from(new Set([...actionTrackingLinks, ...directPageLinks, ...imageAssetLinks]));
 }

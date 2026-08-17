@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Chip, ListingLink, InfoHint, SortableTable, type Column } from "@landfinder/ui";
 import type { SearchProfile } from "@landfinder/domain";
 import { formatChf } from "@/lib/demo-data";
-import { listingStatus, objectTypeLabel, formatDateTime, type ListingRow } from "@/lib/listings";
+import { listingStatus, objectTypeLabel, formatDateTime, extractionBuildYear, type ListingRow } from "@/lib/listings";
 import { prescreenListing, type PrescreenStatus } from "@/lib/listingPrescreen";
 
 /** `shortLabel` (max. 4 Zeichen) für die Tabellenspalte (schmal), `label` als voller Begriff für den Hover-Text. */
@@ -74,6 +74,26 @@ export function QuellenListingsTable({ rows, searchProfile }: { rows: ListingRow
       align: "left",
       sortValue: (l) => l.known_zone ?? "",
       render: (l) => l.known_zone ?? "—",
+    },
+    {
+      key: "gebaeude",
+      header: (
+        <>
+          Geb.{" "}
+          <InfoHint text="Hinweis auf ein bestehendes Gebäude auf dem Grundstück laut Inseratstext (z.B. Baujahr) — wichtig bei reinem Bauland-Interesse. Kein Hinweis heisst nicht zwingend, dass keines existiert." />
+        </>
+      ),
+      align: "left",
+      sortValue: (l) => (l.existing_building === true ? 1 : 0),
+      render: (l) => {
+        if (l.existing_building !== true) return "—";
+        const buildYear = extractionBuildYear(l);
+        return (
+          <Chip tone="warn" title={buildYear ? `Bestehendes Gebäude, Baujahr ${buildYear}` : "Bestehendes Gebäude laut Inseratstext"}>
+            {buildYear ?? "Ja"}
+          </Chip>
+        );
+      },
     },
     {
       key: "status",
