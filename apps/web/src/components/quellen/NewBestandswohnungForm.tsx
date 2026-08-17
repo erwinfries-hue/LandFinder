@@ -76,7 +76,7 @@ export function NewBestandswohnungForm() {
           </div>
           <div className="field">
             <label htmlFor="askingPriceChf">Kaufpreis (CHF)</label>
-            <input id="askingPriceChf" name="askingPriceChf" type="number" step="1000" min="1" required />
+            <input id="askingPriceChf" name="askingPriceChf" type="number" step="1000" min="0" required />
           </div>
           <div className="field">
             <label htmlFor="wohnflaecheM2">Wohnfläche (m²)</label>

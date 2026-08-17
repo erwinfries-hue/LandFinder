@@ -163,6 +163,38 @@ export async function getPriceHistory(listingIds: string[]): Promise<Record<stri
   return byListing;
 }
 
+/** Hochgeladene Due-Diligence-Dokumente eines Objekts (docs/OPEN_DECISIONS.md, Punkt O), neueste zuerst. */
+export async function getObjectDocuments(listingId: string) {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("object_documents")
+    .select("id, document_type, original_filename, uploaded_at, analysis_status, analysis_error, extraction")
+    .eq("listing_id", listingId)
+    .order("uploaded_at", { ascending: false });
+  if (error) {
+    console.error("[listings] getObjectDocuments fehlgeschlagen", listingId, error);
+    return [];
+  }
+  return data;
+}
+
+/** Persistierte Due-Diligence-Synthese eines Objekts (Stufe 2), `null` wenn noch nie angestossen. */
+export async function getObjectDueDiligence(listingId: string) {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("object_due_diligence")
+    .select("status, error_message, result, generated_at")
+    .eq("listing_id", listingId)
+    .maybeSingle();
+  if (error) {
+    console.error("[listings] getObjectDueDiligence fehlgeschlagen", listingId, error);
+    return null;
+  }
+  return data;
+}
+
 export async function getInboundAlerts(limit = 50): Promise<InboundAlertRow[] | null> {
   const supabase = createSupabaseServerClient();
   if (!supabase) return null;

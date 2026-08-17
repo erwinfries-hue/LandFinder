@@ -7,6 +7,7 @@ import { SideNav } from "@/components/SideNav";
 import { Metric } from "@/components/objekte/MetricPrimitives";
 import { ListingVertiefungForm } from "@/components/quellen/ListingVertiefungForm";
 import { ListingLiveAnalysis, type ComparisonPoolEntry } from "@/components/quellen/ListingLiveAnalysis";
+import { BestandswohnungDetail } from "@/components/quellen/BestandswohnungDetail";
 import { formatChf } from "@/lib/demo-data";
 import { getListingById, getVertieftePeersInCanton, listingStatus, objectTypeLabel, formatDateTime } from "@/lib/listings";
 import { getPersistedSearchProfile } from "@/lib/searchProfile";
@@ -57,6 +58,10 @@ export default async function QuellenDetailPage({ params }: { params: Promise<{ 
     );
   }
   if (!listing) notFound();
+
+  if (listing.object_type === "BESTANDSWOHNUNG") {
+    return <BestandswohnungDetail listing={listing} />;
+  }
 
   const searchProfile = await getPersistedSearchProfile();
   const prescreen = prescreenListing(listing, searchProfile);
