@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts, type BestandsrenditeFacts } from "./bestandsrenditeVertiefung";
+import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts, applyFieldUpdate, isAllowedUpdateField, type BestandsrenditeFacts } from "./bestandsrenditeVertiefung";
 
 const minimalValidInput = {
   miete: { wohnungsMieteChfPerMonth: 1450, vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT" },
@@ -111,5 +111,32 @@ describe("computeBestandsrenditeAnalysis", () => {
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, noExtras);
     expect(result.furnitureRoi).toBeUndefined();
     expect(result.allInInvestitionChf).toBeLessThan(computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts).allInInvestitionChf);
+  });
+});
+
+describe("isAllowedUpdateField / applyFieldUpdate", () => {
+  it("erlaubt nur die explizit gelisteten Feldpfade", () => {
+    expect(isAllowedUpdateField("miete.wohnungsMieteChfPerMonth")).toBe(true);
+    expect(isAllowedUpdateField("stweg.erneuerungsfondsSaldoChf")).toBe(true);
+    expect(isAllowedUpdateField("erfundenes.feld")).toBe(false);
+    expect(isAllowedUpdateField("miete.wohnungsMieteChfPerMonth.zuTief")).toBe(false);
+  });
+
+  it("setzt nur das eine Blattfeld, andere Felder in derselben Gruppe bleiben unverändert", () => {
+    const facts = { miete: { wohnungsMieteChfPerMonth: 1200, parkplatzMieteChfPerMonth: 150 } };
+    const updated = applyFieldUpdate(facts, "miete.wohnungsMieteChfPerMonth", 1220);
+    expect(updated.miete).toEqual({ wohnungsMieteChfPerMonth: 1220, parkplatzMieteChfPerMonth: 150 });
+  });
+
+  it("erstellt eine fehlende Zwischengruppe, falls sie noch nicht existiert", () => {
+    const facts = {};
+    const updated = applyFieldUpdate(facts, "stweg.erneuerungsfondsSaldoChf", 180_000);
+    expect(updated.stweg).toEqual({ erneuerungsfondsSaldoChf: 180_000 });
+  });
+
+  it("lässt andere Gruppen im Facts-Objekt unangetastet", () => {
+    const facts = { miete: { wohnungsMieteChfPerMonth: 1200 }, renovation: { initialRenovationCostChf: 5_000 } };
+    const updated = applyFieldUpdate(facts, "miete.wohnungsMieteChfPerMonth", 1300);
+    expect(updated.renovation).toEqual({ initialRenovationCostChf: 5_000 });
   });
 });

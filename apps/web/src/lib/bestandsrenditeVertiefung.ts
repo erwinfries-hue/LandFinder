@@ -367,3 +367,38 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
     },
   };
 }
+
+/**
+ * Feldpfade, die per Due-Diligence-Feldwert-Übernahmevorschlag gesetzt werden dürfen
+ * (docs/OPEN_DECISIONS.md, Punkt O) — muss exakt der Liste in
+ * `apps/web/src/app/api/listings/[id]/due-diligence/route.ts::buildKnownFields`
+ * entsprechen. Eine geschlossene Allow-Liste statt eines generischen Dot-Path-Setters
+ * auf beliebige Feldnamen — verhindert, dass ein von der KI erfundener Feldname
+ * unbemerkt eine falsche Stelle im Facts-Objekt beschreibt.
+ */
+const ALLOWED_UPDATE_FIELDS = [
+  "miete.wohnungsMieteChfPerMonth",
+  "miete.parkplatzMieteChfPerMonth",
+  "betriebskosten.stwegAkontobeitragChfPerYear",
+  "stweg.erneuerungsfondsSaldoChf",
+  "stweg.erneuerungsfondsZielwertChf",
+  "stweg.wertquotePromille",
+] as const;
+
+export type AllowedUpdateField = (typeof ALLOWED_UPDATE_FIELDS)[number];
+
+export function isAllowedUpdateField(field: string): field is AllowedUpdateField {
+  return (ALLOWED_UPDATE_FIELDS as readonly string[]).includes(field);
+}
+
+/**
+ * Wendet einen einzelnen, vom Nutzer bestätigten Feldwert-Übernahmevorschlag auf ein
+ * Bestandsrendite-Facts-Objekt an — nie automatisch, nur nach explizitem "übernehmen"
+ * (docs/OPEN_DECISIONS.md, Punkt O: "Keine Werte stillschweigend überschreiben").
+ * Erstellt fehlende Zwischenobjekte (z.B. `stweg`), überschreibt nur das eine Blattfeld.
+ */
+export function applyFieldUpdate(facts: Record<string, unknown>, field: AllowedUpdateField, newValue: string | number): Record<string, unknown> {
+  const [group, key] = field.split(".") as [string, string];
+  const existingGroup = (facts[group] as Record<string, unknown> | undefined) ?? {};
+  return { ...facts, [group]: { ...existingGroup, [key]: newValue } };
+}
