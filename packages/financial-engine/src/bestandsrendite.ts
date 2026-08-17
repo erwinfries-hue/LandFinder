@@ -1,31 +1,29 @@
-import { calculateErtrag, calculateFinanzierung, type ErtragResult, type FinanzierungResult } from "./ertragFinanzierung";
+import { bisectRoot } from "./numeric";
 
 /**
  * Rechenmodell für "Bestandsrendite auf Eigentumswohnungen" (docs/OPEN_DECISIONS.md,
- * Punkt I.2/M) — Kauf einer bestehenden, renovierbaren oder bereits sanierten
- * Eigentumswohnung ausschliesslich zur Vermietung (möbliert als Business Apartment
- * oder unmöbliert langfristig, nie Eigennutzung). Strukturell eine andere Rechnung
- * als das Bauland-/Development-Underwriting in `baupotenzial.ts`/`projektkosten.ts`/
- * `residualwert.ts`: kein Baupotenzial, kein Residualwert, keine
- * Ausnützungsziffer — stattdessen ein einfacher Kaufpreis-plus-Nebenkosten-Stack.
+ * Punkt N) — Kauf einer bestehenden Eigentumswohnung ausschliesslich zur Vermietung.
+ * Struktur laut ausführlicher Rückmeldung des Auftraggebers (2026-08-16): drei Ebenen,
+ * bewusst NICHT auf institutionellem Niveau (kein DCF/WACC/NPV/Monte-Carlo):
  *
- * Modellentscheid (Rückmeldung Auftraggeber, 2026-08-16): **unmöbliert ist die
- * einzige Mietbasis** — dieselbe CHF/m²/Monat-Formel gilt für möblierte wie
- * unmöblierte Vermietung (eine Business-Apartment-Miete ist einfach ein höherer
- * eingegebener CHF/m²/Monat-Wert, keine eigene Tagesansatz-/Auslastungs-Formel).
- * Möblierung ist stattdessen ein reiner Kosten-Zusatz: Initialkosten (einmalig, in
- * `totalInvestmentChf`) plus ein jährlicher Ersatzsatz in % davon (laufende Kosten).
- * Renovation ist analog aufgebaut: Initial-Renovationskosten (einmalig, direkt
- * eingegeben statt aus Fläche×Kostensatz berechnet) plus ein jährlicher
- * Renovationssatz in % **des Kaufpreises** (laufende Rückstellung, nicht der
- * Renovationskosten) — beide Sätze sind eigene Variablen. Kein Score/keine
- * Empfehlung hier (anders als scoring-engine für Development): welche Rendite/DSCR
- * als "gut genug" gilt, ist eine Investitionskriterien-Frage, noch nicht mit dem
- * Auftraggeber abgestimmt — diese Datei liefert nur die Zahlen, keine Bewertung.
+ * - **Ebene A** (`calculateSchnellcheck`) — Aussortieren in Sekunden.
+ * - **Ebene B** (dieses Modul: `calculateAllInInvestition`, `calculateJahresertrag`,
+ *   `calculateCashflowWasserfall`, `calculateInvestmentCase`, Break-even-Werte) — die
+ *   eigentliche Standardanalyse: All-in-Investition statt nur Kaufpreis, voller
+ *   5-stufiger Cashflow-Wasserfall bis zum "nachhaltigen Cashflow".
+ * - **Ebene C** (`bestandsrenditeMehrjahresmodell.ts`) — 15-Jahres-Modell mit IRR,
+ *   nutzt `calculateJahresertrag`/`calculateBetriebskosten`/`calculateCashflowWasserfall`
+ *   aus diesem Modul pro Jahr wieder (kein Duplikat der Formeln).
  *
- * `calculateErtrag`/`calculateFinanzierung` aus `ertragFinanzierung.ts` sind bereits
- * objektart-neutral (reine NOI-/Finanzierungsformeln, keine Development-Kopplung) —
- * hier bewusst wiederverwendet statt dupliziert, siehe `runBestandsrenditeScenario`.
+ * Wert-Add-Analysen (Möblierungs-/Renovations-ROI, Möblierungs-Lebenszyklus) leben in
+ * `bestandsrenditeValueAdd.ts` — eigenes Modul, wie vom Auftraggeber gewünscht
+ * ("von Anfang an als eigene Module bauen").
+ *
+ * Wichtig: **kein Score/keine Empfehlung** hier (anders als scoring-engine für
+ * Development). Welche Rendite/DSCR als "gut genug" gilt, ist eine persönliche
+ * Investitionskriterien-Frage, noch nicht abgestimmt — diese Datei liefert nur
+ * Zahlen, keine Bewertung, ausser der rein mechanischen Investment-Treiber-Attribution
+ * in `bestandsrenditeMehrjahresmodell.ts`.
  */
 
 export interface NebenkostenInput {
@@ -55,141 +53,250 @@ export function calculateNebenkosten(input: NebenkostenInput): NebenkostenResult
   };
 }
 
-export interface RenovationInput {
-  /** Einmalige Initial-Renovationskosten — direkt eingegebener CHF-Betrag, nicht aus Fläche×Kostensatz berechnet (0, wenn bereits saniert). */
-  initialRenovationCostChf: number;
-  kaufpreisChf: number;
-  /** Laufende Renovations-/Instandhaltungsrückstellung, in % **des Kaufpreises** (nicht der Initialkosten) pro Jahr. */
-  jaehrlicherRenovationssatzPercent: number;
-}
+// ---------------------------------------------------------------------------
+// Ebene A — Schnellcheck
+// ---------------------------------------------------------------------------
 
-export interface RenovationResult {
-  initialRenovationCostChf: number;
-  jaehrlicheRenovationsrueckstellungChf: number;
-}
-
-export function calculateRenovation(input: RenovationInput): RenovationResult {
-  return {
-    initialRenovationCostChf: input.initialRenovationCostChf,
-    jaehrlicheRenovationsrueckstellungChf: input.kaufpreisChf * (input.jaehrlicherRenovationssatzPercent / 100),
-  };
-}
-
-export interface MoeblierungInput {
-  /** Einmalige Initial-Möblierungskosten — 0 für unmöblierte Vermietung. */
-  initialCostChf: number;
-  /** Jährlicher Ersatz-/Erneuerungssatz, in % **der Möblierungs-Initialkosten** pro Jahr. */
-  jaehrlicherErsatzsatzPercent: number;
-}
-
-export interface MoeblierungResult {
-  initialCostChf: number;
-  jaehrlicheErsatzkostenChf: number;
-}
-
-/** 0/0 für eine unmöblierte Vermietung (initialCostChf = 0) — dieselbe Formel deckt beide Fälle ab, kein separater Vermietungsart-Zweig nötig. */
-export function calculateMoeblierung(input: MoeblierungInput): MoeblierungResult {
-  return {
-    initialCostChf: input.initialCostChf,
-    jaehrlicheErsatzkostenChf: input.initialCostChf * (input.jaehrlicherErsatzsatzPercent / 100),
-  };
-}
-
-export interface GesamtinvestitionInput {
-  kaufpreisChf: number;
-  nebenkosten: NebenkostenResult;
-  renovation: RenovationResult;
-  moeblierung: MoeblierungResult;
-}
-
-export function calculateGesamtinvestition(input: GesamtinvestitionInput): number {
-  return input.kaufpreisChf + input.nebenkosten.totalNebenkostenChf + input.renovation.initialRenovationCostChf + input.moeblierung.initialCostChf;
-}
-
-export interface MietertragInput {
+export interface SchnellcheckInput {
+  wohnungskaufpreisChf: number;
+  parkplatzkaufpreisChf: number;
   wohnflaecheM2: number;
-  /** Gilt für möblierte wie unmöblierte Vermietung gleichermassen — siehe Modellentscheid oben. */
-  netRentChfPerM2Month: number;
-}
-
-export function estimateAnnualPotentialRentChf(input: MietertragInput): number {
-  return input.wohnflaecheM2 * input.netRentChfPerM2Month * 12;
-}
-
-export interface RenditeResult {
-  bruttoRenditePercent: number;
-  nettoRenditePercent: number;
-}
-
-/** Brutto = potenzielle Jahresmiete / Gesamtinvestition. Netto = NOI / Gesamtinvestition (nach Leerstand/Betriebskosten). Beide immer gemeinsam ausgewiesen. */
-export function calculateRendite(annualPotentialRentChf: number, noiChf: number, totalInvestmentChf: number): RenditeResult {
-  if (totalInvestmentChf <= 0) return { bruttoRenditePercent: 0, nettoRenditePercent: 0 };
-  return {
-    bruttoRenditePercent: (annualPotentialRentChf / totalInvestmentChf) * 100,
-    nettoRenditePercent: (noiChf / totalInvestmentChf) * 100,
-  };
-}
-
-export interface BestandsrenditeScenarioInputs {
-  kaufpreisChf: number;
-  nebenkosten: Omit<NebenkostenInput, "kaufpreisChf">;
-  renovation: Omit<RenovationInput, "kaufpreisChf">;
-  moeblierung: MoeblierungInput;
-  miete: MietertragInput;
-  vacancyRatePercent: number;
-  collectionLossRatePercent: number;
-  operatingExpenseRatioPercent: number;
-  fixedNonRecoverableCostsChfPerYear: number;
-  annualCapexReserveChfPerYear: number;
-  loanToCostPercent: number;
+  wohnungsMieteChfPerMonth: number;
+  parkplatzMieteChfPerMonth: number;
+  kaufnebenkostenPercent: number;
+  /** Grobe Pauschale für den Schnellcheck — die volle Aufschlüsselung folgt erst in Ebene B (`calculateBetriebskosten`). */
+  laufendeKostenChfPerYear: number;
+  loanToValuePercent: number;
   interestRatePercent: number;
-  amortizationChfPerYear: number;
 }
 
-export interface BestandsrenditeScenarioResult {
+export interface SchnellcheckResult {
+  kaufpreisChf: number;
+  preisProM2Chf: number;
+  jahresnettomieteChf: number;
+  bruttoRenditePercent: number;
+  /** Inkl. Kaufnebenkosten, wie vorgegeben. */
+  eigenkapitalbedarfChf: number;
+  belehnungPercent: number;
+  groberCashflowChf: number;
+}
+
+export function calculateSchnellcheck(input: SchnellcheckInput): SchnellcheckResult {
+  const kaufpreisChf = input.wohnungskaufpreisChf + input.parkplatzkaufpreisChf;
+  const preisProM2Chf = input.wohnflaecheM2 > 0 ? kaufpreisChf / input.wohnflaecheM2 : 0;
+  const jahresnettomieteChf = (input.wohnungsMieteChfPerMonth + input.parkplatzMieteChfPerMonth) * 12;
+  const bruttoRenditePercent = kaufpreisChf > 0 ? (jahresnettomieteChf / kaufpreisChf) * 100 : 0;
+
+  const kaufnebenkostenChf = kaufpreisChf * (input.kaufnebenkostenPercent / 100);
+  const hypothekChf = kaufpreisChf * (input.loanToValuePercent / 100);
+  const eigenkapitalbedarfChf = kaufpreisChf - hypothekChf + kaufnebenkostenChf;
+  const zinsChf = hypothekChf * (input.interestRatePercent / 100);
+  const groberCashflowChf = jahresnettomieteChf - input.laufendeKostenChfPerYear - zinsChf;
+
+  return { kaufpreisChf, preisProM2Chf, jahresnettomieteChf, bruttoRenditePercent, eigenkapitalbedarfChf, belehnungPercent: input.loanToValuePercent, groberCashflowChf };
+}
+
+// ---------------------------------------------------------------------------
+// Ebene B — Investment Case
+// ---------------------------------------------------------------------------
+
+export interface AllInInvestitionInput {
+  kaufpreisChf: number;
   nebenkosten: NebenkostenResult;
-  renovation: RenovationResult;
-  moeblierung: MoeblierungResult;
-  totalInvestmentChf: number;
-  ertrag: ErtragResult;
-  finanzierung: FinanzierungResult;
-  rendite: RenditeResult;
+  renovationInitialChf: number;
+  moeblierungInitialChf: number;
+  sonstigeInitialkostenChf: number;
+}
+
+/** Kaufpreis + Kaufnebenkosten + Initial-Renovation + Initial-Möblierung + Sonstiges — die "wirtschaftliche" Investitionssumme statt nur des Kaufpreises. */
+export function calculateAllInInvestition(input: AllInInvestitionInput): number {
+  return input.kaufpreisChf + input.nebenkosten.totalNebenkostenChf + input.renovationInitialChf + input.moeblierungInitialChf + input.sonstigeInitialkostenChf;
 }
 
 /**
- * Orchestriert Nebenkosten → Renovation → Möblierung → Gesamtinvestition → Ertrag
- * (inkl. laufender Renovations-/Möblierungs-Rückstellung als Betriebskosten) →
- * Finanzierung → Brutto-/Nettorendite. Pendant zu `szenarien.ts::runScenario`, aber
- * für die Bestandsrendite-Kostenstruktur statt Development-Projektkosten.
+ * Unterscheidet, wie Mietausfall modelliert wird: bei Langfristvermietung (möbliert
+ * oder nicht) über eine Leerstandsquote, bei Short-Stay über eine Auslastungsquote —
+ * konzeptionell dieselbe Grösse (Anteil vermieteter Zeit), aber mit unterschiedlichen
+ * typischen Grössenordnungen und Nutzererwartungen (siehe Parameter-Platzhalter).
  */
-export function runBestandsrenditeScenario(input: BestandsrenditeScenarioInputs): BestandsrenditeScenarioResult {
-  const nebenkosten = calculateNebenkosten({ kaufpreisChf: input.kaufpreisChf, ...input.nebenkosten });
-  const renovation = calculateRenovation({ kaufpreisChf: input.kaufpreisChf, ...input.renovation });
-  const moeblierung = calculateMoeblierung(input.moeblierung);
-  const totalInvestmentChf = calculateGesamtinvestition({ kaufpreisChf: input.kaufpreisChf, nebenkosten, renovation, moeblierung });
+export type Vermietungsmodell = "LANGFRISTIG_UNMOEBLIERT" | "MITTELFRISTIG_MOEBLIERT" | "SHORT_STAY";
 
-  const ertrag = calculateErtrag({
-    rentalNraM2: input.miete.wohnflaecheM2,
-    rentChfPerM2Month: input.miete.netRentChfPerM2Month,
-    parkingIncomeChfPerYear: 0,
-    otherIncomeChfPerYear: 0,
-    vacancyRatePercent: input.vacancyRatePercent,
-    collectionLossRatePercent: input.collectionLossRatePercent,
-    operatingExpenseRatioPercent: input.operatingExpenseRatioPercent,
-    fixedNonRecoverableCostsChfPerYear:
-      input.fixedNonRecoverableCostsChfPerYear + renovation.jaehrlicheRenovationsrueckstellungChf + moeblierung.jaehrlicheErsatzkostenChf,
-    annualCapexReserveChfPerYear: input.annualCapexReserveChfPerYear,
+export interface JahresertragInput {
+  wohnungsMieteChfPerMonth: number;
+  parkplatzMieteChfPerMonth: number;
+  /** Mehrertrag ggü. unmöbliert, CHF/Monat — 0 bei unmöblierter Vermietung. Basisformel bleibt CHF/Monat, kein separates Ertragsmodell (siehe bestandsrenditeValueAdd.ts). */
+  moeblierungsPremiumChfPerMonth: number;
+  sonstigeEinnahmenChfPerYear: number;
+  vermietungsmodell: Vermietungsmodell;
+  /** Für LANGFRISTIG_UNMOEBLIERT/MITTELFRISTIG_MOEBLIERT. */
+  leerstandPercent?: number;
+  /** Für SHORT_STAY, statt Leerstand. */
+  auslastungPercent?: number;
+}
+
+export interface JahresertragResult {
+  potenziellerJahresertragChf: number;
+  effektiverJahresertragChf: number;
+}
+
+export function calculateJahresertrag(input: JahresertragInput): JahresertragResult {
+  const potenziellerJahresertragChf =
+    (input.wohnungsMieteChfPerMonth + input.parkplatzMieteChfPerMonth + input.moeblierungsPremiumChfPerMonth) * 12 + input.sonstigeEinnahmenChfPerYear;
+
+  const auslastungsfaktor =
+    input.vermietungsmodell === "SHORT_STAY" ? (input.auslastungPercent ?? 100) / 100 : 1 - (input.leerstandPercent ?? 0) / 100;
+
+  return { potenziellerJahresertragChf, effektiverJahresertragChf: potenziellerJahresertragChf * auslastungsfaktor };
+}
+
+export interface BetriebskostenInput {
+  /** STWEG-Akontobeiträge — in der Schweiz üblicherweise EIN Betrag, der Verwaltung/Versicherung/Unterhalt/Erneuerungsfonds-Beitrag bereits bündelt (siehe StwegFacts für die separate Risikobeurteilung des Fonds selbst). */
+  stwegAkontobeitragChfPerYear: number;
+  eigentuemerkostenChfPerYear: number;
+  vermietungskostenChfPerYear: number;
+  reinigungServiceChfPerYear: number;
+}
+
+export function calculateBetriebskosten(input: BetriebskostenInput): number {
+  return input.stwegAkontobeitragChfPerYear + input.eigentuemerkostenChfPerYear + input.vermietungskostenChfPerYear + input.reinigungServiceChfPerYear;
+}
+
+/**
+ * Eine Reserve ist entweder als fixer CHF-Betrag ODER als Prozentsatz vom Kaufpreis
+ * definierbar (Rückmeldung: "zwei Eingabemethoden") — `chfPerYear` hat Vorrang, wenn
+ * gesetzt.
+ */
+export interface ReserveInput {
+  chfPerYear?: number;
+  percentOfKaufpreis?: number;
+  kaufpreisChf: number;
+}
+
+export function resolveReserveChf(input: ReserveInput): number {
+  if (input.chfPerYear !== undefined) return input.chfPerYear;
+  return input.kaufpreisChf * ((input.percentOfKaufpreis ?? 0) / 100);
+}
+
+export interface CashflowWasserfallInput {
+  effektiverJahresertragChf: number;
+  betriebskostenChfPerYear: number;
+  zinsChf: number;
+  amortisationChf: number;
+  /**
+   * Grobe, persönliche Schätzung — KEIN Steuerberatungsersatz. Steuerbasis ist
+   * NOI minus Zins (nur der Hypothekarzins ist in der Schweiz abzugsfähig, die
+   * Amortisation nicht) — eine bewusste Vereinfachung, reale Steuerlast hängt von
+   * Kanton, Gemeinde, Progression und der gesamten persönlichen Steuersituation ab.
+   */
+  kalkulatorischerSteuersatzPercent: number;
+  reparaturreserveChf: number;
+  leerstandsreserveChf: number;
+}
+
+export interface CashflowWasserfallResult {
+  /** = Cashflow vor Finanzierung. */
+  noiChf: number;
+  cashflowNachZinsChf: number;
+  cashflowNachAmortisationChf: number;
+  steuerChf: number;
+  cashflowNachSteuerChf: number;
+  /** = Cashflow nach eigener Reparatur-/Leerstandsreserve, wie vorgegeben. */
+  nachhaltigerCashflowChf: number;
+}
+
+/**
+ * Der 5-stufige Cashflow-Wasserfall aus der Rückmeldung, wörtlich: vor Finanzierung →
+ * nach Finanzierung (Zins) → nach Amortisation → nach kalkulatorischer Steuer → nach
+ * eigener Reparatur-/Leerstandsreserve. Wird sowohl für die Einzeljahr-Ansicht (Ebene
+ * B) als auch pro Jahr im 15-Jahres-Modell (Ebene C) verwendet — eine Formel, zwei
+ * Verwendungen, keine Duplikation.
+ */
+export function calculateCashflowWasserfall(input: CashflowWasserfallInput): CashflowWasserfallResult {
+  const noiChf = input.effektiverJahresertragChf - input.betriebskostenChfPerYear;
+  const cashflowNachZinsChf = noiChf - input.zinsChf;
+  const cashflowNachAmortisationChf = cashflowNachZinsChf - input.amortisationChf;
+
+  const steuerbaresEinkommenChf = Math.max(0, cashflowNachZinsChf);
+  const steuerChf = steuerbaresEinkommenChf * (input.kalkulatorischerSteuersatzPercent / 100);
+  const cashflowNachSteuerChf = cashflowNachAmortisationChf - steuerChf;
+  const nachhaltigerCashflowChf = cashflowNachSteuerChf - input.reparaturreserveChf - input.leerstandsreserveChf;
+
+  return { noiChf, cashflowNachZinsChf, cashflowNachAmortisationChf, steuerChf, cashflowNachSteuerChf, nachhaltigerCashflowChf };
+}
+
+export interface InvestmentCaseInput {
+  kaufpreisChf: number;
+  allInInvestitionChf: number;
+  ertrag: JahresertragInput;
+  betriebskosten: BetriebskostenInput;
+  hypothekChf: number;
+  interestRatePercent: number;
+  amortisationChfPerYear: number;
+  kalkulatorischerSteuersatzPercent: number;
+  reparaturreserveChf: number;
+  leerstandsreserveChf: number;
+  eigenkapitalChf: number;
+}
+
+export interface InvestmentCaseResult {
+  bruttoRenditeKaufpreisPercent: number;
+  bruttoRenditeAllInPercent: number;
+  /** = NOI / All-in-Investition. */
+  nettoRenditeVorFinanzierungPercent: number;
+  wasserfall: CashflowWasserfallResult;
+  /** = nachhaltiger Cashflow / eingesetztes Eigenkapital. */
+  cashOnCashPercent: number;
+}
+
+export function calculateInvestmentCase(input: InvestmentCaseInput): InvestmentCaseResult {
+  const ertrag = calculateJahresertrag(input.ertrag);
+  const betriebskostenChfPerYear = calculateBetriebskosten(input.betriebskosten);
+  const zinsChf = input.hypothekChf * (input.interestRatePercent / 100);
+
+  const wasserfall = calculateCashflowWasserfall({
+    effektiverJahresertragChf: ertrag.effektiverJahresertragChf,
+    betriebskostenChfPerYear,
+    zinsChf,
+    amortisationChf: input.amortisationChfPerYear,
+    kalkulatorischerSteuersatzPercent: input.kalkulatorischerSteuersatzPercent,
+    reparaturreserveChf: input.reparaturreserveChf,
+    leerstandsreserveChf: input.leerstandsreserveChf,
   });
 
-  const finanzierung = calculateFinanzierung({
-    totalDevelopmentCostChf: totalInvestmentChf,
-    loanToCostPercent: input.loanToCostPercent,
-    interestRatePercent: input.interestRatePercent,
-    amortizationChfPerYear: input.amortizationChfPerYear,
-    noiChf: ertrag.noiChf,
-  });
+  const bruttoRenditeKaufpreisPercent = input.kaufpreisChf > 0 ? (ertrag.potenziellerJahresertragChf / input.kaufpreisChf) * 100 : 0;
+  const bruttoRenditeAllInPercent = input.allInInvestitionChf > 0 ? (ertrag.potenziellerJahresertragChf / input.allInInvestitionChf) * 100 : 0;
+  const nettoRenditeVorFinanzierungPercent = input.allInInvestitionChf > 0 ? (wasserfall.noiChf / input.allInInvestitionChf) * 100 : 0;
+  const cashOnCashPercent = input.eigenkapitalChf > 0 ? (wasserfall.nachhaltigerCashflowChf / input.eigenkapitalChf) * 100 : 0;
 
-  const rendite = calculateRendite(ertrag.annualPotentialRentChf, ertrag.noiChf, totalInvestmentChf);
+  return { bruttoRenditeKaufpreisPercent, bruttoRenditeAllInPercent, nettoRenditeVorFinanzierungPercent, wasserfall, cashOnCashPercent };
+}
 
-  return { nebenkosten, renovation, moeblierung, totalInvestmentChf, ertrag, finanzierung, rendite };
+// ---------------------------------------------------------------------------
+// Break-even-Werte — numerisch per Bisektion (siehe numeric.ts), nicht als
+// geschlossene Formel: robuster gegenüber der Steuer-Nichtnegativitätsschranke im
+// Wasserfall, passend zum "nicht institutionellen" MVP-Anspruch.
+// ---------------------------------------------------------------------------
+
+/** Monatsmiete (Wohnung), bei der der nachhaltige Cashflow gerade 0 erreicht — alles andere in `input` bleibt fest. */
+export function breakEvenMieteChfPerMonth(input: InvestmentCaseInput): number | undefined {
+  return bisectRoot(
+    (miete) => calculateInvestmentCase({ ...input, ertrag: { ...input.ertrag, wohnungsMieteChfPerMonth: miete } }).wasserfall.nachhaltigerCashflowChf,
+    0,
+    input.ertrag.wohnungsMieteChfPerMonth * 5 + 10_000,
+  );
+}
+
+/** Zinssatz, bei dem der nachhaltige Cashflow gerade 0 erreicht. */
+export function breakEvenZinsPercent(input: InvestmentCaseInput): number | undefined {
+  return bisectRoot((zins) => calculateInvestmentCase({ ...input, interestRatePercent: zins }).wasserfall.nachhaltigerCashflowChf, 0, 25);
+}
+
+/** Nur sinnvoll für SHORT_STAY (siehe Vermietungsmodell) — Auslastung, bei der der nachhaltige Cashflow gerade 0 erreicht. */
+export function breakEvenAuslastungPercent(input: InvestmentCaseInput): number | undefined {
+  if (input.ertrag.vermietungsmodell !== "SHORT_STAY") return undefined;
+  return bisectRoot(
+    (auslastung) => calculateInvestmentCase({ ...input, ertrag: { ...input.ertrag, auslastungPercent: auslastung } }).wasserfall.nachhaltigerCashflowChf,
+    0,
+    100,
+  );
 }

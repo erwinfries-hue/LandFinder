@@ -1,12 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateNebenkosten,
-  calculateRenovation,
-  calculateMoeblierung,
-  calculateGesamtinvestition,
-  estimateAnnualPotentialRentChf,
-  calculateRendite,
-  runBestandsrenditeScenario,
+  calculateSchnellcheck,
+  calculateAllInInvestition,
+  calculateJahresertrag,
+  calculateBetriebskosten,
+  resolveReserveChf,
+  calculateCashflowWasserfall,
+  calculateInvestmentCase,
+  breakEvenMieteChfPerMonth,
+  breakEvenZinsPercent,
+  breakEvenAuslastungPercent,
+  type InvestmentCaseInput,
 } from "./bestandsrendite";
 
 describe("calculateNebenkosten", () => {
@@ -17,135 +22,192 @@ describe("calculateNebenkosten", () => {
       notariatGrundbuchPercent: 0.5,
       maklerprovisionPercent: 3,
     });
-    expect(result).toEqual({
-      handaenderungssteuerChf: 20_000,
-      notariatGrundbuchChf: 5_000,
-      maklerprovisionChf: 30_000,
-      totalNebenkostenChf: 55_000,
+    expect(result).toEqual({ handaenderungssteuerChf: 20_000, notariatGrundbuchChf: 5_000, maklerprovisionChf: 30_000, totalNebenkostenChf: 55_000 });
+  });
+});
+
+describe("calculateSchnellcheck (Ebene A)", () => {
+  it("rechnet Kaufpreis, Preis/m², Bruttorendite, Eigenkapitalbedarf (inkl. Nebenkosten) und groben Cashflow", () => {
+    const result = calculateSchnellcheck({
+      wohnungskaufpreisChf: 850_000,
+      parkplatzkaufpreisChf: 50_000,
+      wohnflaecheM2: 75,
+      wohnungsMieteChfPerMonth: 1_450,
+      parkplatzMieteChfPerMonth: 150,
+      kaufnebenkostenPercent: 2.5,
+      laufendeKostenChfPerYear: 4_000,
+      loanToValuePercent: 70,
+      interestRatePercent: 2,
     });
-  });
 
-  it("liefert 0, wenn alle Prozentsätze 0 sind", () => {
-    const result = calculateNebenkosten({ kaufpreisChf: 500_000, handaenderungssteuerPercent: 0, notariatGrundbuchPercent: 0, maklerprovisionPercent: 0 });
-    expect(result.totalNebenkostenChf).toBe(0);
-  });
-});
-
-describe("calculateRenovation", () => {
-  it("übernimmt die Initial-Renovationskosten unverändert (direkt eingegeben, nicht aus Fläche×Satz berechnet)", () => {
-    const result = calculateRenovation({ initialRenovationCostChf: 45_000, kaufpreisChf: 900_000, jaehrlicherRenovationssatzPercent: 1 });
-    expect(result.initialRenovationCostChf).toBe(45_000);
-  });
-
-  it("berechnet die laufende Renovationsrückstellung als % des Kaufpreises, nicht der Initialkosten", () => {
-    const result = calculateRenovation({ initialRenovationCostChf: 45_000, kaufpreisChf: 900_000, jaehrlicherRenovationssatzPercent: 1 });
-    expect(result.jaehrlicheRenovationsrueckstellungChf).toBe(9_000); // 1% von 900'000, nicht von 45'000
-  });
-
-  it("liefert 0 Initialkosten für ein bereits saniertes Objekt, laufende Rückstellung bleibt trotzdem möglich", () => {
-    const result = calculateRenovation({ initialRenovationCostChf: 0, kaufpreisChf: 900_000, jaehrlicherRenovationssatzPercent: 1 });
-    expect(result.initialRenovationCostChf).toBe(0);
-    expect(result.jaehrlicheRenovationsrueckstellungChf).toBe(9_000);
+    expect(result.kaufpreisChf).toBe(900_000);
+    expect(result.preisProM2Chf).toBeCloseTo(900_000 / 75, 5);
+    expect(result.jahresnettomieteChf).toBe((1_450 + 150) * 12);
+    expect(result.bruttoRenditePercent).toBeCloseTo(((1_450 + 150) * 12 / 900_000) * 100, 5);
+    expect(result.eigenkapitalbedarfChf).toBeCloseTo(900_000 * 0.3 + 900_000 * 0.025, 5);
+    expect(result.belehnungPercent).toBe(70);
+    const hypothekChf = 900_000 * 0.7;
+    expect(result.groberCashflowChf).toBeCloseTo((1_450 + 150) * 12 - 4_000 - hypothekChf * 0.02, 5);
   });
 });
 
-describe("calculateMoeblierung", () => {
-  it("berechnet die jährlichen Ersatzkosten als % der Möblierungs-Initialkosten", () => {
-    const result = calculateMoeblierung({ initialCostChf: 25_000, jaehrlicherErsatzsatzPercent: 14 });
-    expect(result.initialCostChf).toBe(25_000);
-    expect(result.jaehrlicheErsatzkostenChf).toBeCloseTo(3_500, 5);
-  });
-
-  it("liefert 0/0 für eine unmöblierte Vermietung (initialCostChf = 0) — kein separater Vermietungsart-Zweig nötig", () => {
-    const result = calculateMoeblierung({ initialCostChf: 0, jaehrlicherErsatzsatzPercent: 14 });
-    expect(result).toEqual({ initialCostChf: 0, jaehrlicheErsatzkostenChf: 0 });
-  });
-});
-
-describe("calculateGesamtinvestition", () => {
-  it("summiert Kaufpreis, Nebenkosten, Initial-Renovation und Initial-Möblierung", () => {
+describe("calculateAllInInvestition", () => {
+  it("summiert Kaufpreis, Nebenkosten, Renovation, Möblierung und Sonstiges", () => {
     const nebenkosten = calculateNebenkosten({ kaufpreisChf: 800_000, handaenderungssteuerPercent: 2, notariatGrundbuchPercent: 0.5, maklerprovisionPercent: 0 });
-    const renovation = calculateRenovation({ initialRenovationCostChf: 40_000, kaufpreisChf: 800_000, jaehrlicherRenovationssatzPercent: 1 });
-    const moeblierung = calculateMoeblierung({ initialCostChf: 20_000, jaehrlicherErsatzsatzPercent: 14 });
-    expect(calculateGesamtinvestition({ kaufpreisChf: 800_000, nebenkosten, renovation, moeblierung })).toBe(800_000 + 20_000 + 40_000 + 20_000);
+    const total = calculateAllInInvestition({ kaufpreisChf: 800_000, nebenkosten, renovationInitialChf: 30_000, moeblierungInitialChf: 10_000, sonstigeInitialkostenChf: 2_000 });
+    expect(total).toBe(800_000 + 20_000 + 30_000 + 10_000 + 2_000);
   });
 });
 
-describe("estimateAnnualPotentialRentChf", () => {
-  it("Wohnfläche × CHF/m²/Monat × 12 — dieselbe Formel für möbliert wie unmöbliert (Modellentscheid: unmöbliert ist die Basis)", () => {
-    expect(estimateAnnualPotentialRentChf({ wohnflaecheM2: 80, netRentChfPerM2Month: 25 })).toBe(24_000);
-    // Eine höhere Business-Apartment-Miete ist einfach ein höherer eingegebener CHF/m²/Monat-Wert, keine eigene Formel.
-    expect(estimateAnnualPotentialRentChf({ wohnflaecheM2: 80, netRentChfPerM2Month: 45 })).toBe(43_200);
-  });
-});
-
-describe("calculateRendite", () => {
-  it("Brutto = Jahresmiete / Investition, Netto = NOI / Investition — beide immer gemeinsam ausgewiesen", () => {
-    const result = calculateRendite(30_000, 22_000, 1_000_000);
-    expect(result.bruttoRenditePercent).toBeCloseTo(3.0, 5);
-    expect(result.nettoRenditePercent).toBeCloseTo(2.2, 5);
-  });
-
-  it("liefert 0/0 statt Division durch 0 bei einer Investition von 0", () => {
-    expect(calculateRendite(10_000, 5_000, 0)).toEqual({ bruttoRenditePercent: 0, nettoRenditePercent: 0 });
-  });
-});
-
-describe("runBestandsrenditeScenario", () => {
-  const baseInput = {
-    kaufpreisChf: 900_000,
-    nebenkosten: { handaenderungssteuerPercent: 2, notariatGrundbuchPercent: 0.5, maklerprovisionPercent: 0 },
-    renovation: { initialRenovationCostChf: 0, jaehrlicherRenovationssatzPercent: 1 },
-    moeblierung: { initialCostChf: 0, jaehrlicherErsatzsatzPercent: 14 },
-    vacancyRatePercent: 3,
-    collectionLossRatePercent: 1,
-    operatingExpenseRatioPercent: 15,
-    fixedNonRecoverableCostsChfPerYear: 0,
-    annualCapexReserveChfPerYear: 2_000,
-    loanToCostPercent: 70,
-    interestRatePercent: 2.5,
-    amortizationChfPerYear: 5_000,
-  };
-
-  it("rechnet eine unmöblierte Langfristvermietung ohne Renovationsbedarf Ende-zu-Ende durch, mit Brutto- und Nettorendite", () => {
-    const result = runBestandsrenditeScenario({ ...baseInput, miete: { wohnflaecheM2: 70, netRentChfPerM2Month: 22 } });
-
-    expect(result.nebenkosten.totalNebenkostenChf).toBeCloseTo(900_000 * 0.025, 5);
-    expect(result.renovation.initialRenovationCostChf).toBe(0);
-    expect(result.moeblierung.initialCostChf).toBe(0);
-    expect(result.totalInvestmentChf).toBeCloseTo(900_000 + 900_000 * 0.025, 5);
-    expect(result.ertrag.annualPotentialRentChf).toBeCloseTo(70 * 22 * 12, 5);
-    expect(result.finanzierung.equityRequiredChf).toBeCloseTo(result.totalInvestmentChf * 0.3, 5);
-    expect(result.rendite.bruttoRenditePercent).toBeGreaterThan(0);
-    expect(result.rendite.nettoRenditePercent).toBeLessThan(result.rendite.bruttoRenditePercent);
-  });
-
-  it("rechnet ein möbliertes Business-Apartment mit Renovationsbedarf Ende-zu-Ende durch — Initialkosten fliessen in die Investition, laufende Sätze in die Betriebskosten", () => {
-    const withExtras = runBestandsrenditeScenario({
-      ...baseInput,
-      renovation: { initialRenovationCostChf: 45_000, jaehrlicherRenovationssatzPercent: 1 },
-      moeblierung: { initialCostChf: 25_000, jaehrlicherErsatzsatzPercent: 14 },
-      miete: { wohnflaecheM2: 70, netRentChfPerM2Month: 45 },
+describe("calculateJahresertrag", () => {
+  it("Langfristvermietung: Leerstandsquote reduziert den potenziellen Ertrag", () => {
+    const result = calculateJahresertrag({
+      wohnungsMieteChfPerMonth: 1_450,
+      parkplatzMieteChfPerMonth: 150,
+      moeblierungsPremiumChfPerMonth: 0,
+      sonstigeEinnahmenChfPerYear: 0,
+      vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT",
+      leerstandPercent: 2,
     });
-    const withoutExtras = runBestandsrenditeScenario({
-      ...baseInput,
-      renovation: { initialRenovationCostChf: 0, jaehrlicherRenovationssatzPercent: 1 },
-      moeblierung: { initialCostChf: 0, jaehrlicherErsatzsatzPercent: 14 },
-      miete: { wohnflaecheM2: 70, netRentChfPerM2Month: 45 },
+    expect(result.potenziellerJahresertragChf).toBe(1_600 * 12);
+    expect(result.effektiverJahresertragChf).toBeCloseTo(1_600 * 12 * 0.98, 5);
+  });
+
+  it("Short Stay: Auslastungsquote statt Leerstand, inkl. Möblierungspremium", () => {
+    const result = calculateJahresertrag({
+      wohnungsMieteChfPerMonth: 1_450,
+      parkplatzMieteChfPerMonth: 0,
+      moeblierungsPremiumChfPerMonth: 300,
+      sonstigeEinnahmenChfPerYear: 0,
+      vermietungsmodell: "SHORT_STAY",
+      auslastungPercent: 80,
+    });
+    expect(result.potenziellerJahresertragChf).toBe(1_750 * 12);
+    expect(result.effektiverJahresertragChf).toBeCloseTo(1_750 * 12 * 0.8, 5);
+  });
+});
+
+describe("calculateBetriebskosten", () => {
+  it("summiert alle vier Kostenkategorien", () => {
+    expect(calculateBetriebskosten({ stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0 })).toBe(5_300);
+  });
+});
+
+describe("resolveReserveChf", () => {
+  it("verwendet den direkten CHF-Betrag, wenn gesetzt", () => {
+    expect(resolveReserveChf({ chfPerYear: 1_200, percentOfKaufpreis: 0.3, kaufpreisChf: 900_000 })).toBe(1_200);
+  });
+
+  it("berechnet aus Prozentsatz vom Kaufpreis, wenn kein CHF-Betrag gesetzt ist", () => {
+    expect(resolveReserveChf({ percentOfKaufpreis: 0.3, kaufpreisChf: 900_000 })).toBeCloseTo(2_700, 5);
+  });
+});
+
+describe("calculateCashflowWasserfall", () => {
+  it("rechnet die fünf Stufen in der vorgegebenen Reihenfolge: NOI -> nach Zins -> nach Amortisation -> nach Steuer -> nachhaltiger Cashflow", () => {
+    const result = calculateCashflowWasserfall({
+      effektiverJahresertragChf: 20_000,
+      betriebskostenChfPerYear: 5_000,
+      zinsChf: 4_000,
+      amortisationChf: 3_000,
+      kalkulatorischerSteuersatzPercent: 25,
+      reparaturreserveChf: 1_000,
+      leerstandsreserveChf: 500,
     });
 
-    expect(withExtras.totalInvestmentChf).toBeCloseTo(withoutExtras.totalInvestmentChf + 45_000 + 25_000, 5);
-    // Die laufende Renovationsrückstellung hängt nur vom Kaufpreis × Satz ab (hier in
-    // beiden Szenarien identisch: 900'000 × 1% = 9'000) — nicht davon, ob eine
-    // Initial-Renovation stattfand. Nur die Möblierungs-Ersatzkosten unterscheiden sich
-    // hier (0 vs. 25'000 × 14% = 3'500), da nur initialCostChf variiert wurde.
-    expect(withExtras.ertrag.noiChf).toBeLessThan(withoutExtras.ertrag.noiChf);
-    expect(withExtras.ertrag.operatingCostsChf - withoutExtras.ertrag.operatingCostsChf).toBeCloseTo(3_500, 2);
+    expect(result.noiChf).toBe(15_000);
+    expect(result.cashflowNachZinsChf).toBe(11_000);
+    expect(result.cashflowNachAmortisationChf).toBe(8_000);
+    expect(result.steuerChf).toBe(11_000 * 0.25); // Steuerbasis = NOI - Zins, NICHT NOI - Zins - Amortisation
+    expect(result.cashflowNachSteuerChf).toBeCloseTo(8_000 - 2_750, 5);
+    expect(result.nachhaltigerCashflowChf).toBeCloseTo(8_000 - 2_750 - 1_000 - 500, 5);
   });
 
-  it("höherer Fremdkapitalanteil senkt den Eigenkapitalbedarf, wie bei calculateFinanzierung erwartet", () => {
-    const lowLtc = runBestandsrenditeScenario({ ...baseInput, loanToCostPercent: 50, miete: { wohnflaecheM2: 70, netRentChfPerM2Month: 22 } });
-    const highLtc = runBestandsrenditeScenario({ ...baseInput, loanToCostPercent: 80, miete: { wohnflaecheM2: 70, netRentChfPerM2Month: 22 } });
-    expect(highLtc.finanzierung.equityRequiredChf).toBeLessThan(lowLtc.finanzierung.equityRequiredChf);
+  it("klemmt die Steuerbasis bei 0, wenn der Cashflow nach Zins bereits negativ ist (keine negative Steuer)", () => {
+    const result = calculateCashflowWasserfall({
+      effektiverJahresertragChf: 5_000,
+      betriebskostenChfPerYear: 2_000,
+      zinsChf: 6_000,
+      amortisationChf: 1_000,
+      kalkulatorischerSteuersatzPercent: 25,
+      reparaturreserveChf: 0,
+      leerstandsreserveChf: 0,
+    });
+    expect(result.cashflowNachZinsChf).toBe(-3_000);
+    expect(result.steuerChf).toBe(0);
+  });
+});
+
+const baseInvestmentCaseInput: InvestmentCaseInput = {
+  kaufpreisChf: 900_000,
+  allInInvestitionChf: 940_000,
+  ertrag: {
+    wohnungsMieteChfPerMonth: 1_450,
+    parkplatzMieteChfPerMonth: 150,
+    moeblierungsPremiumChfPerMonth: 0,
+    sonstigeEinnahmenChfPerYear: 0,
+    vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT",
+    leerstandPercent: 2,
+  },
+  betriebskosten: { stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0 },
+  hypothekChf: 630_000,
+  interestRatePercent: 2,
+  amortisationChfPerYear: 5_000,
+  kalkulatorischerSteuersatzPercent: 25,
+  reparaturreserveChf: 2_700,
+  leerstandsreserveChf: 1_500,
+  eigenkapitalChf: 310_000,
+};
+
+describe("calculateInvestmentCase (Ebene B)", () => {
+  it("weist Bruttorendite auf Kaufpreis UND auf All-in getrennt aus — All-in ist niedriger bei zusätzlichen Initialkosten", () => {
+    const result = calculateInvestmentCase(baseInvestmentCaseInput);
+    expect(result.bruttoRenditeKaufpreisPercent).toBeGreaterThan(result.bruttoRenditeAllInPercent);
+  });
+
+  it("Cash-on-Cash = nachhaltiger Cashflow / eingesetztes Eigenkapital", () => {
+    const result = calculateInvestmentCase(baseInvestmentCaseInput);
+    expect(result.cashOnCashPercent).toBeCloseTo((result.wasserfall.nachhaltigerCashflowChf / baseInvestmentCaseInput.eigenkapitalChf) * 100, 5);
+  });
+
+  it("liefert 0 statt Division durch 0, wenn All-in-Investition oder Eigenkapital 0 sind", () => {
+    const result = calculateInvestmentCase({ ...baseInvestmentCaseInput, allInInvestitionChf: 0, eigenkapitalChf: 0 });
+    expect(result.bruttoRenditeAllInPercent).toBe(0);
+    expect(result.nettoRenditeVorFinanzierungPercent).toBe(0);
+    expect(result.cashOnCashPercent).toBe(0);
+  });
+});
+
+describe("Break-even-Werte", () => {
+  it("breakEvenMieteChfPerMonth: bei der gefundenen Miete ist der nachhaltige Cashflow ≈ 0", () => {
+    const miete = breakEvenMieteChfPerMonth(baseInvestmentCaseInput);
+    expect(miete).toBeDefined();
+    const resultAtBreakEven = calculateInvestmentCase({ ...baseInvestmentCaseInput, ertrag: { ...baseInvestmentCaseInput.ertrag, wohnungsMieteChfPerMonth: miete! } });
+    expect(resultAtBreakEven.wasserfall.nachhaltigerCashflowChf).toBeCloseTo(0, 0);
+  });
+
+  it("breakEvenZinsPercent: bei dem gefundenen Zinssatz ist der nachhaltige Cashflow ≈ 0", () => {
+    const zins = breakEvenZinsPercent(baseInvestmentCaseInput);
+    expect(zins).toBeDefined();
+    const resultAtBreakEven = calculateInvestmentCase({ ...baseInvestmentCaseInput, interestRatePercent: zins! });
+    expect(resultAtBreakEven.wasserfall.nachhaltigerCashflowChf).toBeCloseTo(0, 0);
+  });
+
+  it("breakEvenAuslastungPercent: undefined ausserhalb von SHORT_STAY", () => {
+    expect(breakEvenAuslastungPercent(baseInvestmentCaseInput)).toBeUndefined();
+  });
+
+  it("breakEvenAuslastungPercent: bei SHORT_STAY liefert die gefundene Auslastung einen nachhaltigen Cashflow ≈ 0", () => {
+    // Höhere Miete als im Basis-Fixture nötig, damit bei 100% Auslastung überhaupt ein
+    // positiver Cashflow möglich ist — sonst liegt der Break-even ausserhalb [0, 100]
+    // (kein Bug, nur ein für diesen Sub-Test unpassendes Fixture).
+    const shortStayInput: InvestmentCaseInput = {
+      ...baseInvestmentCaseInput,
+      ertrag: { ...baseInvestmentCaseInput.ertrag, wohnungsMieteChfPerMonth: 2_900, vermietungsmodell: "SHORT_STAY", leerstandPercent: undefined, auslastungPercent: 80 },
+    };
+    const auslastung = breakEvenAuslastungPercent(shortStayInput);
+    expect(auslastung).toBeDefined();
+    const resultAtBreakEven = calculateInvestmentCase({ ...shortStayInput, ertrag: { ...shortStayInput.ertrag, auslastungPercent: auslastung! } });
+    expect(resultAtBreakEven.wasserfall.nachhaltigerCashflowChf).toBeCloseTo(0, 0);
   });
 });

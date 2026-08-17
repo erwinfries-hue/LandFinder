@@ -1,7 +1,19 @@
 import type { Coordinates, KantonCode } from "./geography";
 
-/** Objektarten im MVP-Scope (Abschnitt 1.3) — bewusst nicht erweitert. */
-export type Objektart = "BAULAND" | "ABBRUCHOBJEKT";
+/**
+ * Objektarten im MVP-Scope (Abschnitt 1.3 für BAULAND/ABBRUCHOBJEKT).
+ * `BESTANDSWOHNUNG` (docs/OPEN_DECISIONS.md, Punkt N) ergänzt um bestehende Schweizer
+ * Eigentumswohnungen als reines Rendite-/Buy-to-let-Objekt (bereits vermietet oder
+ * leerstehend mit Vermietungsabsicht; Einstellhallen-/Aussenparkplätze können Teil des
+ * Investments sein) — explizit NICHT Mehrfamilienhäuser, Einfamilienhäuser,
+ * Gewerbeobjekte, Bauland, Neubauprojekte, Ferienimmobilien. Baurecht bei dieser
+ * Objektart ist ein Dealbreaker (siehe scoring-engine-Hard-Gates, sobald gebaut).
+ * Kommt aktuell ausschliesslich über manuelle Erfassung zustande (`ListingSource`
+ * `MANUAL_ENTRY`) — die automatische Alert-Mail-Pipeline (Homegate/ImmoScout24/
+ * newhome) erkennt/klassifiziert diese Objektart noch nicht, bewusst nicht Teil
+ * dieser Erweiterung, um die produktiv laufende Pipeline nicht anzufassen.
+ */
+export type Objektart = "BAULAND" | "ABBRUCHOBJEKT" | "BESTANDSWOHNUNG";
 
 export type ListingSource =
   | "HOMEGATE"

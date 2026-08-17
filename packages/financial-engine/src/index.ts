@@ -5,4 +5,7 @@ export * from "./projektkosten";
 export * from "./ertragFinanzierung";
 export * from "./residualwert";
 export * from "./szenarien";
+export * from "./numeric";
 export * from "./bestandsrendite";
+export * from "./bestandsrenditeValueAdd";
+export * from "./bestandsrenditeMehrjahresmodell";

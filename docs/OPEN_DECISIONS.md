@@ -284,3 +284,52 @@ Fragen geklärt sind):
    (`parameters.ts`) sind grobe, ehrlich als Platzhalter markierte Schweizer
    Richtwerte (Handänderungssteuer 2%, laufende Renovationsrückstellung 1% vom
    Kaufpreis, Möblierungs-Ersatzrate 14%/Jahr) — keine mit dir abgestimmten Werte.
+
+## N. Objektart-Scope + 3-stufiges Bestandsrendite-Modell (2026-08-16)
+
+Zwei Rückmeldungen am selben Tag, in dieser Reihenfolge umgesetzt.
+
+**Objektart-Scope für den Dokumenten-KI-MVP:** `Objektart` (`packages/domain/src/
+listing.ts`) um `"BESTANDSWOHNUNG"` erweitert — damit ist Punkt M.2 (oben) für den
+Zweck der Dokumenten-KI beantwortet, aber bewusst NUR additiv: bestehende
+Eigentumswohnungen als reines Rendite-/Buy-to-let-Objekt, bereits vermietet oder mit
+Vermietungsabsicht leerstehend, Einstellhallen-/Aussenparkplätze können Teil des
+Investments sein, Fokus 2–3.5 Zimmer aber technisch nicht darauf beschränkt.
+Ausdrücklich NICHT Teil davon: Mehrfamilienhäuser, Einfamilienhäuser, Gewerbeobjekte,
+Bauland, Neubauprojekte, Ferienimmobilien; Baurecht ist ein Dealbreaker (Hard Gate
+folgt erst mit dem Scoring, siehe unten). Bewusst weiterhin NICHT angefasst: die
+automatische Alert-Mail-Pipeline (Extraktions-Prompt, Hard-Gate-Toggles im
+Suchprofil, Vorprüfung) — `BESTANDSWOHNUNG`-Objekte entstehen aktuell ausschliesslich
+über manuelle Erfassung.
+
+**Bestandsrendite-Rechenmodell — vollständig neu aufgebaut, ersetzt den einfachen
+Ansatz aus Punkt M.** Ausführliche Rückmeldung mit konkreter 3-Ebenen-Architektur
+(Schnellcheck → Investment Case → Value-Add → 15-Jahres-Modell → Exit), bewusst NICHT
+auf institutionellem Niveau (kein DCF/WACC/NPV/Monte-Carlo). Details siehe
+`packages/financial-engine/README.md`, Abschnitt "Bestandsrendite" — Kurzfassung:
+
+- **Ebene A/B** (`bestandsrendite.ts`): Schnellcheck zum Aussortieren; Investment
+  Case mit All-in-Investition (statt nur Kaufpreis), Brutto auf Kaufpreis **und**
+  All-in getrennt, 5-stufigem Cashflow-Wasserfall bis zum "nachhaltigen Cashflow",
+  Cash-on-Cash, Break-even-Miete/-Zins/-Auslastung (numerisch per Bisektion).
+- **Value-Add** (`bestandsrenditeValueAdd.ts`, eigenes Modul wie gewünscht):
+  Furniture-/Renovation-ROI mit Payback, Möblierungs-Lebenszyklus (Cash-Abfluss im
+  Ersatzjahr, nicht geglättet), Renovationspositionen mit drei steuerlichen
+  Kategorien (KI schlägt vor, Nutzer bestätigt).
+- **Ebene C** (`bestandsrenditeMehrjahresmodell.ts`): 15 Jahre Default, 5–30 wählbar,
+  Miet-/Kosteneskalation, Restschuld-Entwicklung, Exit mit optionaler (grob
+  genäherter) Grundstückgewinnsteuer, Levered-/Unlevered-IRR, Equity Multiple,
+  mechanische Investment-Treiber-Attribution ("Wo entsteht die Rendite?").
+
+91 Unit-Tests (zuvor 14) für das gesamte Modul. `BESTANDSRENDITE_PARAMETERS`
+entsprechend erweitert (Reserven, Leerstandsquoten je Vermietungsmodell,
+Möblierungs-Lebenszyklus, Steuersatz, Eskalationsraten, Verkaufskosten,
+Default-Haltedauer) — weiterhin durchgehend ehrlich als "Platzhalter — noch nicht mit
+Auftraggeber abgestimmt" markiert, keine erfundene Abschnittsnummer.
+
+**Bewusst weiterhin offen** (unverändert ggü. Punkt M.1/M.3, jetzt mit mehr
+verfügbaren Kennzahlen als Grundlage): Scoring/Hard-Gates/Empfehlung, Suchprofil-UI/
+Persistenz für die neuen Parameter. "Risiko STWEG"/"CapEx-Risiko" aus dem
+Investment-Treiber-Beispiel des Auftraggebers kommen aus der Dokumenten-
+Due-Diligence (in Arbeit, siehe nächster Punkt), nicht aus dem rein finanziellen
+Modell.
