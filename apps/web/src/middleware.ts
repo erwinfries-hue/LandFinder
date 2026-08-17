@@ -4,16 +4,21 @@ import { isValidSessionToken, SESSION_COOKIE_NAME } from "@/lib/authSession";
 /**
  * Passwort-Schutz für die ganze App (siehe docs/OPEN_DECISIONS.md, Punkt D) —
  * schliesst insbesondere die Lücke, dass `/api/state/*` bisher ganz ohne
- * Zugriffsschutz erreichbar war. Ausgenommen: die Login-Seite/-API selbst und
- * der Postmark-Webhook (hat seine eigene Basic-Auth via INBOUND_WEBHOOK_SECRET
- * und muss ohne Session-Cookie erreichbar bleiben, da Postmark keine Cookies
- * mitschickt).
+ * Zugriffsschutz erreichbar war. Ausgenommen: die Login-Seite/-API selbst, der
+ * Postmark-Webhook (hat seine eigene Basic-Auth via INBOUND_WEBHOOK_SECRET und
+ * muss ohne Session-Cookie erreichbar bleiben, da Postmark keine Cookies
+ * mitschickt) und die Vercel-Cron-Route (hat ihre eigene Prüfung via
+ * `hasValidCronSecret`, siehe cronAuth.ts — ein Cron-Aufruf hat ebenfalls kein
+ * Session-Cookie; ohne diese Ausnahme würde die Middleware jeden Cron-Aufruf
+ * bereits mit 401 abweisen, bevor die Route ihre eigene Prüfung überhaupt
+ * erreicht — Bug gefunden und behoben 2026-08-16, direkt nach Einführung der
+ * Cron-Route).
  *
  * Fail closed: ist APP_PASSWORD nicht gesetzt, bleibt der Zugriff gesperrt
  * statt die Lücke offen zu lassen.
  */
 const PUBLIC_PATHS = ["/login"];
-const PUBLIC_PREFIXES = ["/api/auth/", "/api/inbound/"];
+const PUBLIC_PREFIXES = ["/api/auth/", "/api/inbound/", "/api/cron/"];
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
