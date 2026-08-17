@@ -333,3 +333,88 @@ Persistenz für die neuen Parameter. "Risiko STWEG"/"CapEx-Risiko" aus dem
 Investment-Treiber-Beispiel des Auftraggebers kommen aus der Dokumenten-
 Due-Diligence (in Arbeit, siehe nächster Punkt), nicht aus dem rein finanziellen
 Modell.
+
+## O. Dokumenten-KI / Due-Diligence-Prüfung — umgesetzt (2026-08-16/17)
+
+Ausführliche Produktvorgabe (13 Abschnitte: Objektart-Scope, Ziel, 17 Dokumenttypen
+in zwei Prioritäten, Extraktionsanleitung je Typ, Widerspruchserkennung, Ampel-Status
+je Kategorie, Missing-Documents-Liste, Verkäuferfragen, Quellenbezug, Verbindung zur
+Finanzanalyse, MVP-Prinzip). Mit dem expliziten Auftrag, bei technischen
+Detailentscheidungen selbst sinnvolle MVP-Entscheidungen zu treffen und nur bei
+Produktlogik-/Kostenstruktur-/Architektur-relevanten Fragen nachzufragen — deshalb
+komplett ohne Zwischen-Rückfrage umgesetzt, alle Entscheidungen hier dokumentiert statt
+vorab gestellt.
+
+**Gebaut, End-to-End:**
+
+1. **Upload + Stufe-1-Extraktion** (`apps/web/src/lib/dueDiligenceExtraction.ts`,
+   `POST /api/listings/[id]/documents`): nutzt Claudes native PDF-Dokument-Unterstützung
+   (Base64 direkt im Message-Content) statt eines separaten OCR-Diensts — deckt auch
+   gescannte/Bild-PDFs ab, wie gefordert. Prompt je Dokumenttyp aus dem zentralen
+   Katalog (`documentTypes.ts`, 9 Priorität-A- + 8 Priorität-B-Typen + Sonstiges,
+   Extraktionsanleitung für die vier vom Auftraggeber im Detail beschriebenen Typen
+   — STWEG-Protokoll, Erneuerungsfonds, Mietvertrag, Grundbuch — wörtlich aus der
+   Produktvorgabe übernommen). Defensiv geparste JSON-Antwort mit Fund je Kategorie/
+   Severity/Seite/Zitat.
+2. **Stufe-2-Synthese** (`dueDiligenceSynthesis.ts`,
+   `POST /api/listings/[id]/due-diligence`): wertet alle bereits extrahierten
+   Dokumente gemeinsam aus — Kategorie-Status mit Befunden (inkl. Widerspruchs-
+   Markierung), Verkäufer-/Maklerfragen, Feldwert-Übernahmevorschläge. "Missing
+   Documents" und der Gesamtstatus werden bewusst **deterministisch** berechnet
+   (Soll-Katalog minus Hochgeladenes bzw. schlechtester Kategorie-Status), nicht vom
+   LLM geraten — zuverlässiger.
+3. **Feldwert-Übernahme** (`applyFieldUpdate`, `POST /api/listings/[id]/
+   due-diligence/apply-proposal`): "Neuer Wert erkannt … → übernehmen?", nie
+   automatisch, geschlossene Allow-Liste an Feldpfaden.
+4. **UI** (`BestandswohnungDetail.tsx`, `DueDiligencePanel.tsx`,
+   `BestandsrenditeVertiefungForm.tsx`, `BestandsrenditeAnalysisView.tsx`): eigener
+   Objekt-Detailseiten-Zweig für BESTANDSWOHNUNG, Mehrfach-Upload mit
+   Dokumenttyp-Auswahl, Ampel je Kategorie mit Quellenbeleg, fehlende Unterlagen nach
+   Priorität (zwingend/empfehlenswert/optional), Rückfragen-Liste,
+   Übernahme-Buttons. Per Browser-Screenshot verifiziert (Formular-Rendering,
+   Absenden) — dabei einen echten HTML5-Validierungs-Bug gefunden und behoben
+   (`min="1"` + `step="1000"` liess keine runden Tausender wie CHF 450'000 zu).
+
+**MVP-Entscheidungen, selbst getroffen (technisch, keine Rückfrage nötig):**
+
+- **Ein Dokument pro Upload-Request, synchron abgearbeitet** — kein Job-Queue/
+  Polling-Zwischenstatus. Mehrere PDFs gleichzeitig hochladen heisst: der Browser
+  schickt mehrere Requests (die UI zeigt Fortschritt pro Datei), nicht ein
+  gebündelter Multi-File-Request — sonst würde ein einzelner Request potenziell
+  mehrere Minuten-lange LLM-Aufrufe bündeln und das Vercel-Zeitbudget riskieren
+  (`maxDuration = 60`, gleiches Muster wie `MAX_LINKS_PER_RUN` bei
+  `processListingLinks.ts`). Bewusst die einfachste Lösung ("keine unnötig komplexe
+  Dokumentenverwaltung"), auch wenn das den Browser-Tab beim Hochladen mehrerer
+  grosser Dateien offen halten muss.
+- **Storage:** privater Supabase-Storage-Bucket `object-documents` (Migration 0010)
+  statt eines separaten Dateidiensts — nutzt die bereits vorhandene
+  Supabase-Infrastruktur, keine neue Kostenstelle/kein neuer Vendor.
+- **Kein heuristischer Fallback ohne `ANTHROPIC_API_KEY`** (anders als bei der
+  Inserats-Extraktion) — ein PDF lässt sich nicht sinnvoll per Regex auf
+  STWEG-Risiken prüfen; `AnthropicNotConfiguredError` statt einer irreführenden
+  Pseudo-Analyse. Die Funktion ist bis zum Setzen des Keys komplett inaktiv,
+  konsistent mit dem bereits etablierten Muster (Punkt B).
+- **Synthese-Ergebnis wird persistiert** (`object_due_diligence`), nicht bei jedem
+  Seitenaufruf neu berechnet — bewusste Abweichung vom sonst üblichen
+  "live berechnen statt speichern"-Muster (`analyses`/`comparisons`), weil ein
+  LLM-Aufruf über mehrere Dokumente teuer und nicht-deterministisch ist, anders als
+  eine günstige reine Formel.
+- **Zwei getrennte, wiederverwendbare LLM-Aufrufe statt einem grossen**: Stufe 2
+  arbeitet mit den bereits strukturierten Stufe-1-Extraktionen (JSON), nicht mit den
+  rohen PDFs erneut — reduziert Kosten und lässt einzelne Dokumente unabhängig
+  nachträglich ergänzen, ohne bereits analysierte neu zu verarbeiten.
+
+**Bewusst NICHT gebaut / offen:**
+
+- **Kein Dokumenten-Löschen** — nur Upload, kein Entfernen falsch zugeordneter
+  Dateien. Kleiner, klar abgegrenzter Nachtrag, aber nicht Teil dieses Schritts.
+  ↳ *Klärung erbeten, sonst nächster naheliegender Schritt.*
+- **E-Mail-Export der Verkäuferfragen** (Produktvorgabe, Punkt 8: "als
+  E-Mail-Entwurf exportierbar") — aktuell nur als Liste in der UI, kein
+  Copy-to-Clipboard/mailto-Export.
+  ↳ *Klärung erbeten, sonst nächster naheliegender Schritt.*
+- **Scoring/Hard-Gates auf Basis der Due-Diligence** (z.B. "RISIKO in Kategorie
+  STWEG senkt den Score um X Punkte") — bleibt wie in Punkt M/N offen, dieselbe
+  Investitionskriterien-Frage.
+- **Kalkulatorischer Steuersatz und Grundstückgewinnsteuer-Näherung** (bereits in
+  Punkt N erwähnt) sind bewusst grobe Vereinfachungen, kein Steuerberatungsersatz.
