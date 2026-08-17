@@ -1,0 +1,121 @@
+import { describe, it, expect } from "vitest";
+import { computeMissingDocuments, computeOverallStatus, parseSynthesisResponse, type SynthesisDocumentInput, type SynthesisKnownField } from "./dueDiligenceSynthesis";
+
+describe("computeMissingDocuments", () => {
+  it("listet alle 17 Prio-A/B-Typen als fehlend, wenn nichts hochgeladen ist", () => {
+    const missing = computeMissingDocuments([]);
+    expect(missing).toHaveLength(17);
+    expect(missing.some((m) => m.documentType === "SONSTIGES")).toBe(false);
+  });
+
+  it("entfernt bereits hochgeladene Typen aus der fehlenden Liste", () => {
+    const missing = computeMissingDocuments(["STWEG_PROTOKOLL", "GRUNDBUCHAUSZUG"]);
+    expect(missing).toHaveLength(15);
+    expect(missing.some((m) => m.documentType === "STWEG_PROTOKOLL")).toBe(false);
+    expect(missing.some((m) => m.documentType === "GRUNDBUCHAUSZUG")).toBe(false);
+  });
+
+  it("übernimmt die Priorität direkt aus dem Dokumenttyp-Katalog", () => {
+    const missing = computeMissingDocuments([]);
+    const stwegProtokoll = missing.find((m) => m.documentType === "STWEG_PROTOKOLL")!;
+    const sina = missing.find((m) => m.documentType === "SINA")!;
+    expect(stwegProtokoll.priority).toBe("ZWINGEND");
+    expect(sina.priority).toBe("EMPFOHLEN");
+  });
+});
+
+describe("computeOverallStatus", () => {
+  it("RISIKO gewinnt, wenn irgendeine Kategorie RISIKO ist", () => {
+    expect(computeOverallStatus([{ category: "STWEG", status: "OK", findings: [] }, { category: "MIETVERHAELTNIS", status: "RISIKO", findings: [] }])).toBe("RISIKO");
+  });
+
+  it("KLAERUNGSBEDARF, wenn keine RISIKO aber mindestens eine KLAERUNGSBEDARF ist", () => {
+    expect(computeOverallStatus([{ category: "STWEG", status: "OK", findings: [] }, { category: "MIETVERHAELTNIS", status: "KLAERUNGSBEDARF", findings: [] }])).toBe("KLAERUNGSBEDARF");
+  });
+
+  it("OK, wenn alle Kategorien OK sind", () => {
+    expect(computeOverallStatus([{ category: "STWEG", status: "OK", findings: [] }])).toBe("OK");
+  });
+
+  it("KLAERUNGSBEDARF bei leerer Kategorienliste (nichts geprüft ist kein 'OK')", () => {
+    expect(computeOverallStatus([])).toBe("KLAERUNGSBEDARF");
+  });
+});
+
+const documents: SynthesisDocumentInput[] = [
+  { id: "doc-1", filename: "stweg-protokoll-2024.pdf", documentType: "STWEG_PROTOKOLL", summary: "x", facts: {}, findings: [] },
+  { id: "doc-2", filename: "grundbuch.pdf", documentType: "GRUNDBUCHAUSZUG", summary: "x", facts: {}, findings: [] },
+];
+const knownFields: SynthesisKnownField[] = [{ field: "miete.wohnungsMieteChfPerMonth", label: "Nettomiete", currentValue: 1200 }];
+
+describe("parseSynthesisResponse", () => {
+  it("parst eine vollständige, gültige Antwort inkl. Auflösung von sourceDocumentId auf den echten Dateinamen", () => {
+    const json = JSON.stringify({
+      categories: [
+        {
+          category: "STWEG",
+          status: "RISIKO",
+          findings: [{ summary: "Liftrevision vertagt", sourceDocumentId: "doc-1", sourcePage: 2, sourceQuote: "…", isContradiction: false }],
+        },
+      ],
+      sellerQuestions: [{ question: "Bitte bestätigen Sie den Sanierungsstand des Lifts." }],
+      fieldUpdateProposals: [{ field: "miete.wohnungsMieteChfPerMonth", newValue: 1220, sourceDocumentId: "doc-2", sourcePage: 1 }],
+    });
+
+    const result = parseSynthesisResponse(json, documents, knownFields);
+
+    expect(result.overallStatus).toBe("RISIKO");
+    expect(result.categories).toHaveLength(1);
+    expect(result.categories[0].findings[0]).toMatchObject({ sourceDocumentId: "doc-1", sourceDocumentName: "stweg-protokoll-2024.pdf" });
+    expect(result.sellerQuestions).toHaveLength(1);
+    expect(result.fieldUpdateProposals).toHaveLength(1);
+    expect(result.fieldUpdateProposals[0]).toMatchObject({ field: "miete.wohnungsMieteChfPerMonth", newValue: 1220, currentValue: 1200, sourceDocumentName: "grundbuch.pdf" });
+    expect(result.missingDocuments.some((m) => m.documentType === "STWEG_PROTOKOLL")).toBe(false); // hochgeladen
+    expect(result.missingDocuments.some((m) => m.documentType === "MIETVERTRAG")).toBe(true); // nicht hochgeladen
+  });
+
+  it("verwirft ein fieldUpdateProposal mit unbekanntem Feldpfad, statt einen neuen Feldnamen zu erfinden", () => {
+    const json = JSON.stringify({
+      categories: [],
+      sellerQuestions: [],
+      fieldUpdateProposals: [{ field: "erfundenes.feld", newValue: 100, sourceDocumentId: "doc-1" }],
+    });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    expect(result.fieldUpdateProposals).toHaveLength(0);
+  });
+
+  it("verwirft ein fieldUpdateProposal mit unbekannter sourceDocumentId", () => {
+    const json = JSON.stringify({
+      categories: [],
+      sellerQuestions: [],
+      fieldUpdateProposals: [{ field: "miete.wohnungsMieteChfPerMonth", newValue: 100, sourceDocumentId: "unbekannt" }],
+    });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    expect(result.fieldUpdateProposals).toHaveLength(0);
+  });
+
+  it("überspringt Findings mit unbekannter sourceDocumentId (kein Beleg statt falschem Beleg)", () => {
+    const json = JSON.stringify({
+      categories: [{ category: "STWEG", status: "OK", findings: [{ summary: "x", sourceDocumentId: "erfunden" }] }],
+      sellerQuestions: [],
+      fieldUpdateProposals: [],
+    });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    expect(result.categories[0].findings[0].sourceDocumentId).toBeUndefined();
+  });
+
+  it("überspringt eine Kategorie mit unbekanntem category- oder status-Wert", () => {
+    const json = JSON.stringify({
+      categories: [
+        { category: "ERFUNDENE_KATEGORIE", status: "OK", findings: [] },
+        { category: "STWEG", status: "ERFUNDENER_STATUS", findings: [] },
+        { category: "MIETVERHAELTNIS", status: "OK", findings: [] },
+      ],
+      sellerQuestions: [],
+      fieldUpdateProposals: [],
+    });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    expect(result.categories).toHaveLength(1);
+    expect(result.categories[0].category).toBe("MIETVERHAELTNIS");
+  });
+});
