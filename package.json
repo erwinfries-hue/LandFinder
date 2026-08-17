@@ -10,6 +10,11 @@
     "dev": "npm run dev --workspace=web",
     "build": "npm run build --workspace=web",
     "lint": "npm run lint --workspace=web",
+    "dev:home4effinder": "npm run dev --workspace=home4effinder",
+    "build:home4effinder": "npm run build --workspace=home4effinder",
+    "lint:home4effinder": "npm run lint --workspace=home4effinder",
+    "build:all": "npm run build --workspace=web && npm run build --workspace=home4effinder",
+    "lint:all": "npm run lint --workspace=web && npm run lint --workspace=home4effinder",
     "test": "vitest run"
   },
   "devDependencies": {

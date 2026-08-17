@@ -1,0 +1,127 @@
+/**
+ * Typen für die Dokumenten-KI / Due-Diligence-Prüfung von Bestandswohnungen
+ * (docs/OPEN_DECISIONS.md, Punkt N). Reine Typen — die eigentliche Extraktions-/
+ * Synthese-Logik lebt in `apps/web/src/lib/documentTypes.ts`,
+ * `dueDiligenceExtraction.ts`, `dueDiligenceSynthesis.ts` (analog zum Muster
+ * `packages/domain` = Typen, `apps/web/src/lib` = tatsächliche Verarbeitung, siehe
+ * `listing.ts`/`listingExtraction.ts`).
+ */
+
+/**
+ * Katalog der unterstützten Dokumenttypen — Priorität A (zwingend) und B (empfohlen)
+ * aus der Produktvorgabe, plus SONSTIGES als Auffangkategorie. Bewusst als offene
+ * Liste angelegt (siehe `documentTypes.ts`), damit weitere Typen künftig ohne
+ * Architekturänderung ergänzt werden können.
+ */
+export type DueDiligenceDocumentType =
+  // Priorität A
+  | "STWEG_PROTOKOLL"
+  | "JAHRESRECHNUNG"
+  | "BUDGET_STWEG"
+  | "ERNEUERUNGSFONDS"
+  | "STWEG_REGLEMENT"
+  | "GRUNDBUCHAUSZUG"
+  | "MIETVERTRAG"
+  | "NEBENKOSTENABRECHNUNG"
+  | "GRUNDRISS"
+  // Priorität B
+  | "GEBAEUDEVERSICHERUNG"
+  | "HEIZUNG_SERVICE"
+  | "ENERGIEAUSWEIS"
+  | "SINA"
+  | "RENOVATIONSNACHWEIS"
+  | "BAUBESCHRIEB"
+  | "PARKPLATZ_UNTERLAGEN"
+  | "STWEG_BEGRUENDUNG"
+  // Auffangkategorie
+  | "SONSTIGES";
+
+export type DueDiligencePriority = "ZWINGEND" | "EMPFOHLEN" | "OPTIONAL";
+
+/** Fachbereiche, in denen die Due-Diligence-Prüfung je einen eigenen Status ausweist. */
+export type DueDiligenceCategory =
+  | "GRUNDBUCH_RECHTE"
+  | "STWEG"
+  | "ERNEUERUNGSFONDS"
+  | "GEBAEUDE_SANIERUNGEN"
+  | "MIETVERHAELTNIS"
+  | "NEBENKOSTEN"
+  | "HEIZUNG_ENERGIE"
+  | "TECHNISCHE_UNTERLAGEN"
+  | "DOKUMENTENVOLLSTAENDIGKEIT";
+
+/** Ampel-Status — sowohl je Kategorie als auch als Gesamtstatus verwendet. */
+export type DueDiligenceSeverity = "OK" | "KLAERUNGSBEDARF" | "RISIKO";
+
+/**
+ * Ein einzelner Befund mit Quellenbeleg — Kern der "jede Aussage muss auf das
+ * Quelldokument zurückführbar sein"-Anforderung. `sourcePage`/`sourceQuote` fehlen nur,
+ * wenn das Dokument keine Seitenzahlen hat (z.B. eine einseitige Bestätigung) oder die
+ * Aussage aus einem Abgleich zwischen mehreren Dokumenten entsteht (dann trägt jeder
+ * beteiligte Beleg seinen eigenen Fund).
+ */
+export interface DueDiligenceFinding {
+  category: DueDiligenceCategory;
+  severity: DueDiligenceSeverity;
+  summary: string;
+  detail?: string;
+  sourceDocumentId?: string;
+  sourceDocumentName?: string;
+  sourcePage?: number;
+  sourceQuote?: string;
+  /** Markiert Widersprüche zwischen zwei oder mehr Quellen (Inserat/Dokument/bereits erfasste Daten) explizit. */
+  isContradiction?: boolean;
+}
+
+export interface DueDiligenceMissingDocument {
+  documentType: DueDiligenceDocumentType;
+  priority: DueDiligencePriority;
+  note?: string;
+}
+
+export interface DueDiligenceSellerQuestion {
+  question: string;
+  /** Kurzer Bezug, welcher Befund die Frage ausgelöst hat — für die spätere E-Mail-Vorlage. */
+  relatedFindingSummary?: string;
+}
+
+/**
+ * Ein aus Dokumenten erkannter Wert, der einen bereits erfassten Wert ergänzen/ersetzen
+ * könnte — nie automatisch übernommen (docs/OPEN_DECISIONS.md, Punkt N: "Neuer Wert aus
+ * Dokument erkannt … → übernehmen?"), erst nach expliziter Bestätigung.
+ */
+export interface DueDiligenceFieldUpdateProposal {
+  /** Technischer Feldname im Bestandsrendite-Facts-Objekt, z.B. "miete.netRentChfPerM2Month". */
+  field: string;
+  label: string;
+  newValue: string | number;
+  currentValue?: string | number | null;
+  sourceDocumentId: string;
+  sourceDocumentName: string;
+  sourcePage?: number;
+}
+
+export interface DueDiligenceCategoryResult {
+  category: DueDiligenceCategory;
+  status: DueDiligenceSeverity;
+  findings: DueDiligenceFinding[];
+}
+
+/** Ergebnis der Stufe-2-Synthese über alle hochgeladenen Dokumente eines Objekts hinweg. */
+export interface DueDiligenceResult {
+  overallStatus: DueDiligenceSeverity;
+  categories: DueDiligenceCategoryResult[];
+  missingDocuments: DueDiligenceMissingDocument[];
+  sellerQuestions: DueDiligenceSellerQuestion[];
+  fieldUpdateProposals: DueDiligenceFieldUpdateProposal[];
+}
+
+/** Ergebnis der Stufe-1-Extraktion eines einzelnen Dokuments. */
+export interface DocumentExtractionResult {
+  /** Von der KI erkannter/bestätigter Dokumenttyp — kann vom beim Upload gewählten Typ abweichen (dann als Fund markiert). */
+  detectedDocumentType: DueDiligenceDocumentType;
+  summary: string;
+  /** Freie, dokumenttypspezifische Fakten (z.B. Erneuerungsfonds-Saldo, Mietbeginn) — bewusst als offenes Objekt, siehe documentTypes.ts für die je Typ erwartete Form. */
+  facts: Record<string, unknown>;
+  findings: DueDiligenceFinding[];
+}
