@@ -6,8 +6,8 @@ import { hasValidSession } from "@/lib/authSession";
  * Generischer Key-Value-Endpunkt über die `app_state`-Tabelle (Migration 0002) —
  * ersetzt den bisherigen localStorage-only-Speicher für Suchprofil und
  * Annahmen-Register-Overrides (siehe docs/OPEN_DECISIONS.md, Punkt F/D).
- * Nur GET/PUT auf global bekannte ids, kein individueller Nutzerkontext (ein
- * geteiltes Passwort für den ganzen Nutzerkreis, siehe Abschnitt 6).
+ * Nur GET/PUT auf global bekannte ids, kein individueller Nutzerkontext (Login über
+ * die bekannte E-Mail-Adresse des einzigen Nutzers, siehe docs/OPEN_DECISIONS.md Punkt D).
  *
  * Der Zugriffsschutz läuft primär über middleware.ts; die Prüfung hier ist
  * bewusste Redundanz (defense in depth) für diesen besonders sensiblen

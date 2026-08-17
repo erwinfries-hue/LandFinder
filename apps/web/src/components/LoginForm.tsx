@@ -5,16 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@landfinder/ui";
 
 /**
- * Wirft nur das Passwort-Feld gegen `/api/auth/login` — ein geteiltes Passwort für
- * den ganzen Nutzerkreis (siehe docs/OPEN_DECISIONS.md, Punkt D), kein individuelles
- * Konto pro Person. E-Mail-Feld und "Angemeldet bleiben" bleiben aus dem
- * ursprünglichen, bereits abgenommenen Mockup-Design (Punkt H) erhalten, sind aber
- * aktuell rein kosmetisch — ein künftiges Mehrbenutzer-Login kann sie später nutzen.
+ * Wirft nur die E-Mail-Adresse gegen `/api/auth/login` — kein Passwort mehr (Rückmeldung
+ * 2026-08-17: die App ist nur für den einen Auftraggeber, die bekannte E-Mail-Adresse
+ * genügt als Zugriffsschutz, siehe docs/OPEN_DECISIONS.md, Punkt D). "Angemeldet
+ * bleiben" bleibt aus dem ursprünglichen, bereits abgenommenen Mockup-Design (Punkt H)
+ * erhalten, ist aber weiterhin rein kosmetisch.
  */
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,7 +28,7 @@ export function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -59,17 +59,14 @@ export function LoginForm() {
       )}
       <div className="field">
         <label htmlFor="lf-email">E-Mail-Adresse</label>
-        <input id="lf-email" type="email" placeholder="name@beispiel.ch" />
-      </div>
-      <div className="field">
-        <label htmlFor="lf-pw">Passwort</label>
         <input
-          id="lf-pw"
-          type="password"
-          placeholder="••••••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          id="lf-email"
+          type="email"
+          placeholder="name@beispiel.ch"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           required
+          autoFocus
         />
       </div>
       <div className="rowbetween">

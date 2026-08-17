@@ -1,10 +1,11 @@
 /**
- * Einfache, abhängigkeitsfreie Session-Cookie-Signierung für den Passwort-Schutz
- * der ganzen App (siehe docs/OPEN_DECISIONS.md, Punkt D). Bewusst kein volles
- * Multi-User-Login mit einzelnen Konten — das ist ein Sofort-Fix für die Lücke,
- * dass `/api/state/*` bisher ganz ohne Zugriffsschutz erreichbar war. Ein
- * geteiltes Passwort (Umgebungsvariable `APP_PASSWORD`) reicht für den
- * aktuellen Nutzerkreis (Abschnitt 6: "2-5 bekannte Nutzer").
+ * Einfache, abhängigkeitsfreie Session-Cookie-Signierung für den Zugriffsschutz der
+ * ganzen App (siehe docs/OPEN_DECISIONS.md, Punkt D). Login prüft seit 2026-08-17 nur
+ * noch die bekannte E-Mail-Adresse (kein Passwort mehr, siehe
+ * `app/api/auth/login/route.ts`) — `APP_PASSWORD` (Umgebungsvariable, Name aus der
+ * ursprünglichen Passwort-Variante beibehalten) dient hier nur noch als
+ * HMAC-Signierschlüssel für das Session-Cookie, wird nie vom Nutzer eingegeben und
+ * bleibt weiterhin Voraussetzung für ein gültiges, fälschungssicheres Cookie.
  *
  * Nutzt bewusst die Web Crypto API (`crypto.subtle`) statt Node's `crypto`-Modul:
  * `middleware.ts` läuft in der Edge Runtime, die kein Node-`crypto` unterstützt —

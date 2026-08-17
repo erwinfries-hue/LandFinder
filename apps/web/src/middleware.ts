@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isValidSessionToken, SESSION_COOKIE_NAME } from "@/lib/authSession";
 
 /**
- * Passwort-Schutz für die ganze App (siehe docs/OPEN_DECISIONS.md, Punkt D) —
+ * Zugriffsschutz für die ganze App (siehe docs/OPEN_DECISIONS.md, Punkt D; Login prüft
+ * seit 2026-08-17 nur noch die E-Mail-Adresse, nicht mehr ein Passwort — hier ändert
+ * sich dadurch nichts, geprüft wird weiterhin nur das signierte Session-Cookie) —
  * schliesst insbesondere die Lücke, dass `/api/state/*` bisher ganz ohne
  * Zugriffsschutz erreichbar war. Ausgenommen: die Login-Seite/-API selbst, der
  * Postmark-Webhook (hat seine eigene Basic-Auth via INBOUND_WEBHOOK_SECRET und
