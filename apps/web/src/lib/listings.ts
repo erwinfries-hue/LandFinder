@@ -35,6 +35,11 @@ export interface ListingRow {
   /** Manuell erfasste Vertiefungsdaten (Migration 0007, siehe listingVertiefung.ts) — `null`, bis "Objekt vertiefen" ausgeführt wurde. */
   vertiefung: Record<string, unknown> | null;
   vertiefung_updated_at: string | null;
+  /** Nur für BESTANDSWOHNUNG relevant (Migration 0009) — Wohnfläche der Einheit, nicht die Parzellenfläche eines Grundstücks. */
+  wohnflaeche_m2: number | null;
+  /** Bestandsrendite-Fakten (Migration 0009, siehe bestandsrenditeVertiefung.ts) — Zimmerzahl/Baujahr/STWEG/Vermietungs-/Kostenannahmen für das 3-Ebenen-Rechenmodell. */
+  bestandsrendite: Record<string, unknown> | null;
+  bestandsrendite_updated_at: string | null;
 }
 
 export interface InboundAlertRow {
@@ -190,6 +195,7 @@ export function listingStatus(status: string): { label: string; shortLabel: stri
 const OBJECT_TYPE_LABELS: Record<string, string> = {
   BAULAND: "Bauland",
   ABBRUCHOBJEKT: "Grundstück mit Abbruchobjekt",
+  BESTANDSWOHNUNG: "Bestandswohnung (Rendite)",
 };
 
 export function objectTypeLabel(objectType: string | null): string {

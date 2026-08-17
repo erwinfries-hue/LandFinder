@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Panel } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { getListings, getInboundAlerts } from "@/lib/listings";
@@ -31,8 +32,11 @@ export default async function QuellenPage() {
     <div className="shell">
       <SideNav current="quellen" />
       <main className="main">
-        <div className="pagehead">
+        <div className="pagehead" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: ".8rem" }}>
           <h1>Quellen</h1>
+          <Link href="/quellen/neu" className="btn" style={{ width: "auto" }}>
+            + Bestandswohnung erfassen
+          </Link>
         </div>
 
         {!configured ? (
