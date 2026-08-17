@@ -98,7 +98,12 @@ export function runMehrjahresmodell(input: MehrjahresmodellInput): Mehrjahresmod
   let restschuldChf = input.hypothek.initialLoanChf;
   let kumulierterCashflowChf = 0;
 
-  for (let jahr = 1; jahr <= input.holdingPeriodYears; jahr++) {
+  // Mindestens 1 Jahr, damit `years` nie leer bleibt (sonst würde `lastYear` unten
+  // undefined — z.B. wenn `holdingPeriodYears` per API-Aufruf ohne das UI-Formular
+  // (dessen `min="5"` das sonst verhindert) als 0 oder negativ übergeben wird).
+  const holdingPeriodYears = Math.max(1, Math.floor(input.holdingPeriodYears));
+
+  for (let jahr = 1; jahr <= holdingPeriodYears; jahr++) {
     const wachstumsjahre = jahr - 1;
 
     const ertrag = calculateJahresertrag({

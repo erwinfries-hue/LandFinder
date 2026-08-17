@@ -16,7 +16,11 @@ export function buildSellerQuestionsEmailDraft(questions: DueDiligenceSellerQues
   const subject = `Rückfragen zu ${objectLabel}`;
   const intro = `Im Rahmen der Due-Diligence-Prüfung von ${objectLabel} ergeben sich folgende Rückfragen:`;
   const questionLines = questions.map((q, i) => `${i + 1}. ${q.question}`).join("\n\n");
-  const body = `${intro}\n\n${questionLines}\n\nBesten Dank für die Rückmeldung.`;
+  // Bewusst ohne Leerzeilen-Duplizierung bei questions=[] (questionLines dann ""),
+  // auch wenn die UI diesen Fall aktuell gar nicht rendert (nur bei vorhandenen
+  // Rückfragen aufgerufen) — die Funktion ist exportiert und soll auch für sich
+  // allein ein sauberes Ergebnis liefern.
+  const body = [intro, questionLines, "Besten Dank für die Rückmeldung."].filter(Boolean).join("\n\n");
   return { subject, body };
 }
 

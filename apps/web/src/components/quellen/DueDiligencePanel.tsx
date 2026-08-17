@@ -117,11 +117,19 @@ export function DueDiligencePanel({
     }
   }
 
-  async function handleDeleteDocument(documentId: string) {
+  async function handleDeleteDocument(documentId: string, filename: string) {
+    if (!window.confirm(`"${filename}" wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return;
     setDeleting(documentId);
     try {
-      await fetch(`/api/listings/${listingId}/documents/${documentId}`, { method: "DELETE" });
+      const res = await fetch(`/api/listings/${listingId}/documents/${documentId}`, { method: "DELETE" });
+      const body = (await res.json().catch(() => ({}))) as { deleted?: boolean; error?: string };
+      if (!res.ok || !body.deleted) {
+        window.alert(body.error ?? "Löschen fehlgeschlagen.");
+        return;
+      }
       router.refresh();
+    } catch {
+      window.alert("Löschen fehlgeschlagen (Netzwerkfehler).");
     } finally {
       setDeleting(null);
     }
@@ -202,7 +210,7 @@ export function DueDiligencePanel({
                 className="btn"
                 style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
                 disabled={deleting === d.id}
-                onClick={() => handleDeleteDocument(d.id)}
+                onClick={() => handleDeleteDocument(d.id, d.original_filename)}
               >
                 {deleting === d.id ? "Löscht…" : "Löschen"}
               </button>

@@ -419,6 +419,36 @@ vorab gestellt.
   Mail-Versand (kein neuer Vendor/keine neue Kostenstelle) — nutzt nur, was der
   Browser/das lokale Mailprogramm bereits kann.
 
+**Nachgezogen (2026-08-17), Code-Review statt Live-Test (Rückmeldung: Sandbox hat
+keine Supabase-/Anthropic-Zugangsdaten, daher "Nur Code-Review, kein Live-Test" —
+den ersten echten Praxistest mit einer realen Bestandeswohnung übernimmt der
+Auftraggeber selbst):**
+
+- **Absturz bei `holdingPeriodYears <= 0` behoben**: `runMehrjahresmodell`
+  (`packages/financial-engine/src/bestandsrenditeMehrjahresmodell.ts`) griff nach
+  der Jahres-Schleife ungeschützt auf `years[years.length - 1]` zu. Bei
+  `holdingPeriodYears` `0` oder negativ (im UI durch `min="5"` verhindert, aber via
+  direktem API-Aufruf erreichbar — `?? P.holdingPeriodYearsDefault.defaultValue`
+  greift nur bei `null`/`undefined`, nicht bei `0`) blieb `years` leer und die
+  Funktion wäre mit einem `TypeError` abgestürzt. Fix: Haltedauer wird intern auf
+  mindestens 1 Jahr geklemmt (`Math.max(1, Math.floor(...))`), analog zum
+  bestehenden Defensiv-Muster in `calculateRendite`. Zwei neue Tests in
+  `bestandsrenditeMehrjahresmodell.test.ts`.
+- Weitere Prüfpunkte ohne Befund: Formularfelder (`BestandsrenditeVertiefungForm`)
+  gegen `parseBestandsrenditeFacts` feldweise abgeglichen — keine Mismatches;
+  `buildKnownFields` (Due-Diligence-Route) gegen `ALLOWED_UPDATE_FIELDS` verglichen
+  — identische Feldlisten.
+- **Bewusste, unveränderte Scope-Reduktionen** (kein Bug, nur notiert): Das
+  Renovation-Formularfeld erfasst aktuell nur einen Gesamtbetrag
+  (`initialRenovationCostChf`), keine itemisierten `RenovationPosition[]` mit
+  Kategorie/Jahr/Steuerbehandlung, obwohl Domain/Financial-Engine das bereits
+  unterstützen — bereits erfasste Positionen werden beim Speichern aber
+  unverändert durchgereicht, nicht verworfen. `moeblierung.kostensteigerungPercentPerYear`
+  ist kein eigenes Formularfeld und fällt still auf den allgemeinen
+  Kosteninflations-Default zurück (ohne eigene `assumptionNotes`-Zeile, anders als
+  bei den übrigen Defaults) — vertretbar für den MVP, da kein Formularfeld dafür
+  existiert, das der Nutzer hätte ausfüllen können.
+
 **Bewusst weiterhin NICHT gebaut / offen:**
 
 - **Scoring/Hard-Gates auf Basis der Due-Diligence** (z.B. "RISIKO in Kategorie

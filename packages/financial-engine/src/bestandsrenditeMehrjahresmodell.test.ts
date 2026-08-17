@@ -138,6 +138,11 @@ describe("runMehrjahresmodell", () => {
     expect(runMehrjahresmodell({ ...baseInput, holdingPeriodYears: 5 }).years).toHaveLength(5);
     expect(runMehrjahresmodell({ ...baseInput, holdingPeriodYears: 30 }).years).toHaveLength(30);
   });
+
+  it("stürzt bei holdingPeriodYears <= 0 nicht ab, sondern rechnet mit mindestens 1 Jahr (z.B. bei direktem API-Aufruf ohne das UI-Formular-Minimum)", () => {
+    expect(runMehrjahresmodell({ ...baseInput, holdingPeriodYears: 0 }).years).toHaveLength(1);
+    expect(runMehrjahresmodell({ ...baseInput, holdingPeriodYears: -5 }).years).toHaveLength(1);
+  });
 });
 
 describe("computeInvestmentTreiber", () => {
