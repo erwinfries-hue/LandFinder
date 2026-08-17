@@ -130,8 +130,62 @@ export const STRESS_CASE_PARAMETERS = {
   }),
 } as const;
 
+/**
+ * Kostenstruktur-Annahmen für "Bestandsrendite auf Eigentumswohnungen"
+ * (`bestandsrendite.ts`, docs/OPEN_DECISIONS.md Punkt M) — anders als
+ * `BAUPOTENZIAL_PARAMETERS`/`STRESS_CASE_PARAMETERS` **nicht** aus einem
+ * abgenommenen Masterdokument-Abschnitt übernommen (den gibt es für diese Objektart
+ * noch nicht), deshalb `source` hier bewusst ehrlich als Platzhalter markiert statt
+ * eine Abschnittsnummer zu erfinden. Grobe, plausible Schweizer Marktwerte als
+ * Startpunkt, kein kalibrierter Business-Wert — mit dem Auftraggeber abzustimmen,
+ * bevor sie irgendwo als Standard-Voreinstellung in einer UI landen.
+ */
+export const BESTANDSRENDITE_PARAMETERS = {
+  handaenderungssteuerPercent: describe({
+    key: "handaenderungssteuerPercent",
+    label: "Handänderungssteuer",
+    description: "Kantonal/kommunal stark unterschiedlich (0–3.3%, mehrere Kantone 0% für Käufer) — grober Mittelwert, kein kantonsscharfer Satz.",
+    unit: "%",
+    defaultValue: 2,
+    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+  }),
+  notariatGrundbuchPercent: describe({
+    key: "notariatGrundbuchPercent",
+    label: "Notariat/Grundbuch",
+    description: "Pauschale für Beurkundung und Grundbucheintrag.",
+    unit: "%",
+    defaultValue: 0.5,
+    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+  }),
+  maklerprovisionPercent: describe({
+    key: "maklerprovisionPercent",
+    label: "Maklerprovision",
+    description: "Default 0 — Annahme, dass Objekte primär direkt über Suchabo-Alerts gefunden werden, nicht über einen Makler.",
+    unit: "%",
+    defaultValue: 0,
+    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+  }),
+  jaehrlicherRenovationssatzPercent: describe({
+    key: "jaehrlicherRenovationssatzPercent",
+    label: "Laufende Renovationsrückstellung",
+    description: "Jährliche Rückstellung für laufende Renovationen, in % des Kaufpreises (nicht der Initial-Renovationskosten) — grober Richtwert.",
+    unit: "% des Kaufpreises",
+    defaultValue: 1,
+    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+  }),
+  jaehrlicherMoebelErsatzsatzPercent: describe({
+    key: "jaehrlicherMoebelErsatzsatzPercent",
+    label: "Möblierungs-Ersatzrate",
+    description: "Jährlicher Ersatz-/Erneuerungssatz für Mobiliar, in % der Möblierungs-Initialkosten — grob an einer Nutzungsdauer von ca. 6–8 Jahren orientiert.",
+    unit: "% der Möblierungskosten",
+    defaultValue: 14,
+    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+  }),
+} as const;
+
 export type BaupotenzialFactorKey = keyof typeof BAUPOTENZIAL_PARAMETERS;
 export type StressCaseParameterKey = keyof typeof STRESS_CASE_PARAMETERS;
+export type BestandsrenditeParameterKey = keyof typeof BESTANDSRENDITE_PARAMETERS;
 
 /** Extrahiert nur die Default-Werte aus einer Parameter-Registry, für den direkten Gebrauch in Formeln. */
 export function defaultsOf<K extends string>(

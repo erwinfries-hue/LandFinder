@@ -237,3 +237,50 @@ Eigentumsbeschränkungen), BFS-Gemeindedaten (Steuerfuss, Bevölkerung),
 ARE-Erreichbarkeitsdaten, geodienste.ch — bleiben offen in
 `packages/data-sources/README.md`, jeweils grösserer Aufwand mit teils zu klärendem
 Zugriff.
+
+## M. Bestandsrendite auf Eigentumswohnungen — Rechenkern vorbereitet (2026-08-16)
+
+Vorarbeit zu Punkt I.2 ("Bestandsrendite auf Eigentumswohnungen": bestehende,
+renovierbare oder bereits sanierte Wohnungen, ausschliesslich Vermietung — möbliert
+als Business Apartment oder unmöbliert langfristig, nie Eigennutzung), ohne
+Rückfrage möglich, da reine Berechnungslogik ohne Berührung der laufenden
+Ingestion-/Alert-Pipeline.
+
+**Gebaut:** `packages/financial-engine/src/bestandsrendite.ts` — Kaufpreis +
+Nebenkosten (Handänderungssteuer/Notariat/Maklerprovision) + Renovation + Möblierung
+→ Gesamtinvestition → Ertrag/Finanzierung (Wiederverwendung von `calculateErtrag`/
+`calculateFinanzierung`, bereits objektart-neutral) → Brutto- **und** Nettorendite
+(immer gemeinsam ausgewiesen, wie gewünscht). Modell auf Rückmeldung angepasst:
+unmöbliert ist die einzige Mietbasis-Formel (CHF/m²/Monat); Möblierung und
+Renovation sind reine Kosten-Zusätze — je eine einmalige Initialkosten-Variable plus
+ein laufender Jahressatz (Möblierung: % der Möblierungskosten; Renovation: % des
+Kaufpreises, nicht der Renovationskosten) —, keine eigene Ertragsformel. 14
+Unit-Tests. Dazu `packages/domain/src/stweg.ts` (`StwegFacts`): reine
+Datenstruktur für STWEG-Kennzahlen (Erneuerungsfonds, Sanierungsstau,
+Beschlussrisiken), noch ohne Bewertung — auch die Zielstruktur für eine künftige
+STWEG-Protokoll-Analyse per LLM.
+
+**Bewusst NICHT gebaut** (in dieser Reihenfolge die nächsten Schritte, sobald diese
+Fragen geklärt sind):
+
+1. **Scoring/Hard Gates/Empfehlung für Bestandsrendite.** Anders als beim
+   Development-Underwriting (`packages/scoring-engine`) gibt es dafür keinen
+   abgenommenen Masterdokument-Abschnitt. Braucht deine Antwort auf: Welche
+   Brutto-/Nettorendite ist für dich das Minimum? Welche DSCR/Belehnung? Wie stark
+   soll ein ungünstiger STWEG-Befund (z.B. niedriger Erneuerungsfonds-Deckungsgrad,
+   anstehende Grosssanierung) den Score drücken — ähnlich den bestehenden
+   `RISK_DEDUCTIONS` bei Bauland, aber mit anderen Kriterien?
+2. **`Objektart` in `packages/domain` erweitern** (aktuell bewusst nur `"BAULAND" |
+   "ABBRUCHOBJEKT"`). Berührt die reale Ingestion-Pipeline: Extraktions-Prompt
+   (`listingExtraction.ts`), Hard Gates (`objektart.baulandEnabled`/
+   `abbruchobjektEnabled` im Suchprofil), Vorprüfung (`listingPrescreen.ts`) —
+   bewusst nicht unilateral an der Live-Pipeline geändert, ohne dass du das siehst.
+3. **Suchprofil-UI/Persistenz.** Wie sollen die `BESTANDSRENDITE_PARAMETERS`
+   editierbar werden — als neuer Tab im bestehenden Wizard, oder (näher an deiner
+   ursprünglichen Überlegung, 4efRENDITE/4efHOME als getrennte Such-/Scoring-Profile
+   auf gemeinsamer Datenbasis) als eigenes zweites Suchprofil? Aktuell gibt es nur
+   ein globales Suchprofil (Punkt 3.1 der Bestandsaufnahme).
+4. **Kostensätze real kalibrieren.** `BESTANDSRENDITE_PARAMETERS`
+   (`parameters.ts`) sind grobe, ehrlich als Platzhalter markierte Schweizer
+   Richtwerte (Handänderungssteuer 2%, laufende Renovationsrückstellung 1% vom
+   Kaufpreis, Möblierungs-Ersatzrate 14%/Jahr) — keine mit dir abgestimmten Werte.

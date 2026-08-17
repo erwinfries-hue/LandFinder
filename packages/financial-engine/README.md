@@ -35,6 +35,27 @@ UI-Teil folgt mit dem Suchprofil-Wizard (Schritt 5).
 | `ertragFinanzierung.ts` | 12 | NOI, Fremdkapital, DSCR, Cash-on-Cash |
 | `residualwert.ts` | 13 | Verkehrswert, Residualwert, Break-even-Miete/-Baukosten |
 | `szenarien.ts` | 14 | Orchestrierung Base-Case, Ableitung Stress-Case |
+| `bestandsrendite.ts` | — | Kostenrechnung für "Bestandsrendite auf Eigentumswohnungen" (Kauf + Nebenkosten + Renovation + Möblierung → Rendite), siehe unten |
 
 Offen: Anbindung an `packages/scoring-engine` (Schritt 3) und die reale Verwendung im
 Suchprofil-Wizard/der Objekt-Detailseite.
+
+## Bestandsrendite (docs/OPEN_DECISIONS.md, Punkt M)
+
+`bestandsrendite.ts` ist eine zweite, unabhängige Rechnung — kein Baupotenzial, kein
+Residualwert, keine Ausnützungsziffer, stattdessen ein Kaufpreis-plus-Nebenkosten-Stack
+für den Kauf einer bestehenden Eigentumswohnung zur reinen Vermietung. Reicht
+`calculateErtrag`/`calculateFinanzierung` aus `ertragFinanzierung.ts` unverändert
+durch (bereits objektart-neutral). Modell laut Rückmeldung des Auftraggebers
+(2026-08-16): unmöbliert ist die einzige Mietbasis (CHF/m²/Monat); Möblierung und
+Renovation sind reine Kosten-Zusätze (Initialkosten + ein laufender Jahressatz),
+keine eigene Ertragsformel. Weist immer Brutto- **und** Nettorendite gemeinsam aus.
+
+**Bewusst kein Score/keine Empfehlung** (anders als `packages/scoring-engine` für
+Development) — welche Rendite/DSCR/STWEG-Kennzahlen als "gut genug" gelten, ist eine
+Investitionskriterien-Frage, noch nicht mit dem Auftraggeber abgestimmt.
+`BESTANDSRENDITE_PARAMETERS` in `parameters.ts` markiert jeden Kostensatz ehrlich als
+"Platzhalter — noch nicht mit Auftraggeber abgestimmt" statt eine
+Masterdokument-Abschnittsnummer zu erfinden (den gibt es für diese Objektart noch
+nicht). Ebenfalls noch offen: Anbindung an eine echte Objektart im Ingestion-Pfad
+(`Objektart` in `packages/domain` bewusst unverändert), Suchprofil-UI, Persistenz.
