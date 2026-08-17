@@ -7,10 +7,9 @@ import type { Vermietungsmodell } from "@landfinder/financial-engine";
 import type { BestandsrenditeFacts } from "@/lib/bestandsrendite";
 
 /**
- * Erfassungsmaske für die Bestandsrendite-Fakten (`listings.bestandsrendite`,
- * Migration 0009) — das Pendant zu `ListingVertiefungForm.tsx` für BESTANDSWOHNUNG
- * statt Bauland/Abbruchobjekt. Jedes optionale Feld leer gelassen fällt beim
- * Berechnen auf den transparent ausgewiesenen Platzhalter-Default zurück (siehe
+ * Erfassungsmaske für die Bestandsrendite-Fakten (`properties.bestandsrendite`,
+ * Migration 0001). Jedes optionale Feld leer gelassen fällt beim Berechnen auf den
+ * transparent ausgewiesenen Platzhalter-Default zurück (siehe
  * `computeBestandsrenditeAnalysis`).
  */
 export function BestandsrenditeVertiefungForm({ propertyId, existing }: { propertyId: string; existing: BestandsrenditeFacts | null }) {
