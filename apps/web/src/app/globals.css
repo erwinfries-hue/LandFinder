@@ -1502,3 +1502,15 @@ table.sortable th {
 .savefeedback-warn {
   color: var(--warn);
 }
+
+/* Eingebettete swisstopo-Karte (SwissMap.tsx) */
+.swissmap {
+  height: 220px;
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.swissmap .leaflet-tile-pane {
+  filter: saturate(0.85);
+}

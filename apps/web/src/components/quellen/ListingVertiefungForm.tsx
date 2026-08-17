@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Panel } from "@landfinder/ui";
 import type { BaupotenzialFacts, ListingVertiefungFacts } from "@/lib/listingVertiefung";
+import type { GeoAddressSuggestion } from "@/lib/geoAdmin";
 
 /**
  * Manuelle Ergänzungsmaske für "Objekt vertiefen" (docs/OPEN_DECISIONS.md) — trägt
@@ -16,6 +17,38 @@ export function ListingVertiefungForm({ listingId, existing }: { listingId: stri
   const [method, setMethod] = useState<BaupotenzialFacts["method"]>(existing?.baupotenzial.method ?? "DENSITY_RATIO");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const latInputRef = useRef<HTMLInputElement>(null);
+  const lonInputRef = useRef<HTMLInputElement>(null);
+  const [addressQuery, setAddressQuery] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState<GeoAddressSuggestion[]>([]);
+  const [addressSearching, setAddressSearching] = useState(false);
+  const [addressSearchError, setAddressSearchError] = useState<string | null>(null);
+
+  async function handleAddressSearch() {
+    if (!addressQuery.trim()) return;
+    setAddressSearching(true);
+    setAddressSearchError(null);
+    try {
+      const res = await fetch(`/api/geo/search?q=${encodeURIComponent(addressQuery)}`);
+      const body = (await res.json()) as { results?: GeoAddressSuggestion[] };
+      const results = body.results ?? [];
+      setAddressSuggestions(results);
+      if (results.length === 0) setAddressSearchError("Keine Treffer — Koordinaten weiterhin manuell eintragen (z.B. Rechtsklick auf Google Maps).");
+    } catch {
+      setAddressSuggestions([]);
+      setAddressSearchError("Suche fehlgeschlagen (Netzwerkfehler).");
+    } finally {
+      setAddressSearching(false);
+    }
+  }
+
+  function pickAddressSuggestion(suggestion: GeoAddressSuggestion) {
+    if (latInputRef.current) latInputRef.current.value = String(suggestion.lat);
+    if (lonInputRef.current) lonInputRef.current.value = String(suggestion.lon);
+    setAddressSuggestions([]);
+    setAddressQuery(suggestion.label);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -190,13 +223,60 @@ export function ListingVertiefungForm({ listingId, existing }: { listingId: stri
             <label htmlFor="egrid">EGRID (optional)</label>
             <input id="egrid" name="egrid" type="text" placeholder="z.B. CH685284972" defaultValue={existing?.egrid} />
           </div>
+          <div className="field" style={{ gridColumn: "1 / -1" }}>
+            <label htmlFor="addressSearch">Adresse suchen (swisstopo) — füllt Breiten-/Längengrad automatisch</label>
+            <div style={{ display: "flex", gap: ".5rem" }}>
+              <input
+                id="addressSearch"
+                type="text"
+                placeholder="z.B. Chamerstrasse 1, 6300 Zug"
+                value={addressQuery}
+                onChange={(e) => setAddressQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleAddressSearch();
+                  }
+                }}
+                style={{ flex: 1 }}
+              />
+              <button type="button" className="btn" style={{ width: "auto" }} disabled={addressSearching} onClick={() => void handleAddressSearch()}>
+                {addressSearching ? "Sucht…" : "Suchen"}
+              </button>
+            </div>
+            {addressSearchError ? <p style={{ color: "var(--ink-faint)", fontSize: ".78rem", margin: ".4rem 0 0" }}>{addressSearchError}</p> : null}
+            {addressSuggestions.length > 0 ? (
+              <ul style={{ listStyle: "none", margin: ".5rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: ".3rem" }}>
+                {addressSuggestions.map((s) => (
+                  <li key={`${s.label}-${s.lat}-${s.lon}`}>
+                    <button
+                      type="button"
+                      onClick={() => pickAddressSuggestion(s)}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        background: "transparent",
+                        border: "1px solid var(--line)",
+                        borderRadius: "4px",
+                        padding: ".4rem .6rem",
+                        fontSize: ".8125rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
           <div className="field">
             <label htmlFor="lat">Breitengrad</label>
-            <input id="lat" name="lat" type="number" step="0.0001" required defaultValue={existing?.coordinates.lat} />
+            <input ref={latInputRef} id="lat" name="lat" type="number" step="0.0001" required defaultValue={existing?.coordinates.lat} />
           </div>
           <div className="field">
             <label htmlFor="lon">Längengrad</label>
-            <input id="lon" name="lon" type="number" step="0.0001" required defaultValue={existing?.coordinates.lon} />
+            <input ref={lonInputRef} id="lon" name="lon" type="number" step="0.0001" required defaultValue={existing?.coordinates.lon} />
           </div>
           <div className="field">
             <label htmlFor="existingBuildingAreaM2">Bestehende Gebäudefläche m² (nur Abbruchobjekt)</label>

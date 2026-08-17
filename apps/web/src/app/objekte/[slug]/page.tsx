@@ -5,7 +5,7 @@ import { SideNav } from "@/components/SideNav";
 import { demoObjekte, formatChf } from "@/lib/demo-data";
 import { METRIC_HINTS } from "@/lib/metricHints";
 import { Metric, StressRow } from "@/components/objekte/MetricPrimitives";
-import { LiveChamScoreDials, LiveChamMetricGrid, LiveChamStressTable, LiveChamAssumptions } from "@/components/objekte/LiveChamAnalysis";
+import { LiveChamScoreDials, LiveChamMetricGrid, LiveChamMap, LiveChamStressTable, LiveChamAssumptions } from "@/components/objekte/LiveChamAnalysis";
 
 const LIVE_WIRED_SLUGS = ["cham-chamerstrasse-2214"];
 
@@ -103,6 +103,8 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ s
             )}
           </div>
         </Panel>
+
+        {isLiveWired ? <LiveChamMap /> : null}
 
         {v ? (
           <>

@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { EMPFEHLUNG_LABEL, type Empfehlung } from "@landfinder/domain";
 import { Panel, Icon, ScoreDialLarge, Chip, InfoHint, type DialTone, type ChipTone } from "@landfinder/ui";
+import { SwissMap } from "@/components/map/SwissMap";
 import { getSearchProfileServerSnapshot, getSearchProfileSnapshot, subscribeSearchProfile } from "@/lib/searchProfile";
 import { getAnnahmenServerSnapshot, getAnnahmenSnapshot, subscribeAnnahmen } from "@/lib/annahmen";
 import { computeChamAnalysis, CHAM_FACTS } from "@/lib/objektAnalysis";
@@ -94,6 +95,18 @@ export function LiveChamMetricGrid() {
         hint={METRIC_HINTS.residualwert}
       />
     </>
+  );
+}
+
+/** Kartenausschnitt anhand der in CHAM_FACTS hinterlegten (groben, gemeindescharfen) Koordinaten — siehe SwissMap.tsx. */
+export function LiveChamMap() {
+  return (
+    <Panel style={{ padding: "1.2rem 1.3rem", marginTop: "1.4rem" }}>
+      <div className="sectionhead">
+        <h2>Lage</h2>
+      </div>
+      <SwissMap lat={CHAM_FACTS.coordinates.lat} lon={CHAM_FACTS.coordinates.lon} label="Cham ZG (Gemeinde-Koordinate, nicht parzellenscharf)" />
+    </Panel>
   );
 }
 

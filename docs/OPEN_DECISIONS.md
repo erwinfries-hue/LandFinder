@@ -198,3 +198,42 @@ B-Treffer, Preisänderungen, Statusänderungen, Top-10 — `workers/digest`). Mi
 so gut wie keinen vertieften echten Inseraten (Punkt F) wäre ein Score-basierter
 Digest heute fast leer; Inhalt/Format sind ein eigener, noch zu klärender Umfang statt
 ein Nebeneffekt der Cron-Infrastruktur.
+
+## L. Karten/Gemeindedaten — erster Baustein umgesetzt (2026-08-16)
+
+Dritter Baustein aus Punkt I.3. Bewusst klein gehalten (Ganzes ÖREB/BFS/ARE bleibt
+"Hoch"-Aufwand mit teils offener Zugriffsklärung, siehe
+`docs/HOME4EFFINDER_BESTANDSAUFNAHME.md`, Abschnitt 3.1) — dieser Schritt deckt nur
+die zwei Teile ab, die ohne neuen Account/Vertrag sofort nutzbar sind:
+
+1. **Eingebettete Karte** (`apps/web/src/components/map/SwissMap.tsx`): swisstopo-
+   WMTS-Kacheln (`wmts.geo.admin.ch`, EPSG:3857, kein API-Key, Pflichtvermerk
+   "© swisstopo"), Leaflet als einzige neue Laufzeit-Abhängigkeit (keine weiteren
+   Pakete, kein API-Key). Ersetzt nicht den bisherigen `MapLink`
+   (Google-Maps-Link, funktioniert auch ohne Koordinaten), ergänzt ihn dort, wo
+   echte Koordinaten vorliegen: "Objekt vertiefen"-Live-Analyse
+   (`ListingLiveAnalysis.tsx`) und die Cham-Demo (`LiveChamAnalysis.tsx`).
+   Bewusst `L.circleMarker` statt Standard-Pin-Icon — vermeidet den bekannten
+   Leaflet-Marker-Icon-Pfad-Bug unter Bundlern.
+2. **Adress-Suche beim Erfassen von Koordinaten** (`apps/web/src/lib/geoAdmin.ts` +
+   `GET /api/geo/search`): ersetzt das bisherige manuelle "Rechtsklick auf Google
+   Maps" in `ListingVertiefungForm.tsx` durch ein Suchfeld über dieselbe
+   swisstopo-API — ausgewählter Treffer füllt Breiten-/Längengrad automatisch,
+   manuelle Eingabe bleibt weiterhin möglich (Fallback bei keinem Treffer).
+
+**Nicht gegen echten Traffic verifiziert** (wie schon bei `fetchListingPage.ts`s
+newhome-Verhalten): ausgehender Netzwerkzugriff auf `geo.admin.ch` ist aus dieser
+Sandbox blockiert (nur `npm install` gegen die npm-Registry ist freigegeben) — die
+eingebettete Karte wurde per Screenshot bestätigt (Kartencontainer, Zoom-Controls,
+Marker, "© swisstopo"-Vermerk rendern korrekt; Kachel-Bilder selbst bleiben in der
+Sandbox grau, da deren Abruf am Proxy scheitert — erwartet, kein Rendering-Fehler).
+Die Adress-Suche (`geoAdmin.ts`) ist defensiv geparst (fehlendes/unerwartetes Feld →
+Ergebnis wird übersprungen statt eine Koordinate zu erfinden) und mit Unit-Tests
+gegen die öffentlich dokumentierte Antwortstruktur abgedeckt, aber die exakte
+Feldbenennung erst beim ersten echten Suchlauf in Produktion zu bestätigen.
+
+**Bewusst nicht Teil dieses Bausteins:** ÖREB (öffentlich-rechtliche
+Eigentumsbeschränkungen), BFS-Gemeindedaten (Steuerfuss, Bevölkerung),
+ARE-Erreichbarkeitsdaten, geodienste.ch — bleiben offen in
+`packages/data-sources/README.md`, jeweils grösserer Aufwand mit teils zu klärendem
+Zugriff.
