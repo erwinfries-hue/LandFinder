@@ -199,21 +199,28 @@ export function DueDiligencePanel({
       ) : (
         <ul style={{ listStyle: "none", margin: "0 0 1.4rem", padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
           {initialDocuments.map((d) => (
-            <li key={d.id} style={{ fontSize: ".8125rem", display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
-              <Chip tone={d.analysis_status === "DONE" ? "good" : d.analysis_status === "FAILED" ? "bad" : "neutral"}>{d.analysis_status}</Chip>
-              <strong>{DOCUMENT_TYPE_CATALOG[d.document_type as DueDiligenceDocumentType]?.label ?? d.document_type}</strong>
-              <span style={{ color: "var(--ink-faint)" }}>{d.original_filename}</span>
-              <span style={{ color: "var(--ink-faint)" }}>{formatDateTime(d.uploaded_at)}</span>
-              {d.analysis_error ? <span style={{ color: "var(--bad)" }}>— {d.analysis_error}</span> : null}
-              <button
-                type="button"
-                className="btn"
-                style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
-                disabled={deleting === d.id}
-                onClick={() => handleDeleteDocument(d.id, d.original_filename)}
-              >
-                {deleting === d.id ? "Löscht…" : "Löschen"}
-              </button>
+            <li key={d.id} style={{ fontSize: ".8125rem" }}>
+              <div style={{ display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
+                <Chip tone={d.analysis_status === "DONE" ? "good" : d.analysis_status === "FAILED" ? "bad" : "neutral"}>{d.analysis_status}</Chip>
+                <strong>{DOCUMENT_TYPE_CATALOG[d.document_type as DueDiligenceDocumentType]?.label ?? d.document_type}</strong>
+                <span style={{ color: "var(--ink-faint)" }}>{d.original_filename}</span>
+                <span style={{ color: "var(--ink-faint)" }}>{formatDateTime(d.uploaded_at)}</span>
+                {d.analysis_error ? <span style={{ color: "var(--bad)" }}>— {d.analysis_error}</span> : null}
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
+                  disabled={deleting === d.id}
+                  onClick={() => handleDeleteDocument(d.id, d.original_filename)}
+                >
+                  {deleting === d.id ? "Löscht…" : "Löschen"}
+                </button>
+              </div>
+              {/* Sofortiges Feedback aus Stufe 1 — sonst sieht der Nutzer vor dem nächsten
+                  "Due-Diligence aktualisieren" nichts vom bereits extrahierten Inhalt. */}
+              {d.extraction?.summary ? (
+                <p style={{ color: "var(--ink-soft)", fontSize: ".78rem", margin: ".3rem 0 0" }}>{d.extraction.summary}</p>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -288,7 +295,12 @@ export function DueDiligencePanel({
             <>
               <ul style={{ margin: "0 0 .8rem", paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: ".4rem" }}>
                 {result.sellerQuestions.map((q, i) => (
-                  <li key={i} style={{ fontSize: ".8125rem" }}>{q.question}</li>
+                  <li key={i} style={{ fontSize: ".8125rem" }}>
+                    {q.question}
+                    {q.relatedFindingSummary ? (
+                      <div style={{ color: "var(--ink-faint)", fontSize: ".74rem", fontStyle: "italic", marginTop: ".15rem" }}>Grund: {q.relatedFindingSummary}</div>
+                    ) : null}
+                  </li>
                 ))}
               </ul>
               {(() => {

@@ -1,10 +1,9 @@
 /**
  * Typen für die Dokumenten-KI / Due-Diligence-Prüfung von Bestandswohnungen
- * (docs/OPEN_DECISIONS.md, Punkt N). Reine Typen — die eigentliche Extraktions-/
- * Synthese-Logik lebt in `apps/web/src/lib/documentTypes.ts`,
+ * (HOME4efFINDER, apps/home4effinder). Reine Typen — die eigentliche Extraktions-/
+ * Synthese-Logik lebt in `apps/home4effinder/src/lib/documentTypes.ts`,
  * `dueDiligenceExtraction.ts`, `dueDiligenceSynthesis.ts` (analog zum Muster
- * `packages/domain` = Typen, `apps/web/src/lib` = tatsächliche Verarbeitung, siehe
- * `listing.ts`/`listingExtraction.ts`).
+ * `packages/domain` = Typen, `apps/<name>/src/lib` = tatsächliche Verarbeitung).
  */
 
 /**

@@ -138,6 +138,46 @@ Berechnung). Zwei Funde:
   die sonst übliche `assumptionNotes`-Zeile. Jetzt als eigenes Feld ergänzt
   (konsistent mit seinen beiden Geschwisterfeldern), inkl. Notiz bei Nichterfassung.
 
+Danach den kompletten Rechenkern (`packages/financial-engine`) systematisch auf
+weitere Fälle desselben Musters durchsucht (jede exportierte Funktion einzeln
+gegenprüft) — kein weiterer Fund. Alle übrigen Funktionen sind bereits korrekt
+intern verdrahtet (z.B. `calculateJahresertrag`/`calculateBetriebskosten`/
+`calculateCashflowWasserfall` als Bausteine von `calculateInvestmentCase` und
+`runMehrjahresmodell`, nicht als eigenständige App-seitige Aufrufe gedacht).
+
+## Nachgezogen (2026-08-18): dasselbe Muster auf der Dokumenten-KI-Seite geprüft
+
+Auf Wunsch dieselbe Prüfung auf `dueDiligenceExtraction.ts`/`dueDiligenceSynthesis.ts`/
+`documentTypes.ts` angewendet. Drei Funde:
+
+- **Pro-Dokument-Zusammenfassung nie angezeigt:** Stufe 1 liefert für jedes
+  hochgeladene Dokument eine 2-4-Satz-Zusammenfassung (`DocumentExtractionResult
+  .summary`), gespeichert in `property_documents.extraction` — die Dokumentenliste
+  im Panel zeigte bisher nur Status-Chip/Dateiname/Datum, nie diese Zusammenfassung.
+  Ohne "Due-Diligence aktualisieren" (Stufe 2) bekam der Nutzer dadurch nach dem
+  Hochladen praktisch kein inhaltliches Feedback. Jetzt wird die Zusammenfassung
+  direkt unter jedem Dokument angezeigt, sobald sie vorliegt.
+- **`sellerQuestions[].relatedFindingSummary` nie angezeigt:** das LLM liefert pro
+  Rückfrage optional einen kurzen Bezug, welcher Befund die Frage ausgelöst hat
+  (laut Domain-Typ-Kommentar explizit "für die spätere E-Mail-Vorlage" gedacht) —
+  wurde geparst und gespeichert, aber weder in der UI-Liste noch im E-Mail-Entwurf
+  verwendet. Jetzt als kursiver "Grund: …"-Hinweis unter jeder Rückfrage in der
+  UI sichtbar (bewusst nicht im E-Mail-Text an Verkäufer/Makler — das ist eine
+  interne Erklärung für den Nutzer, keine für den externen Empfänger gedachte
+  Formulierung).
+- `documentTypesByPriority()`/`requiredAndRecommendedDocumentTypes()`
+  (`documentTypes.ts`) sind tatsächlich unbenutzt, aber kein Fall desselben Musters
+  (keine verlorene Information) — `computeMissingDocuments()` erreicht dieselbe
+  Filterung bereits direkt inline. Bewusst nicht entfernt, um den Scope dieser
+  Review-Runde nicht auf reines Aufräumen auszudehnen.
+
+**Beim Beheben ein Selbstverschulden gefunden und korrigiert:** die Doku-Korrektur
+in `packages/domain/src/dueDiligence.ts` enthielt versehentlich die Zeichenfolge
+`apps/*/src/lib` in einem JSDoc-Kommentar — das darin enthaltene `*/` beendete den
+Kommentar vorzeitig und brach den TypeScript-Build für beide Apps. Vor dem Commit
+über `npm run build` in beiden Apps aufgefallen und behoben (`apps/<name>/src/lib`
+statt `apps/*/src/lib`).
+
 Beide Funde mit Tests abgesichert (`bestandsrendite.test.ts`).
 
 ## Bewusst weiterhin nicht gebaut
