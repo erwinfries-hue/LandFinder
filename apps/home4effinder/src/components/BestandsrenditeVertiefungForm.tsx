@@ -62,6 +62,9 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
         naechsteGrossaSanierungGeplant: form.get("naechsteGrossaSanierungGeplant") === "on",
         naechsteGrossaSanierungNotes: String(form.get("naechsteGrossaSanierungNotes") ?? "") || undefined,
         sanierungsstauNotes: String(form.get("sanierungsstauNotes") ?? "") || undefined,
+        offeneBeschluesseCount: num("offeneBeschluesseCount"),
+        beschlussrisikenNotes: String(form.get("beschlussrisikenNotes") ?? "") || undefined,
+        quelle: String(form.get("quelle") ?? "") || undefined,
       },
       nebenkosten: {
         handaenderungssteuerPercent: num("handaenderungssteuerPercent"),
@@ -470,6 +473,20 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
         <div className="field" style={{ marginTop: ".6rem" }}>
           <label htmlFor="sanierungsstauNotes">Sanierungsstau-Hinweise</label>
           <textarea id="sanierungsstauNotes" name="sanierungsstauNotes" rows={2} defaultValue={existing?.stweg.sanierungsstauNotes} style={{ width: "100%" }} />
+        </div>
+        <div className="fieldgrid" style={{ marginTop: ".6rem" }}>
+          <div className="field">
+            <label htmlFor="offeneBeschluesseCount">Offene/strittige Beschlüsse (Anzahl, falls bekannt)</label>
+            <input id="offeneBeschluesseCount" name="offeneBeschluesseCount" type="number" step="1" min="0" defaultValue={existing?.stweg.offeneBeschluesseCount} />
+          </div>
+          <div className="field">
+            <label htmlFor="quelle">Quelle (z.B. &quot;Protokoll ordentliche Versammlung 2026-03-12&quot;)</label>
+            <input id="quelle" name="quelle" type="text" defaultValue={existing?.stweg.quelle} />
+          </div>
+        </div>
+        <div className="field" style={{ marginTop: ".6rem" }}>
+          <label htmlFor="beschlussrisikenNotes">Beschlussrisiken (z.B. Rechtsstreitigkeiten zwischen Eigentümern)</label>
+          <textarea id="beschlussrisikenNotes" name="beschlussrisikenNotes" rows={2} defaultValue={existing?.stweg.beschlussrisikenNotes} style={{ width: "100%" }} />
         </div>
 
         <div className="field" style={{ marginTop: "1rem" }}>

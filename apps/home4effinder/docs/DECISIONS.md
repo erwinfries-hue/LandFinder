@@ -180,6 +180,28 @@ statt `apps/*/src/lib`).
 
 Beide Funde mit Tests abgesichert (`bestandsrendite.test.ts`).
 
+## Nachgezogen (2026-08-18): STWEG-Fakten — Erfassung unvollständig, Anzeige fehlte komplett
+
+Weiter mit demselben Muster, diesmal bei `StwegFacts` (`packages/domain/src/stweg.ts`,
+9 Felder). Zwei Funde, beide grösser als die vorherigen:
+
+- **Drei von neun Feldern fehlten komplett im Formular:** `offeneBeschluesseCount`,
+  `beschlussrisikenNotes`, `quelle` liessen sich bisher überhaupt nicht erfassen,
+  obwohl der Domain-Typ sie vorsieht und der Due-Diligence-Prompt explizit danach
+  fragen könnte. Jetzt als eigene Formularfelder ergänzt.
+- **Keines der neun Felder wurde je angezeigt:** `stweg` wurde zwar gespeichert und
+  drei seiner Felder (`wertquotePromille`, `erneuerungsfondsSaldoChf`,
+  `erneuerungsfondsZielwertChf`) sind sogar als Due-Diligence-Feldwert-Übernahmeziel
+  zugelassen — aber nirgends liess sich der aktuelle Stand einsehen, ausser durch
+  erneutes Öffnen des Bearbeitungsformulars. Insbesondere nach einer automatischen
+  Feldwert-Übernahme aus einem Dokument gab es keine sichtbare Bestätigung in der
+  Analyseansicht. Jetzt ein eigener "STWEG-Fakten"-Block in
+  `BestandsrenditeAnalysisView.tsx`, der alle gesetzten Felder anzeigt (nur wenn
+  mindestens eines gesetzt ist) — bewusst ohne jede Bewertung/Ampel, konsistent mit
+  dem Domain-Typ-Kommentar ("bewusst OHNE Scoring/Formel").
+
+Mit einem neuen Test abgesichert (STWEG-Fakten werden unverändert durchgereicht).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.

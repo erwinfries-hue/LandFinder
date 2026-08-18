@@ -129,6 +129,8 @@ export interface BestandsrenditeAnalysisResult {
   renovationSummary: RenovationPositionenSummary;
   mehrjahresmodell: MehrjahresmodellResult;
   investmentTreiber: InvestmentTreiberResult;
+  /** Unveränderte STWEG-Fakten aus den Facts — reine Datenhaltung ohne Scoring/Formel, siehe StwegFacts. */
+  stweg: StwegFacts;
   assumptionNotes: string[];
 }
 
@@ -290,6 +292,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     renovationSummary,
     mehrjahresmodell,
     investmentTreiber,
+    stweg: facts.stweg,
     assumptionNotes,
   };
 }

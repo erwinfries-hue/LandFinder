@@ -87,6 +87,7 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(result.furnitureRoi!.roiPercent).toBeCloseTo(36, 5); // 300*12/10000
     expect(result.moeblierungReserveChfPerJahr).toBeCloseTo(1_000, 5); // (10000*0.70)/7 (Default-Ersatzquote/-Nutzungsdauer)
     expect(result.investmentTreiber.treiber).toHaveLength(5);
+    expect(result.stweg).toEqual(fullFacts.stweg); // unveränderte Datenhaltung, siehe StwegFacts
   });
 
   it("dokumentiert jede verwendete Platzhalter-Annahme in assumptionNotes", () => {

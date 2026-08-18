@@ -10,7 +10,7 @@ import type { BestandsrenditeAnalysisResult } from "@/lib/bestandsrendite";
  * Client-Live-Recompute nötig.
  */
 export function BestandsrenditeAnalysisView({ result }: { result: BestandsrenditeAnalysisResult }) {
-  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, moeblierungReserveChfPerJahr, renovationRoi, breakEven } = result;
+  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, moeblierungReserveChfPerJahr, renovationRoi, breakEven, stweg } = result;
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
 
   return (
@@ -153,6 +153,43 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           Mechanische Zerlegung per Vergleichsläufen, keine wissenschaftliche Attribution.
         </p>
       </Panel>
+
+      {Object.values(stweg).some((v) => v !== undefined) ? (
+        <Panel style={{ padding: "1.2rem 1.3rem", marginTop: "1.4rem" }}>
+          <div className="sectionhead">
+            <h2>
+              STWEG-Fakten <InfoHint text="Reine Datenhaltung ohne Bewertung — was als „gut“/„riskant“ gilt, ist noch nicht festgelegt." />
+            </h2>
+          </div>
+          <div className="metricgrid">
+            {stweg.wertquotePromille !== undefined ? <Metric l="Wertquote" v={`${stweg.wertquotePromille}‰`} /> : null}
+            {stweg.erneuerungsfondsSaldoChf !== undefined ? <Metric l="Erneuerungsfonds-Saldo" v={`CHF ${formatChf(stweg.erneuerungsfondsSaldoChf)}`} /> : null}
+            {stweg.erneuerungsfondsZielwertChf !== undefined ? <Metric l="Erneuerungsfonds-Zielwert" v={`CHF ${formatChf(stweg.erneuerungsfondsZielwertChf)}`} /> : null}
+            {stweg.naechsteGrossaSanierungGeplant !== undefined ? (
+              <Metric l="Grössere Sanierung geplant/diskutiert" v={stweg.naechsteGrossaSanierungGeplant ? "Ja" : "Nein"} />
+            ) : null}
+            {stweg.offeneBeschluesseCount !== undefined ? <Metric l="Offene/strittige Beschlüsse" v={String(stweg.offeneBeschluesseCount)} /> : null}
+          </div>
+          {stweg.naechsteGrossaSanierungNotes ? (
+            <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: ".8rem" }}>
+              <strong>Notizen Sanierung:</strong> {stweg.naechsteGrossaSanierungNotes}
+            </p>
+          ) : null}
+          {stweg.sanierungsstauNotes ? (
+            <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: ".5rem" }}>
+              <strong>Sanierungsstau:</strong> {stweg.sanierungsstauNotes}
+            </p>
+          ) : null}
+          {stweg.beschlussrisikenNotes ? (
+            <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: ".5rem" }}>
+              <strong>Beschlussrisiken:</strong> {stweg.beschlussrisikenNotes}
+            </p>
+          ) : null}
+          {stweg.quelle ? (
+            <p style={{ fontSize: ".76rem", color: "var(--ink-faint)", marginTop: ".8rem", fontStyle: "italic" }}>Quelle: {stweg.quelle}</p>
+          ) : null}
+        </Panel>
+      ) : null}
 
       <Panel style={{ padding: "1rem 1.3rem", marginTop: "1.4rem" }}>
         <div className="eyebrow" style={{ marginBottom: ".5rem" }}>
