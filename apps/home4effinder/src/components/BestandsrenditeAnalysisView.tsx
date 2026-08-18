@@ -10,7 +10,7 @@ import type { BestandsrenditeAnalysisResult } from "@/lib/bestandsrendite";
  * Client-Live-Recompute nötig.
  */
 export function BestandsrenditeAnalysisView({ result }: { result: BestandsrenditeAnalysisResult }) {
-  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, renovationRoi, breakEven } = result;
+  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, moeblierungReserveChfPerJahr, renovationRoi, breakEven } = result;
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
 
   return (
@@ -98,6 +98,13 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
             <Metric l="Zusätzlicher Jahresertrag" v={`CHF ${formatChf(Math.round(furnitureRoi.zusaetzlicherJahresertragChf))}`} />
             <Metric l="Furniture ROI" v={`${furnitureRoi.roiPercent.toFixed(1)}%`} />
             <Metric l="Payback" v={furnitureRoi.paybackYears !== undefined ? `${furnitureRoi.paybackYears.toFixed(1)} Jahre` : "—"} />
+            {moeblierungReserveChfPerJahr !== undefined ? (
+              <Metric
+                l="Geglättete Ersatzreserve"
+                v={`CHF ${formatChf(Math.round(moeblierungReserveChfPerJahr))}/Jahr`}
+                hint="Rein informativ — die 15-Jahres-Cashflows rechnen mit dem tatsächlichen Ersatz-Cashout im Ersatzjahr, nicht mit dieser geglätteten Reserve."
+              />
+            ) : null}
           </div>
         </Panel>
       ) : null}

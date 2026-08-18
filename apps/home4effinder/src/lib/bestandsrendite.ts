@@ -17,6 +17,7 @@ import {
 import {
   calculateFurnitureRoi,
   calculateRenovationRoi,
+  moeblierungGeglaetteReserveChfPerJahr,
   summarizeRenovationPositionen,
   type RenovationPosition,
   type ValueAddRoiResult,
@@ -122,6 +123,8 @@ export interface BestandsrenditeAnalysisResult {
   investmentCase: InvestmentCaseResult;
   breakEven: { mieteChfPerMonth: number | undefined; zinsPercent: number | undefined; auslastungPercent: number | undefined };
   furnitureRoi: ValueAddRoiResult | undefined;
+  /** Geglättete jährliche Ersatzreserve für die Möblierung — rein informativ, nicht Grundlage der 15-Jahres-Cashflows (die rechnen mit dem tatsächlichen Ersatz-Cashout im Ersatzjahr, siehe mehrjahresmodell). */
+  moeblierungReserveChfPerJahr: number | undefined;
   renovationRoi: ValueAddRoiResult | undefined;
   renovationSummary: RenovationPositionenSummary;
   mehrjahresmodell: MehrjahresmodellResult;
@@ -230,6 +233,12 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
         })
       : undefined;
 
+  const moeblierungLebenszyklus =
+    facts.moeblierung.initialCostChf > 0
+      ? { initialCostChf: facts.moeblierung.initialCostChf, nutzungsdauerJahre: moeblierungNutzungsdauerJahre, ersatzquotePercent: jaehrlicherErsatzsatzPercent, kostensteigerungPercentPerYear: moeblierungKostensteigerung }
+      : undefined;
+  const moeblierungReserveChfPerJahr = moeblierungLebenszyklus ? moeblierungGeglaetteReserveChfPerJahr(moeblierungLebenszyklus) : undefined;
+
   const mehrjahresmodellInput = {
     holdingPeriodYears: facts.mehrjahresmodell.holdingPeriodYears ?? P.holdingPeriodYearsDefault.defaultValue,
     kaufpreisChf,
@@ -243,10 +252,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     kosteninflationPercentPerYear: facts.mehrjahresmodell.kosteninflationPercentPerYear ?? P.kosteninflationPercentPerYear.defaultValue,
     wertsteigerungPercentPerYear: facts.mehrjahresmodell.wertsteigerungPercentPerYear ?? P.wertsteigerungPercentPerYear.defaultValue,
     wertvermehrendeRenovationChf: renovationSummary.totalByKategorie.WERTVERMEHREND,
-    moeblierung:
-      facts.moeblierung.initialCostChf > 0
-        ? { initialCostChf: facts.moeblierung.initialCostChf, nutzungsdauerJahre: moeblierungNutzungsdauerJahre, ersatzquotePercent: jaehrlicherErsatzsatzPercent, kostensteigerungPercentPerYear: moeblierungKostensteigerung }
-        : undefined,
+    moeblierung: moeblierungLebenszyklus,
     hypothek: { initialLoanChf: hypothekChf, interestRatePercent: facts.hypothek.interestRatePercent, amortisationChfPerYear: facts.hypothek.amortisationChfPerYear },
     kalkulatorischerSteuersatzPercent,
     exit: {
@@ -259,6 +265,9 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   const investmentTreiber = computeInvestmentTreiber(mehrjahresmodellInput);
 
   if (facts.moeblierung.initialCostChf > 0 && facts.moeblierung.jaehrlicherErsatzsatzPercent === undefined) assumptionNotes.push(`Möblierungs-Ersatzquote nicht erfasst — Platzhalter-Default (${jaehrlicherErsatzsatzPercent}%) verwendet.`);
+  if (facts.moeblierung.initialCostChf > 0 && facts.moeblierung.kostensteigerungPercentPerYear === undefined) {
+    assumptionNotes.push(`Kosteninflation Möblierung nicht erfasst — allgemeine Kosteninflation (${moeblierungKostensteigerung}%/Jahr) verwendet.`);
+  }
   if (facts.miete.leerstandPercent === undefined && facts.miete.vermietungsmodell !== "SHORT_STAY") assumptionNotes.push(`Leerstandsquote nicht erfasst — Platzhalter-Default (${leerstandDefaultPercent}%) verwendet.`);
   if (facts.kalkulatorischerSteuersatzPercent === undefined) assumptionNotes.push(`Kalkulatorischer Steuersatz nicht erfasst — Platzhalter-Default (${kalkulatorischerSteuersatzPercent}%) verwendet, kein Steuerberatungsersatz.`);
   if (facts.reserven.reparaturChfPerYear === undefined && facts.reserven.reparaturPercentOfKaufpreis === undefined) assumptionNotes.push(`Eigene Reparaturreserve nicht erfasst — Platzhalter-Default (${P.reparaturreservePercentOfKaufpreis.defaultValue}% des Kaufpreises) verwendet.`);
@@ -276,6 +285,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
       auslastungPercent: breakEvenAuslastungPercent(investmentCaseInput),
     },
     furnitureRoi,
+    moeblierungReserveChfPerJahr,
     renovationRoi,
     renovationSummary,
     mehrjahresmodell,

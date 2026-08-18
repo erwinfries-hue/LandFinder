@@ -85,6 +85,7 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(result.mehrjahresmodell.years).toHaveLength(15); // Default-Haltedauer
     expect(result.furnitureRoi).toBeDefined();
     expect(result.furnitureRoi!.roiPercent).toBeCloseTo(36, 5); // 300*12/10000
+    expect(result.moeblierungReserveChfPerJahr).toBeCloseTo(1_000, 5); // (10000*0.70)/7 (Default-Ersatzquote/-Nutzungsdauer)
     expect(result.investmentTreiber.treiber).toHaveLength(5);
   });
 
@@ -113,6 +114,7 @@ describe("computeBestandsrenditeAnalysis", () => {
     };
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, noExtras);
     expect(result.furnitureRoi).toBeUndefined();
+    expect(result.moeblierungReserveChfPerJahr).toBeUndefined();
     expect(result.allInInvestitionChf).toBeLessThan(computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts).allInInvestitionChf);
   });
 

@@ -79,6 +79,7 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
         mietPremiumChfPerMonth: req("mietPremiumChfPerMonth"),
         jaehrlicherErsatzsatzPercent: num("jaehrlicherErsatzsatzPercent"),
         nutzungsdauerJahre: num("moeblierungNutzungsdauerJahre"),
+        kostensteigerungPercentPerYear: num("moeblierungKostensteigerungPercentPerYear"),
       },
       miete: {
         wohnungsMieteChfPerMonth: req("wohnungsMieteChfPerMonth"),
@@ -218,6 +219,16 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
           <div className="field">
             <label htmlFor="jaehrlicherErsatzsatzPercent">Jährliche Ersatzquote (%, leer = Default)</label>
             <input id="jaehrlicherErsatzsatzPercent" name="jaehrlicherErsatzsatzPercent" type="number" step="1" defaultValue={existing?.moeblierung.jaehrlicherErsatzsatzPercent} />
+          </div>
+          <div className="field">
+            <label htmlFor="moeblierungKostensteigerungPercentPerYear">Kosteninflation Möblierung (%/Jahr, leer = allgemeine Kosteninflation)</label>
+            <input
+              id="moeblierungKostensteigerungPercentPerYear"
+              name="moeblierungKostensteigerungPercentPerYear"
+              type="number"
+              step="0.1"
+              defaultValue={existing?.moeblierung.kostensteigerungPercentPerYear}
+            />
           </div>
         </div>
 

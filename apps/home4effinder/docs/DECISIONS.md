@@ -118,6 +118,28 @@ selben Formularabschnitt füttern `calculateRenovationRoi`
 Analyseansicht zeigt jetzt einen "Value-Add — Renovation"-Block analog zum
 bestehenden Möblierungs-Block, sobald beide Mietwerte gesetzt sind.
 
+## Nachgezogen (2026-08-18): Möblierung nach demselben Muster geprüft
+
+Auf Rückfrage die Möblierung gezielt auf dieselbe Art Lücke untersucht wie zuvor bei
+der Renovation (im Financial-Engine vorhandene, aber vom Formular nie erreichte
+Berechnung). Zwei Funde:
+
+- `moeblierungGeglaetteReserveChfPerJahr` (`bestandsrenditeValueAdd.ts`) — laut
+  eigenem Modulkopf explizit für eine "informative, geglättete Zusatzansicht"
+  gedacht, wurde aber nirgends in `apps/home4effinder` aufgerufen. Jetzt in
+  `computeBestandsrenditeAnalysis` berechnet und im "Value-Add —
+  Möblierung"-Block als zusätzliche, klar als informativ markierte Kennzahl
+  angezeigt (die 15-Jahres-Cashflows selbst rechnen weiterhin mit dem
+  tatsächlichen Ersatz-Cashout im Ersatzjahr, nicht mit dieser geglätteten Zahl
+  — daran ändert sich nichts).
+- `moeblierung.kostensteigerungPercentPerYear` war als einziges der drei
+  Möblierungs-Lebenszyklus-Felder (neben Nutzungsdauer und Ersatzquote) nicht als
+  Formularfeld erfasst — fiel still auf die allgemeine Kosteninflation zurück, ohne
+  die sonst übliche `assumptionNotes`-Zeile. Jetzt als eigenes Feld ergänzt
+  (konsistent mit seinen beiden Geschwisterfeldern), inkl. Notiz bei Nichterfassung.
+
+Beide Funde mit Tests abgesichert (`bestandsrendite.test.ts`).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.
