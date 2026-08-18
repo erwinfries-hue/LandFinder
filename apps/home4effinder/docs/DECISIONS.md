@@ -239,6 +239,34 @@ Zwei weitere Funde beim Weiterarbeiten:
 Damit sind jetzt alle Felder von `BestandsrenditeAnalysisResult` mindestens einmal
 in der Analyseansicht verwendet.
 
+## Nachgezogen (2026-08-18): fehlende Grundfunktionen ausserhalb des Rendite-Rechenkerns
+
+Auf Wunsch die Prüfung über die reine Bestandsrendite-/Dokumenten-KI-Logik hinaus auf
+die restliche App ausgeweitet ("alle Module"). Vier Funde, dieses Mal keine
+unsichtbaren Werte, sondern fehlende Grundfunktionen:
+
+- **`properties.updated_at` war unmöglich korrekt:** Spalte mit `default now()`,
+  aber ohne Trigger — Postgres aktualisiert ein `timestamptz`-Feld nie von selbst
+  bei einem `UPDATE`. Die Spalte wäre für immer auf den Erstellungszeitpunkt
+  eingefroren geblieben und hätte fälschlich "zuletzt bearbeitet" vorgetäuscht.
+  Migration um einen Standard-Trigger (`set_updated_at()`) ergänzt. Auf der
+  Objektliste/-Detailseite zusätzlich `bestandsrendite_updated_at` sichtbar gemacht
+  (aussagekräftiger als das generische `updated_at`, das noch nirgends angezeigt
+  wird, da bisher nichts ausser der Bestandsrendite editierbar war).
+- **Kein Logout:** `/api/auth/logout` existierte, aber keine UI rief es je auf —
+  einzige Möglichkeit zum Abmelden war, Cookies manuell zu löschen oder 30 Tage zu
+  warten. Neuer `LogoutButton` in der Seitennavigation.
+- **Objekt konnte nie gelöscht werden:** kein `DELETE`-Endpunkt, kein Button —
+  einmal angelegt, für immer da (auch Testdaten/Fehleingaben). Neue Route
+  `DELETE /api/properties/[id]` (räumt zusätzlich zu den per `on delete cascade`
+  automatisch gelöschten DB-Zeilen auch die zugehörigen Storage-Dateien auf, die
+  sonst verwaist wären) + Bestätigungsdialog auf der Objektseite.
+- **Objekt-Basisdaten (Adresse/Kanton/Kaufpreis/Wohnfläche) waren nach dem Anlegen
+  unveränderlich:** ein Tippfehler in der Adresse liess sich nur durch Löschen und
+  Neuanlegen korrigieren — was alle bereits erfassten Bestandsrendite-Fakten,
+  Dokumente und die Due-Diligence-Synthese mit sich gerissen hätte. Neue Route
+  `PATCH /api/properties/[id]` + ein-/ausklappbares Bearbeiten-Formular.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.

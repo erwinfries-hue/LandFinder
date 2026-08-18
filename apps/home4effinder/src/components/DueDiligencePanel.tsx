@@ -278,9 +278,10 @@ export function DueDiligencePanel({
           ) : (
             <ul style={{ margin: "0 0 1.4rem", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: ".3rem" }}>
               {result.missingDocuments.map((m) => (
-                <li key={m.documentType} style={{ fontSize: ".8125rem", display: "flex", gap: ".6rem", alignItems: "baseline" }}>
+                <li key={m.documentType} style={{ fontSize: ".8125rem", display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
                   <Chip tone={m.priority === "ZWINGEND" ? "bad" : m.priority === "EMPFOHLEN" ? "warn" : "neutral"}>{PRIORITY_LABEL[m.priority]}</Chip>
-                  {DOCUMENT_TYPE_CATALOG[m.documentType].label}
+                  <strong>{DOCUMENT_TYPE_CATALOG[m.documentType].label}</strong>
+                  {m.note ? <span style={{ color: "var(--ink-faint)" }}>— {m.note}</span> : null}
                 </li>
               ))}
             </ul>

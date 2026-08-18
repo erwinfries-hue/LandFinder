@@ -24,6 +24,21 @@ create table if not exists properties (
 
 alter table properties enable row level security;
 
+-- Ohne Trigger bliebe `updated_at` für immer auf dem Erstellungszeitpunkt stehen
+-- (Postgres aktualisiert es nicht von selbst) und würde fälschlich "zuletzt
+-- bearbeitet" vortäuschen, obwohl es das nie wäre.
+create or replace function set_updated_at() returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger properties_set_updated_at
+  before update on properties
+  for each row
+  execute function set_updated_at();
+
 insert into storage.buckets (id, name, public)
 values ('property-documents', 'property-documents', false)
 on conflict (id) do nothing;

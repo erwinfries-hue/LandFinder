@@ -66,7 +66,7 @@ export default async function HomePage() {
                     <td className="num mono">CHF {formatChf(p.asking_price_chf)}</td>
                     <td className="num mono">{formatChf(p.wohnflaeche_m2)} m²</td>
                     <td>{formatDateTime(p.created_at)}</td>
-                    <td>{p.bestandsrendite ? "erfasst" : "—"}</td>
+                    <td>{p.bestandsrendite_updated_at ? `erfasst (${formatDateTime(p.bestandsrendite_updated_at)})` : "—"}</td>
                   </tr>
                 ))}
               </tbody>

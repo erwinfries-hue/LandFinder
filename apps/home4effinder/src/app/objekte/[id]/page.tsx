@@ -9,6 +9,8 @@ import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts } from "@/lib
 import { BestandsrenditeVertiefungForm } from "@/components/BestandsrenditeVertiefungForm";
 import { BestandsrenditeAnalysisView } from "@/components/BestandsrenditeAnalysisView";
 import { DueDiligencePanel, type DueDiligenceDocumentRow } from "@/components/DueDiligencePanel";
+import { PropertyDeleteButton } from "@/components/PropertyDeleteButton";
+import { PropertyEditForm } from "@/components/PropertyEditForm";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +52,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             <div>
               <h1>{property.title || property.address_text}</h1>
             </div>
+            <PropertyDeleteButton propertyId={property.id} propertyLabel={property.title || property.address_text} />
           </div>
           <div className="metricgrid">
             <Metric l="Kanton" v={property.canton} />
@@ -57,8 +60,16 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             <Metric l="Kaufpreis" v={`CHF ${formatChf(property.asking_price_chf)}`} />
             <Metric l="Wohnfläche" v={`${formatChf(property.wohnflaeche_m2)} m²`} />
             <Metric l="Erfasst" v={formatDateTime(property.created_at)} />
+            {property.bestandsrendite_updated_at ? (
+              <Metric l="Bestandsrendite zuletzt aktualisiert" v={formatDateTime(property.bestandsrendite_updated_at)} />
+            ) : null}
           </div>
         </Panel>
+
+        <details style={{ marginTop: "1.2rem" }}>
+          <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>Objekt-Basisdaten bearbeiten</summary>
+          <PropertyEditForm property={property} />
+        </details>
 
         {analysis ? <BestandsrenditeAnalysisView result={analysis} /> : null}
         <details style={{ marginTop: "1.2rem" }} open={!facts}>

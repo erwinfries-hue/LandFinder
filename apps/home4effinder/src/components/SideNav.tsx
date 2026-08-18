@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon, type IconName } from "@landfinder/ui";
+import { LogoutButton } from "./LogoutButton";
 
 const items: { href: string; label: string; icon: IconName; key: string }[] = [
   { href: "/", label: "Objekte", icon: "plot", key: "objekte" },
@@ -39,7 +40,11 @@ export function SideNav({ current }: { current: string }) {
             </Link>
           ))}
         </nav>
-        <div className="profile">erwin.fries@gmx.ch</div>
+        <div className="profile">
+          erwin.fries@gmx.ch
+          <br />
+          <LogoutButton />
+        </div>
       </aside>
     </>
   );
