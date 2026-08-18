@@ -10,7 +10,7 @@ import type { BestandsrenditeAnalysisResult } from "@/lib/bestandsrendite";
  * Client-Live-Recompute nötig.
  */
 export function BestandsrenditeAnalysisView({ result }: { result: BestandsrenditeAnalysisResult }) {
-  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, moeblierungReserveChfPerJahr, renovationRoi, breakEven, stweg } = result;
+  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, moeblierungReserveChfPerJahr, renovationRoi, renovationSummary, breakEven, stweg } = result;
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
 
   return (
@@ -109,16 +109,29 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
         </Panel>
       ) : null}
 
-      {renovationRoi ? (
+      {renovationRoi || renovationSummary.totalChf > 0 ? (
         <Panel style={{ padding: "1.2rem 1.3rem", marginTop: "1.4rem" }}>
           <div className="sectionhead">
             <h2>Value-Add — Renovation</h2>
           </div>
-          <div className="metricgrid">
-            <Metric l="Zusätzlicher Jahresertrag" v={`CHF ${formatChf(Math.round(renovationRoi.zusaetzlicherJahresertragChf))}`} />
-            <Metric l="Renovation ROI" v={`${renovationRoi.roiPercent.toFixed(1)}%`} />
-            <Metric l="Payback" v={renovationRoi.paybackYears !== undefined ? `${renovationRoi.paybackYears.toFixed(1)} Jahre` : "—"} />
-          </div>
+          {renovationSummary.totalChf > 0 ? (
+            <div className="metricgrid" style={{ marginBottom: renovationRoi ? "1rem" : 0 }}>
+              <Metric l="Werterhaltend" v={`CHF ${formatChf(Math.round(renovationSummary.totalByKategorie.WERTERHALTEND))}`} />
+              <Metric
+                l="Wertvermehrend"
+                v={`CHF ${formatChf(Math.round(renovationSummary.totalByKategorie.WERTVERMEHREND))}`}
+                hint="Erhöht den angenommenen Immobilienwert im 15-Jahres-Modell beim Exit — die beiden anderen Kategorien nicht."
+              />
+              <Metric l="Energetisch" v={`CHF ${formatChf(Math.round(renovationSummary.totalByKategorie.ENERGETISCH))}`} />
+            </div>
+          ) : null}
+          {renovationRoi ? (
+            <div className="metricgrid">
+              <Metric l="Zusätzlicher Jahresertrag" v={`CHF ${formatChf(Math.round(renovationRoi.zusaetzlicherJahresertragChf))}`} />
+              <Metric l="Renovation ROI" v={`${renovationRoi.roiPercent.toFixed(1)}%`} />
+              <Metric l="Payback" v={renovationRoi.paybackYears !== undefined ? `${renovationRoi.paybackYears.toFixed(1)} Jahre` : "—"} />
+            </div>
+          ) : null}
         </Panel>
       ) : null}
 
@@ -136,6 +149,42 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           <Metric l="Angenommener Verkaufswert" v={`CHF ${formatChf(Math.round(mehrjahresmodell.exit.assumedPropertyValueChf))}`} />
           <Metric l="Kumulierter Cashflow" v={`CHF ${formatChf(Math.round(lastYear.kumulierterCashflowChf))}`} />
         </div>
+
+        <div className="sectionhead" style={{ marginTop: "1.2rem" }}>
+          <h2 style={{ fontSize: ".85rem" }}>Exit-Berechnung (Jahr {mehrjahresmodell.years.length})</h2>
+        </div>
+        <table className="stresstable">
+          <tbody>
+            <tr>
+              <td>Angenommener Verkaufswert</td>
+              <td className="num mono">CHF {formatChf(Math.round(mehrjahresmodell.exit.assumedPropertyValueChf))}</td>
+            </tr>
+            <tr>
+              <td>− Restschuld Hypothek</td>
+              <td className="num mono">CHF {formatChf(Math.round(mehrjahresmodell.exit.remainingLoanChf))}</td>
+            </tr>
+            <tr>
+              <td>− Verkaufskosten</td>
+              <td className="num mono">CHF {formatChf(Math.round(mehrjahresmodell.exit.sellingCostsChf))}</td>
+            </tr>
+            {mehrjahresmodell.exit.grundstueckgewinnsteuerChf !== undefined ? (
+              <tr>
+                <td>
+                  − Grundstückgewinnsteuer <InfoHint text="Grobe Näherung ohne Besitzdauerabzug oder sonstige kantonale Details, kein Steuerberatungsersatz." />
+                </td>
+                <td className="num mono">CHF {formatChf(Math.round(mehrjahresmodell.exit.grundstueckgewinnsteuerChf))}</td>
+              </tr>
+            ) : null}
+            <tr>
+              <td>
+                <strong>= Exit-Erlös (netto)</strong>
+              </td>
+              <td className="num mono">
+                <strong>CHF {formatChf(Math.round(mehrjahresmodell.exit.netProceedsChf))}</strong>
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
         <details style={{ marginTop: "1.2rem" }}>
           <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>Jahr-für-Jahr-Details anzeigen</summary>

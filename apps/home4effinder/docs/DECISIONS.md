@@ -220,6 +220,27 @@ nachhaltigem Cashflow, kumuliertem Cashflow, Immobilienwert, Restschuld und
 Belehnung pro Jahr — plus einem Hinweis-Icon in Jahren mit fälligem
 Möblierungsersatz-Cashout.
 
+## Nachgezogen (2026-08-18): Renovation-Kategorien-Summe und Exit-Berechnung ergänzt
+
+Zwei weitere Funde beim Weiterarbeiten:
+
+- `renovationSummary` (Kategorien-Summe der neu itemisierbaren
+  Renovationspositionen, siehe oben) wurde berechnet, aber nie angezeigt — und das
+  "Value-Add — Renovation"-Panel war zusätzlich fälschlich an `renovationRoi`
+  gekoppelt (nur sichtbar, wenn zusätzlich Miete vor/nach Renovation gesetzt war).
+  Wer nur Positionen itemisiert, aber keine Mietangaben macht, sah dadurch gar
+  nichts. Jetzt zeigt das Panel die Kategorien-Summe unabhängig vom ROI an.
+- Die Exit-Berechnung im 15-Jahres-Modell (`MehrjahresmodellExitResult`) hatte
+  denselben Blindspot wie die Jahr-1-Cashflow-Kaskade vorher: nur Verkaufswert und
+  Netto-Erlös waren sichtbar, die Abzüge dazwischen (Restschuld, Verkaufskosten,
+  optionale Grundstückgewinnsteuer-Näherung) nicht. Jetzt eine Breakdown-Tabelle
+  analog zur Cashflow-Wasserfall-Tabelle aus Ebene B.
+
+Damit sind jetzt alle Felder von `BestandsrenditeAnalysisResult` mindestens einmal
+in der Analyseansicht verwendet.
+
+## Bewusst weiterhin nicht gebaut
+
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
 - Automatisierte Objekt-Erfassung (kein Portal-Scraping/E-Mail-Ingestion wie bei
