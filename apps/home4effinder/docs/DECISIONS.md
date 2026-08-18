@@ -93,11 +93,28 @@ Bei der Portierung zusätzlich entschieden:
   tatsächlich ein vom Nutzer eingegebenes Passwort war; für eine neue App ohne diese
   Geschichte ist der ehrliche Name direkt gewählt.
 
+## Nachgezogen (2026-08-17/18): itemisierte Renovationspositionen
+
+Beim Review aufgefallen: `wertvermehrendeRenovationChf` (erhöht den angenommenen
+Immobilienwert im 15-Jahres-Modell beim Exit) wird ausschliesslich aus
+`renovation.positionen` berechnet (`summarizeRenovationPositionen`, siehe
+`packages/financial-engine/src/bestandsrenditeValueAdd.ts`) — der Gesamtbetrag
+`initialRenovationCostChf` fliesst zwar korrekt in die Investitionssumme ein, hatte
+aber ohne itemisierte Positionen **nie** einen Werteffekt beim Exit, selbst bei einer
+eindeutig wertvermehrenden Renovation. Kein stiller Fehler (das Modell rechnet
+dadurch konservativ, nicht falsch), aber ein unnötig unvollständiges Bild. Fix:
+`BestandsrenditeVertiefungForm.tsx` erlaubt jetzt das Hinzufügen/Entfernen einzelner
+Renovationspositionen (Betrag, Kategorie werterhaltend/wertvermehrend/energetisch,
+Jahr, steuerliche Abzugsfähigkeit, optionale Beschreibung) — der Gesamtbetrag bleibt
+zusätzlich als schneller Pflichtwert für die Investitionssumme erhalten, auch ohne
+itemisierte Aufschlüsselung.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
 - Automatisierte Objekt-Erfassung (kein Portal-Scraping/E-Mail-Ingestion wie bei
   LandFinder) — Objekte werden ausschliesslich manuell erfasst.
-- Itemisierte Renovationspositionen im Formular (Datenmodell unterstützt es
-  bereits, das Formular fragt aktuell nur einen Gesamtbetrag ab).
+- Renovation-ROI-Anzeige (`renovationRoi` in `bestandsrendite.ts` bleibt bewusst
+  `undefined`) — bräuchte Miete vor/nach Renovation als zusätzlichen Nutzer-Input,
+  den das Formular aktuell nicht abfragt.

@@ -3,8 +3,19 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Panel } from "@landfinder/ui";
-import type { Vermietungsmodell } from "@landfinder/financial-engine";
+import type { Vermietungsmodell, RenovationPosition, RenovationKategorie, SteuerlicheAbzugsfaehigkeit } from "@landfinder/financial-engine";
 import type { BestandsrenditeFacts } from "@/lib/bestandsrendite";
+
+const RENOVATION_KATEGORIE_LABEL: Record<RenovationKategorie, string> = {
+  WERTERHALTEND: "Werterhaltend",
+  WERTVERMEHREND: "Wertvermehrend",
+  ENERGETISCH: "Energetisch",
+};
+const STEUERLICHE_ABZUGSFAEHIGKEIT_LABEL: Record<SteuerlicheAbzugsfaehigkeit, string> = { JA: "Ja", NEIN: "Nein", UNKLAR: "Unklar" };
+
+function emptyRenovationPosition(): RenovationPosition {
+  return { betragChf: 0, kategorie: "WERTERHALTEND", jahr: new Date().getFullYear(), steuerlicheAbzugsfaehigkeit: "UNKLAR" };
+}
 
 /**
  * Erfassungsmaske für die Bestandsrendite-Fakten (`properties.bestandsrendite`,
@@ -15,8 +26,16 @@ import type { BestandsrenditeFacts } from "@/lib/bestandsrendite";
 export function BestandsrenditeVertiefungForm({ propertyId, existing }: { propertyId: string; existing: BestandsrenditeFacts | null }) {
   const router = useRouter();
   const [vermietungsmodell, setVermietungsmodell] = useState<Vermietungsmodell>(existing?.miete.vermietungsmodell ?? "LANGFRISTIG_UNMOEBLIERT");
+  const [renovationPositionen, setRenovationPositionen] = useState<RenovationPosition[]>(existing?.renovation.positionen ?? []);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  function updateRenovationPosition(index: number, patch: Partial<RenovationPosition>) {
+    setRenovationPositionen((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  }
+  function removeRenovationPosition(index: number) {
+    setRenovationPositionen((prev) => prev.filter((_, i) => i !== index));
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,7 +68,7 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
         notariatGrundbuchPercent: num("notariatGrundbuchPercent"),
         maklerprovisionPercent: num("maklerprovisionPercent"),
       },
-      renovation: { initialRenovationCostChf: req("initialRenovationCostChf"), positionen: existing?.renovation.positionen ?? [] },
+      renovation: { initialRenovationCostChf: req("initialRenovationCostChf"), positionen: renovationPositionen },
       moeblierung: {
         initialCostChf: req("moeblierungInitialCostChf"),
         mietPremiumChfPerMonth: req("mietPremiumChfPerMonth"),
@@ -202,10 +221,90 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
         </div>
         <div className="fieldgrid">
           <div className="field">
-            <label htmlFor="initialRenovationCostChf">Initial-Renovationskosten (CHF, 0 falls bereits saniert)</label>
+            <label htmlFor="initialRenovationCostChf">Initial-Renovationskosten gesamt (CHF, 0 falls bereits saniert)</label>
             <input id="initialRenovationCostChf" name="initialRenovationCostChf" type="number" step="500" defaultValue={existing?.renovation.initialRenovationCostChf ?? 0} />
           </div>
         </div>
+        <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: ".5rem 0" }}>
+          Nur wertvermehrende Positionen unten erhöhen den angenommenen Immobilienwert im 15-Jahres-Modell — ohne
+          Positionen bleibt der Gesamtbetrag oben nur Teil der Investitionssumme, ohne Werteffekt beim Exit.
+        </p>
+        {renovationPositionen.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: ".6rem", marginBottom: ".8rem" }}>
+            {renovationPositionen.map((p, i) => (
+              <div key={i} className="fieldgrid" style={{ alignItems: "end", border: "1px solid var(--line)", borderRadius: "6px", padding: ".6rem" }}>
+                <div className="field">
+                  <label htmlFor={`renovation-betrag-${i}`}>Betrag (CHF)</label>
+                  <input
+                    id={`renovation-betrag-${i}`}
+                    type="number"
+                    step="100"
+                    value={p.betragChf}
+                    onChange={(e) => updateRenovationPosition(i, { betragChf: Number(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor={`renovation-kategorie-${i}`}>Kategorie</label>
+                  <select
+                    id={`renovation-kategorie-${i}`}
+                    value={p.kategorie}
+                    onChange={(e) => updateRenovationPosition(i, { kategorie: e.target.value as RenovationKategorie })}
+                  >
+                    {(Object.keys(RENOVATION_KATEGORIE_LABEL) as RenovationKategorie[]).map((k) => (
+                      <option key={k} value={k}>
+                        {RENOVATION_KATEGORIE_LABEL[k]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor={`renovation-jahr-${i}`}>Jahr</label>
+                  <input
+                    id={`renovation-jahr-${i}`}
+                    type="number"
+                    step="1"
+                    value={p.jahr}
+                    onChange={(e) => updateRenovationPosition(i, { jahr: Number(e.target.value) || new Date().getFullYear() })}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor={`renovation-abzugsfaehigkeit-${i}`}>Steuerlich abzugsfähig</label>
+                  <select
+                    id={`renovation-abzugsfaehigkeit-${i}`}
+                    value={p.steuerlicheAbzugsfaehigkeit}
+                    onChange={(e) => updateRenovationPosition(i, { steuerlicheAbzugsfaehigkeit: e.target.value as SteuerlicheAbzugsfaehigkeit })}
+                  >
+                    {(Object.keys(STEUERLICHE_ABZUGSFAEHIGKEIT_LABEL) as SteuerlicheAbzugsfaehigkeit[]).map((k) => (
+                      <option key={k} value={k}>
+                        {STEUERLICHE_ABZUGSFAEHIGKEIT_LABEL[k]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field" style={{ gridColumn: "span 2" }}>
+                  <label htmlFor={`renovation-beschreibung-${i}`}>Beschreibung (optional)</label>
+                  <input
+                    id={`renovation-beschreibung-${i}`}
+                    type="text"
+                    value={p.beschreibung ?? ""}
+                    onChange={(e) => updateRenovationPosition(i, { beschreibung: e.target.value || undefined })}
+                  />
+                </div>
+                <button type="button" className="btn" style={{ width: "auto", padding: ".2rem .6rem", fontSize: ".76rem" }} onClick={() => removeRenovationPosition(i)}>
+                  Position entfernen
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className="btn"
+          style={{ width: "auto", padding: ".3rem .8rem", fontSize: ".78rem", marginBottom: "1rem" }}
+          onClick={() => setRenovationPositionen((prev) => [...prev, emptyRenovationPosition()])}
+        >
+          + Renovationsposition hinzufügen
+        </button>
 
         <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
           Betriebskosten (CHF/Jahr)
