@@ -202,7 +202,23 @@ Weiter mit demselben Muster, diesmal bei `StwegFacts` (`packages/domain/src/stwe
 
 Mit einem neuen Test abgesichert (STWEG-Fakten werden unverändert durchgereicht).
 
-## Bewusst weiterhin nicht gebaut
+## Nachgezogen (2026-08-18): grösster Fund bisher — Jahr-für-Jahr-Daten des 15-Jahres-Modells nie angezeigt
+
+Weiter mit demselben Muster: `runMehrjahresmodell` berechnet für jedes einzelne Jahr
+(5–30 Jahre) einen vollständigen `MehrjahresmodellJahrResult` mit 17 Feldern
+(Jahresertrag, NOI, Zins/Amortisation, Restschuld, Cashflow-Kaskade,
+Möblierungsersatz, kumulierter Cashflow, Immobilien-/Eigenkapitalwert, Belehnung).
+Die Analyseansicht griff bisher aber ausschliesslich auf `years[years.length - 1]`
+zu (fürs Exit-Jahr) sowie auf `years.length` (für die Panel-Überschrift) — alle
+Zwischenjahre waren vollständig unsichtbar. Der grösste Einzelfund dieser
+Review-Serie: nicht ein einzelner Wert, sondern praktisch der gesamte
+Jahr-für-Jahr-Verlauf des namensgebenden "15-Jahres-Modells".
+
+Fix: eine ein-/ausklappbare Tabelle ("Jahr-für-Jahr-Details anzeigen", `<details>`,
+standardmässig eingeklappt wegen bis zu 30 Zeilen) mit Jahresertrag, NOI,
+nachhaltigem Cashflow, kumuliertem Cashflow, Immobilienwert, Restschuld und
+Belehnung pro Jahr — plus einem Hinweis-Icon in Jahren mit fälligem
+Möblierungsersatz-Cashout.
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

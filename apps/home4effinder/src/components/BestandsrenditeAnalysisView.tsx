@@ -137,6 +137,45 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           <Metric l="Kumulierter Cashflow" v={`CHF ${formatChf(Math.round(lastYear.kumulierterCashflowChf))}`} />
         </div>
 
+        <details style={{ marginTop: "1.2rem" }}>
+          <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>Jahr-für-Jahr-Details anzeigen</summary>
+          <div style={{ overflowX: "auto", marginTop: ".6rem" }}>
+            <table className="stresstable">
+              <thead>
+                <tr>
+                  <th>Jahr</th>
+                  <th className="num">Jahresertrag (CHF)</th>
+                  <th className="num">NOI (CHF)</th>
+                  <th className="num">Nachh. Cashflow (CHF)</th>
+                  <th className="num">Kumuliert (CHF)</th>
+                  <th className="num">Immobilienwert (CHF)</th>
+                  <th className="num">Restschuld (CHF)</th>
+                  <th className="num">Belehnung</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mehrjahresmodell.years.map((y) => (
+                  <tr key={y.jahr}>
+                    <td>
+                      {y.jahr}
+                      {y.moeblierungsErsatzChf > 0 ? <InfoHint text={`Enthält Möblierungsersatz von CHF ${formatChf(Math.round(y.moeblierungsErsatzChf))} in diesem Jahr.`} /> : null}
+                    </td>
+                    <td className="num mono">{formatChf(Math.round(y.effektiverJahresertragChf))}</td>
+                    <td className="num mono">{formatChf(Math.round(y.noiChf))}</td>
+                    <td className="num mono" style={{ color: y.nachhaltigerCashflowChf >= 0 ? "var(--good)" : "var(--bad)" }}>
+                      {formatChf(Math.round(y.nachhaltigerCashflowChf))}
+                    </td>
+                    <td className="num mono">{formatChf(Math.round(y.kumulierterCashflowChf))}</td>
+                    <td className="num mono">{formatChf(Math.round(y.immobilienwertChf))}</td>
+                    <td className="num mono">{formatChf(Math.round(y.restschuldChf))}</td>
+                    <td className="num mono">{y.belehnungPercent.toFixed(0)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+
         <div className="sectionhead" style={{ marginTop: "1.2rem" }}>
           <h2 style={{ fontSize: ".85rem" }}>Investment-Treiber — Wo entsteht die Rendite?</h2>
         </div>
