@@ -68,7 +68,12 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
         notariatGrundbuchPercent: num("notariatGrundbuchPercent"),
         maklerprovisionPercent: num("maklerprovisionPercent"),
       },
-      renovation: { initialRenovationCostChf: req("initialRenovationCostChf"), positionen: renovationPositionen },
+      renovation: {
+        initialRenovationCostChf: req("initialRenovationCostChf"),
+        positionen: renovationPositionen,
+        mieteVorRenovationChfPerMonth: num("mieteVorRenovationChfPerMonth"),
+        mieteNachRenovationChfPerMonth: num("mieteNachRenovationChfPerMonth"),
+      },
       moeblierung: {
         initialCostChf: req("moeblierungInitialCostChf"),
         mietPremiumChfPerMonth: req("mietPremiumChfPerMonth"),
@@ -223,6 +228,26 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
           <div className="field">
             <label htmlFor="initialRenovationCostChf">Initial-Renovationskosten gesamt (CHF, 0 falls bereits saniert)</label>
             <input id="initialRenovationCostChf" name="initialRenovationCostChf" type="number" step="500" defaultValue={existing?.renovation.initialRenovationCostChf ?? 0} />
+          </div>
+          <div className="field">
+            <label htmlFor="mieteVorRenovationChfPerMonth">Miete vor Renovation (CHF/Monat, für Renovation-ROI)</label>
+            <input
+              id="mieteVorRenovationChfPerMonth"
+              name="mieteVorRenovationChfPerMonth"
+              type="number"
+              step="10"
+              defaultValue={existing?.renovation.mieteVorRenovationChfPerMonth}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="mieteNachRenovationChfPerMonth">Erzielbare Miete nach Renovation (CHF/Monat)</label>
+            <input
+              id="mieteNachRenovationChfPerMonth"
+              name="mieteNachRenovationChfPerMonth"
+              type="number"
+              step="10"
+              defaultValue={existing?.renovation.mieteNachRenovationChfPerMonth}
+            />
           </div>
         </div>
         <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: ".5rem 0" }}>

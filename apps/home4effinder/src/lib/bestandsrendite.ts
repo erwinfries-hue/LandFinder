@@ -16,6 +16,7 @@ import {
 } from "@landfinder/financial-engine";
 import {
   calculateFurnitureRoi,
+  calculateRenovationRoi,
   summarizeRenovationPositionen,
   type RenovationPosition,
   type ValueAddRoiResult,
@@ -50,6 +51,9 @@ export interface BestandsrenditeFacts {
   renovation: {
     initialRenovationCostChf: number;
     positionen: RenovationPosition[];
+    /** Für den Renovation-ROI (Mehrertrag ÷ Kosten) — beide optional, ohne sie kein ROI berechenbar. */
+    mieteVorRenovationChfPerMonth?: number;
+    mieteNachRenovationChfPerMonth?: number;
   };
 
   moeblierung: {
@@ -215,7 +219,16 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   const investmentCase = calculateInvestmentCase(investmentCaseInput);
 
   const furnitureRoi = facts.moeblierung.initialCostChf > 0 ? calculateFurnitureRoi({ moeblierungInitialChf: facts.moeblierung.initialCostChf, mietPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth }) : undefined;
-  const renovationRoi = undefined; // Braucht Miete vor/nach Renovation — optionaler Nutzer-Input, siehe UI (Formular fragt danach, sonst kein ROI berechenbar).
+  const renovationRoi =
+    facts.renovation.initialRenovationCostChf > 0 &&
+    facts.renovation.mieteVorRenovationChfPerMonth !== undefined &&
+    facts.renovation.mieteNachRenovationChfPerMonth !== undefined
+      ? calculateRenovationRoi({
+          renovationCostChf: facts.renovation.initialRenovationCostChf,
+          mieteVorherChfPerMonth: facts.renovation.mieteVorRenovationChfPerMonth,
+          mieteNachherChfPerMonth: facts.renovation.mieteNachRenovationChfPerMonth,
+        })
+      : undefined;
 
   const mehrjahresmodellInput = {
     holdingPeriodYears: facts.mehrjahresmodell.holdingPeriodYears ?? P.holdingPeriodYearsDefault.defaultValue,
@@ -318,6 +331,8 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
       renovation: {
         initialRenovationCostChf: num(renovation.initialRenovationCostChf) ?? 0,
         positionen: Array.isArray(renovation.positionen) ? (renovation.positionen as RenovationPosition[]) : [],
+        mieteVorRenovationChfPerMonth: num(renovation.mieteVorRenovationChfPerMonth),
+        mieteNachRenovationChfPerMonth: num(renovation.mieteNachRenovationChfPerMonth),
       },
       moeblierung: {
         initialCostChf: num(moeblierung.initialCostChf) ?? 0,

@@ -10,7 +10,7 @@ import type { BestandsrenditeAnalysisResult } from "@/lib/bestandsrendite";
  * Client-Live-Recompute nötig.
  */
 export function BestandsrenditeAnalysisView({ result }: { result: BestandsrenditeAnalysisResult }) {
-  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, breakEven } = result;
+  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, renovationRoi, breakEven } = result;
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
 
   return (
@@ -98,6 +98,19 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
             <Metric l="Zusätzlicher Jahresertrag" v={`CHF ${formatChf(Math.round(furnitureRoi.zusaetzlicherJahresertragChf))}`} />
             <Metric l="Furniture ROI" v={`${furnitureRoi.roiPercent.toFixed(1)}%`} />
             <Metric l="Payback" v={furnitureRoi.paybackYears !== undefined ? `${furnitureRoi.paybackYears.toFixed(1)} Jahre` : "—"} />
+          </div>
+        </Panel>
+      ) : null}
+
+      {renovationRoi ? (
+        <Panel style={{ padding: "1.2rem 1.3rem", marginTop: "1.4rem" }}>
+          <div className="sectionhead">
+            <h2>Value-Add — Renovation</h2>
+          </div>
+          <div className="metricgrid">
+            <Metric l="Zusätzlicher Jahresertrag" v={`CHF ${formatChf(Math.round(renovationRoi.zusaetzlicherJahresertragChf))}`} />
+            <Metric l="Renovation ROI" v={`${renovationRoi.roiPercent.toFixed(1)}%`} />
+            <Metric l="Payback" v={renovationRoi.paybackYears !== undefined ? `${renovationRoi.paybackYears.toFixed(1)} Jahre` : "—"} />
           </div>
         </Panel>
       ) : null}

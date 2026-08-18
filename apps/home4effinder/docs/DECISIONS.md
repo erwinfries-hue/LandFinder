@@ -107,7 +107,16 @@ dadurch konservativ, nicht falsch), aber ein unnötig unvollständiges Bild. Fix
 Renovationspositionen (Betrag, Kategorie werterhaltend/wertvermehrend/energetisch,
 Jahr, steuerliche Abzugsfähigkeit, optionale Beschreibung) — der Gesamtbetrag bleibt
 zusätzlich als schneller Pflichtwert für die Investitionssumme erhalten, auch ohne
-itemisierte Aufschlüsselung.
+itemisierte Aufschlüsselung. Mit drei neuen Tests verifiziert, u.a. dass eine
+wertvermehrende Position den Immobilienwert im Mehrjahresmodell tatsächlich erhöht,
+eine werterhaltende nicht.
+
+Bei derselben Gelegenheit auch die Renovation-ROI-Anzeige nachgezogen: zwei neue,
+optionale Felder ("Miete vor Renovation" / "erzielbare Miete nach Renovation") im
+selben Formularabschnitt füttern `calculateRenovationRoi`
+(`packages/financial-engine`, existierte bereits, wurde aber nie aufgerufen) — die
+Analyseansicht zeigt jetzt einen "Value-Add — Renovation"-Block analog zum
+bestehenden Möblierungs-Block, sobald beide Mietwerte gesetzt sind.
 
 ## Bewusst weiterhin nicht gebaut
 
@@ -115,6 +124,3 @@ itemisierte Aufschlüsselung.
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
 - Automatisierte Objekt-Erfassung (kein Portal-Scraping/E-Mail-Ingestion wie bei
   LandFinder) — Objekte werden ausschliesslich manuell erfasst.
-- Renovation-ROI-Anzeige (`renovationRoi` in `bestandsrendite.ts` bleibt bewusst
-  `undefined`) — bräuchte Miete vor/nach Renovation als zusätzlichen Nutzer-Input,
-  den das Formular aktuell nicht abfragt.

@@ -47,12 +47,15 @@ describe("parseBestandsrenditeFacts", () => {
       kalkulatorischerSteuersatzPercent: 30,
       nebenkosten: { handaenderungssteuerPercent: 1.5 },
       moeblierung: { initialCostChf: 12_000, mietPremiumChfPerMonth: 300 },
+      renovation: { initialRenovationCostChf: 25_000, mieteVorRenovationChfPerMonth: 1_200, mieteNachRenovationChfPerMonth: 1_450 },
     });
     expect("facts" in result).toBe(true);
     if ("facts" in result) {
       expect(result.facts.kalkulatorischerSteuersatzPercent).toBe(30);
       expect(result.facts.nebenkosten.handaenderungssteuerPercent).toBe(1.5);
       expect(result.facts.moeblierung.initialCostChf).toBe(12_000);
+      expect(result.facts.renovation.mieteVorRenovationChfPerMonth).toBe(1_200);
+      expect(result.facts.renovation.mieteNachRenovationChfPerMonth).toBe(1_450);
     }
   });
 });
@@ -111,6 +114,32 @@ describe("computeBestandsrenditeAnalysis", () => {
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, noExtras);
     expect(result.furnitureRoi).toBeUndefined();
     expect(result.allInInvestitionChf).toBeLessThan(computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts).allInInvestitionChf);
+  });
+
+  it("ohne Miete vor/nach Renovation bleibt renovationRoi undefined, obwohl Renovationskosten gesetzt sind", () => {
+    const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    expect(result.renovationRoi).toBeUndefined();
+  });
+
+  it("berechnet renovationRoi aus Miete vor/nach Renovation, sobald beide gesetzt sind", () => {
+    const withRenovationRent: BestandsrenditeFacts = {
+      ...fullFacts,
+      renovation: { ...fullFacts.renovation, mieteVorRenovationChfPerMonth: 1_200, mieteNachRenovationChfPerMonth: 1_450 },
+    };
+    const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, withRenovationRent);
+    expect(result.renovationRoi).toBeDefined();
+    expect(result.renovationRoi!.zusaetzlicherJahresertragChf).toBeCloseTo((1_450 - 1_200) * 12, 5);
+    expect(result.renovationRoi!.roiPercent).toBeCloseTo(((1_450 - 1_200) * 12 * 100) / 25_000, 5);
+  });
+
+  it("wertvermehrende Renovationspositionen erhöhen den Immobilienwert im Mehrjahresmodell (Jahr 1), werterhaltende nicht", () => {
+    const werterhaltend = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    const wertvermehrend: BestandsrenditeFacts = {
+      ...fullFacts,
+      renovation: { initialRenovationCostChf: 25_000, positionen: [{ betragChf: 25_000, kategorie: "WERTVERMEHREND", jahr: 2026, steuerlicheAbzugsfaehigkeit: "UNKLAR" }] },
+    };
+    const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, wertvermehrend);
+    expect(result.mehrjahresmodell.years[0].immobilienwertChf).toBeGreaterThan(werterhaltend.mehrjahresmodell.years[0].immobilienwertChf);
   });
 });
 
