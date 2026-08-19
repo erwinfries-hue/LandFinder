@@ -747,6 +747,14 @@ table.sortable th {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  /* Bleibt beim Scrollen der (potenziell langen) .main-Spalte im Viewport fixiert, statt
+     mitzuscrollen — die mobile mit `position: fixed` überlagerte Drawer-Variante weiter
+     unten (max-width: 980px) überschreibt das ohnehin vollständig. */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
 }
 .side-headrow {
   display: flex;
