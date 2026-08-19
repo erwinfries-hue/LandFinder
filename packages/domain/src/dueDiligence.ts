@@ -112,6 +112,13 @@ export interface DueDiligenceCategoryResult {
 /** Ergebnis der Stufe-2-Synthese über alle hochgeladenen Dokumente eines Objekts hinweg. */
 export interface DueDiligenceResult {
   overallStatus: DueDiligenceSeverity;
+  /**
+   * 2-4 Sätze Gesamteinschätzung in Fliesstext (z.B. "Interessantes Renditeobjekt, aber
+   * nur zu einem disziplinierten Kaufpreis — …") — fasst zusammen, was die Kategorien
+   * unten im Detail zeigen, damit man nicht erst alle Kategorien öffnen muss, um das
+   * Gesamtbild zu bekommen. Kann leer sein (z.B. wenn noch keine Dokumente vorliegen).
+   */
+  overallSummary: string;
   categories: DueDiligenceCategoryResult[];
   missingDocuments: DueDiligenceMissingDocument[];
   sellerQuestions: DueDiligenceSellerQuestion[];
