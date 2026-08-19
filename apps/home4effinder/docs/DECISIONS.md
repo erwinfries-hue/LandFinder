@@ -381,6 +381,54 @@ Anhand von Vercel-Server-Logs diagnostiziert (der Auftraggeber hat sie direkt ko
   nicht — jetzt nur noch `${propertyId}/${uuid}.pdf`. Betraf beide Upload-Routen
   (`documents/route.ts` und das neue `documents/attach/route.ts`).
 
+## Nachgezogen (2026-08-19): Objekt-Erfassung, Bestandsrendite-Fakten und Due-Diligence in einem Flow zusammengefasst
+
+Auftrag: "wenn beim Projekt anlegen schon möglichst viele Unterlagen hochgeladen werden
+können, um dann alle folgenden Felder entsprechend aufgrund der Informationen automatisch
+abgefüllt werden ... Sollten die Unterlagen für die Due Diligence ebenso vorhanden sein,
+diese Information ebenso in diesem Schritt verarbeiten und die Due Diligence vorbereitet
+zur Verfügung stellen." Vorab abgestimmt: fehlende Felder werden direkt im selben, grossen
+Formular abgefragt (keine separate Dialog-Lösung nur für die Lücken).
+
+Bisheriger Ablauf war dreistufig (Objekt anlegen → auf der Objektseite Bestandsrendite-
+Fakten erfassen → dort separat Dokumente hochladen und "Due-Diligence aktualisieren"
+klicken). Jetzt ein einziger Schritt auf `/neu`:
+
+- **`BestandsrenditeFactsFields`** (neue Komponente) — die komplette Bestandsrendite-
+  Fakten-Feldmenge aus `BestandsrenditeVertiefungForm` extrahiert, OHNE eigenes `<form>`
+  und Submit-Button (HTML erlaubt keine verschachtelten Formulare), damit sie sowohl auf
+  der Objekt-Bearbeiten-Seite als auch im neuen kombinierten Erfassen-Formular verwendet
+  werden kann. `BestandsrenditeVertiefungForm` selbst ist jetzt nur noch ein dünner
+  Wrapper (State + PATCH-Request), Verhalten für bestehende Objekte unverändert.
+- **`buildBestandsrenditeFactsFromFormData`** (neue, gemeinsam genutzte Funktion,
+  `bestandsrenditeFormParsing.ts`) — die FormData-Auswertungslogik war zuvor 1:1 im
+  Bearbeiten-Formular dupliziert, jetzt eine Quelle für beide Flows.
+- **`BESTANDSRENDITE_KNOWN_FIELD_LABELS`** (neue, gemeinsam genutzte Liste,
+  `bestandsrenditeKnownFields.ts`) — die Feldpfade/Labels für Feldwert-Übernahmevorschläge
+  waren bisher nur serverseitig in der objektgebundenen Due-Diligence-Route dupliziert;
+  jetzt dieselbe Liste auch client-seitig im neuen Erfassen-Flow nutzbar, mit Test, der
+  Drift zu `ALLOWED_UPDATE_FIELDS` verhindert.
+- **Neue, zustandslose Route `POST /api/properties/prefill-synthesis`** — ruft dieselbe
+  reine Funktion `synthesizeDueDiligence` (Stufe 2) auf wie die reguläre, objektgebundene
+  Route, aber mit Dokumenten, die noch nicht in der DB liegen (jeweils schon einzeln über
+  `/api/properties/prefill` analysiert). Läuft im neuen Formular automatisch nach jeder
+  Dokumenten-Analyse — die zurückgegebenen `fieldUpdateProposals` füllen die
+  Bestandsrendite-Fakten-Felder vor (mit Label-Hinweis "aus Dokument: …", damit die
+  Herkunft transparent bleibt).
+- **Neue Route `POST /api/properties/[id]/due-diligence/save-prefilled`** — persistiert
+  das bereits vor dem Anlegen berechnete Synthese-Ergebnis beim tatsächlichen Speichern,
+  ohne Claude ein zweites Mal aufzurufen (läuft durch denselben defensiven Parser wie eine
+  frische Antwort, analog zu `documents/attach/route.ts`). Die Due-Diligence-Prüfung steht
+  damit auf der Objektseite sofort bereit, wenn beim Anlegen Dokumente hochgeladen wurden.
+- **Bewusste Vereinfachung:** die Bestandsrendite-Felder bleiben unkontrollierte Inputs
+  (`defaultValue`, wie im gesamten Formular). Trifft eine neue Dokumenten-Analyse ein,
+  wird `BestandsrenditeFactsFields` per `key` neu gemountet, damit die aktualisierten
+  Vorschlagswerte sichtbar werden — das setzt auch bereits manuell eingetippte Werte in
+  diesen Feldern zurück. Empfohlene Reihenfolge daher: zuerst alle Dokumente hochladen,
+  danach die restlichen Lücken von Hand ergänzen, nicht umgekehrt. Ein sauberer nächster
+  Ausbauschritt wäre ein Live-"überschrieben"-Badge (wie schon beim vorigen Nachtrag
+  vermerkt), das dieses Risiko eliminieren würde.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.

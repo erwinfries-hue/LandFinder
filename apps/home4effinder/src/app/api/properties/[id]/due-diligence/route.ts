@@ -4,30 +4,20 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { hasValidSession } from "@/lib/authSession";
 import { AnthropicNotConfiguredError } from "@/lib/dueDiligenceExtraction";
 import { synthesizeDueDiligence, type SynthesisDocumentInput, type SynthesisKnownFact, type SynthesisKnownField } from "@/lib/dueDiligenceSynthesis";
+import { BESTANDSRENDITE_KNOWN_FIELD_LABELS } from "@/lib/bestandsrenditeKnownFields";
 
 export const maxDuration = 60;
 
-/** Feldpfade, die Claude für Feldwert-Übernahmevorschläge referenzieren darf — muss mit `BestandsrenditeFacts` (bestandsrendite.ts, `ALLOWED_UPDATE_FIELDS`) übereinstimmen. */
+/** Feldpfade, die Claude für Feldwert-Übernahmevorschläge referenzieren darf — Labels aus der gemeinsamen Liste (muss mit `ALLOWED_UPDATE_FIELDS` in bestandsrendite.ts übereinstimmen), aktuelle Werte aus den bereits erfassten Facts dieses Objekts. */
 function buildKnownFields(facts: Record<string, unknown> | null): SynthesisKnownField[] {
   const f = (facts ?? {}) as Record<string, unknown>;
-  const nested = (group: string): Record<string, unknown> | undefined => f[group] as Record<string, unknown> | undefined;
-  const val = (obj: Record<string, unknown> | undefined, key: string): number | string | undefined => {
-    const v = obj?.[key];
-    return typeof v === "number" || typeof v === "string" ? v : undefined;
-  };
-  return [
-    { field: "zimmerzahl", label: "Zimmerzahl", currentValue: val(f, "zimmerzahl") },
-    { field: "baujahr", label: "Baujahr", currentValue: val(f, "baujahr") },
-    { field: "parkplatzKaufpreisChf", label: "Parkplatz-Kaufpreis (CHF)", currentValue: val(f, "parkplatzKaufpreisChf") },
-    { field: "miete.wohnungsMieteChfPerMonth", label: "Nettomiete Wohnung (CHF/Monat)", currentValue: val(nested("miete"), "wohnungsMieteChfPerMonth") },
-    { field: "miete.parkplatzMieteChfPerMonth", label: "Miete Parkplatz (CHF/Monat)", currentValue: val(nested("miete"), "parkplatzMieteChfPerMonth") },
-    { field: "miete.sonstigeEinnahmenChfPerYear", label: "Sonstige Einnahmen (CHF/Jahr)", currentValue: val(nested("miete"), "sonstigeEinnahmenChfPerYear") },
-    { field: "miete.leerstandPercent", label: "Leerstand (%)", currentValue: val(nested("miete"), "leerstandPercent") },
-    { field: "betriebskosten.stwegAkontobeitragChfPerYear", label: "STWEG-Akontobeitrag (CHF/Jahr)", currentValue: val(nested("betriebskosten"), "stwegAkontobeitragChfPerYear") },
-    { field: "stweg.erneuerungsfondsSaldoChf", label: "Erneuerungsfonds-Saldo (CHF)", currentValue: val(nested("stweg"), "erneuerungsfondsSaldoChf") },
-    { field: "stweg.erneuerungsfondsZielwertChf", label: "Erneuerungsfonds-Zielwert (CHF)", currentValue: val(nested("stweg"), "erneuerungsfondsZielwertChf") },
-    { field: "stweg.wertquotePromille", label: "Wertquote (Promille)", currentValue: val(nested("stweg"), "wertquotePromille") },
-  ];
+  return BESTANDSRENDITE_KNOWN_FIELD_LABELS.map(({ field, label }) => {
+    const [group, key] = field.includes(".") ? (field.split(".") as [string, string]) : [undefined, field];
+    const source = group ? ((f[group] as Record<string, unknown> | undefined) ?? {}) : f;
+    const v = source[key];
+    const currentValue = typeof v === "number" || typeof v === "string" ? v : undefined;
+    return { field, label, currentValue };
+  });
 }
 
 function buildKnownFacts(property: { address_text: string; canton: string; asking_price_chf: number; wohnflaeche_m2: number }): SynthesisKnownFact[] {

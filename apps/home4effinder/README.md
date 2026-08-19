@@ -9,18 +9,22 @@ Datenbank, eigener Login. Details zur Trennung und den getroffenen MVP-Entscheid
 
 ## Was die App kann
 
-1. **Objekt erfassen** (`/neu`) — Adresse, Kanton, Kaufpreis, Wohnfläche; optional vorab aus
-   einem hochgeladenen Exposé/Inserat (oder anderen Dokumenten) automatisch vorausgefüllt.
-   Zusätzlich ein rein informativer, nie automatisch abgerufener Inserat-Link.
-2. **Bestandsrendite-Fakten erfassen** (auf der Objektseite) — Miete, Betriebskosten,
-   STWEG-Fakten, Hypothek, Möblierung/Renovation, 15-Jahres-Annahmen.
-3. **Automatische Renditeanalyse** in drei Ebenen: Schnellcheck (Brutto-/Nettorendite),
+1. **Objekt + Bestandsrendite-Fakten in einem Schritt erfassen** (`/neu`) — optional
+   zuerst Exposé/Inserat UND/ODER Due-Diligence-Unterlagen (STWEG-Protokoll, Mietvertrag,
+   Grundbuchauszug, …) hochladen: Objekt-Basisdaten (Adresse/Kanton/Kaufpreis/Wohnfläche)
+   UND möglichst viele Bestandsrendite-Fakten (Miete, STWEG-Werte, …) werden daraus
+   automatisch vorausgefüllt, was sich nicht ableiten liess bleibt ein normales, leeres
+   Feld im selben Formular. Zusätzlich ein rein informativer, nie automatisch abgerufener
+   Inserat-Link.
+2. **Automatische Renditeanalyse** in drei Ebenen: Schnellcheck (Brutto-/Nettorendite),
    Investment Case (5-stufige Cashflow-Kaskade, Break-even-Werte), 15-Jahres-Modell
    (Levered/Unlevered IRR, Equity Multiple, Investment-Treiber-Attribution).
-4. **Dokumenten-KI / Due-Diligence** — PDF-Upload (STWEG-Protokolle, Jahresrechnung,
+3. **Dokumenten-KI / Due-Diligence** — PDF-Upload (STWEG-Protokolle, Jahresrechnung,
    Mietverträge, Grundbuchauszug, …), automatische Extraktion je Dokument via Claude,
    Cross-Dokument-Synthese (Kategorien-Ampel, Widersprüche, fehlende Dokumente,
-   Rückfragen an Verkäufer/Makler inkl. E-Mail-Export, Feldwert-Übernahmevorschläge).
+   Rückfragen an Verkäufer/Makler inkl. E-Mail-Export, Feldwert-Übernahmevorschläge) —
+   läuft, wenn beim Anlegen schon Dokumente hochgeladen wurden, direkt mit und steht auf
+   der Objektseite sofort bereit, statt manuell angestossen werden zu müssen.
 
 ## Struktur
 
