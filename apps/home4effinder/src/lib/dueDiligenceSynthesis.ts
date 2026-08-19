@@ -12,6 +12,7 @@ import type {
 } from "@landfinder/domain";
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
 import { AnthropicNotConfiguredError } from "./dueDiligenceExtraction";
+import { extractFirstJsonObject } from "./extractJsonObject";
 
 /**
  * Stufe 2 der Dokumenten-KI (apps/home4effinder/docs/DECISIONS.md): Synthese über alle
@@ -240,8 +241,8 @@ export async function synthesizeDueDiligence(
   const textBlock = response.content.find((block) => block.type === "text");
   if (!textBlock || textBlock.type !== "text") throw new Error("Keine Text-Antwort von Anthropic erhalten");
 
-  const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Keine JSON-Struktur in der Anthropic-Antwort gefunden");
+  const json = extractFirstJsonObject(textBlock.text);
+  if (!json) throw new Error("Keine JSON-Struktur in der Anthropic-Antwort gefunden");
 
-  return parseSynthesisResponse(jsonMatch[0], documents, knownFields);
+  return parseSynthesisResponse(json, documents, knownFields);
 }

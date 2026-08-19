@@ -54,7 +54,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!property) return NextResponse.json({ error: "property not found" }, { status: 404 });
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const storagePath = `${propertyId}/${crypto.randomUUID()}-${file.name}`;
+  // Storage-Key bewusst ohne den Original-Dateinamen (der wird separat in
+  // `original_filename` gespeichert) — Supabase Storage lehnt manche Zeichen darin
+  // (Leerzeichen, Umlaute/Akzente) mit "InvalidKey" ab, in Produktion beobachtet bei
+  // z.B. "PDF Exposé.pdf".
+  const storagePath = `${propertyId}/${crypto.randomUUID()}.pdf`;
 
   const { error: uploadError } = await supabase.storage.from("property-documents").upload(storagePath, bytes, { contentType: "application/pdf" });
   if (uploadError) {

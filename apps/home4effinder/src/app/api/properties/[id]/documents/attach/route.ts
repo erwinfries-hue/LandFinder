@@ -61,7 +61,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!property) return NextResponse.json({ error: "property not found" }, { status: 404 });
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const storagePath = `${propertyId}/${crypto.randomUUID()}-${file.name}`;
+  // Siehe Kommentar in documents/route.ts — Storage-Key bewusst ohne Original-Dateinamen.
+  const storagePath = `${propertyId}/${crypto.randomUUID()}.pdf`;
 
   const { error: uploadError } = await supabase.storage.from("property-documents").upload(storagePath, bytes, { contentType: "application/pdf" });
   if (uploadError) {
