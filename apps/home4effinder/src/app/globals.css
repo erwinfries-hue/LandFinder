@@ -327,6 +327,25 @@ button {
     transform: translateX(-50%);
   }
 }
+/* Sichtbarer Lade-Indikator für laufende Dokumentenanalysen (Claude-Aufrufe können
+   deutlich länger als eine Sekunde dauern — ohne diesen Spinner sah ein "läuft noch"
+   wie ein hängender/fehlgeschlagener Request aus). */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spinner {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: -0.15em;
+  margin-right: 0.35em;
+}
 .ticker-group {
   display: flex;
   align-items: center;

@@ -173,7 +173,14 @@ export function DueDiligencePanel({
           <input id="files" name="files" type="file" accept="application/pdf" multiple />
         </div>
         <button type="submit" className="btn" style={{ width: "auto" }} disabled={uploading}>
-          {uploading ? "Lädt hoch…" : "Hochladen"}
+          {uploading ? (
+            <>
+              <span className="spinner" aria-hidden="true" />
+              Lädt hoch…
+            </>
+          ) : (
+            "Hochladen"
+          )}
         </button>
       </form>
 
@@ -182,9 +189,19 @@ export function DueDiligencePanel({
           {uploads.map((u) => (
             <li key={u.filename} style={{ fontSize: ".8125rem", display: "flex", gap: ".5rem", alignItems: "center" }}>
               <Chip tone={u.status === "DONE" ? "good" : u.status === "FAILED" ? "bad" : "neutral"}>
-                {u.status === "UPLOADING" ? "Lädt…" : u.status === "DONE" ? "Analysiert" : "Fehler"}
+                {u.status === "UPLOADING" ? (
+                  <>
+                    <span className="spinner" aria-hidden="true" />
+                    Lädt…
+                  </>
+                ) : u.status === "DONE" ? (
+                  "Analysiert"
+                ) : (
+                  "Fehler"
+                )}
               </Chip>
               {u.filename}
+              {u.status === "UPLOADING" ? <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>kann bis zu einer Minute dauern…</span> : null}
               {u.error ? <span style={{ color: "var(--bad)" }}>— {u.error}</span> : null}
             </li>
           ))}
@@ -228,7 +245,14 @@ export function DueDiligencePanel({
 
       <div className="wizard-actions" style={{ marginBottom: result ? "1.4rem" : 0 }}>
         <button type="button" className="btn" style={{ width: "auto" }} disabled={synthesizing || initialDocuments.length === 0} onClick={handleSynthesize}>
-          {synthesizing ? "Analysiert…" : "Due-Diligence aktualisieren"}
+          {synthesizing ? (
+            <>
+              <span className="spinner" aria-hidden="true" />
+              Analysiert…
+            </>
+          ) : (
+            "Due-Diligence aktualisieren"
+          )}
         </button>
         {initialDueDiligence?.generated_at ? (
           <span style={{ color: "var(--ink-faint)", fontSize: ".78rem" }}>Zuletzt aktualisiert: {formatDateTime(initialDueDiligence.generated_at)}</span>

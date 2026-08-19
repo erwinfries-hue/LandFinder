@@ -162,7 +162,14 @@ export function PropertyCreateForm() {
             <input id="prefillFiles" name="prefillFiles" type="file" accept="application/pdf" multiple />
           </div>
           <button type="submit" className="btn" style={{ width: "auto" }} disabled={analyzing}>
-            {analyzing ? "Analysiert…" : "Analysieren"}
+            {analyzing ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                Analysiert…
+              </>
+            ) : (
+              "Analysieren"
+            )}
           </button>
         </form>
         {prefillFiles.length > 0 ? (
@@ -170,9 +177,21 @@ export function PropertyCreateForm() {
             {prefillFiles.map((p, i) => (
               <li key={i} style={{ fontSize: ".8125rem", display: "flex", gap: ".5rem", alignItems: "center" }}>
                 <Chip tone={p.status === "DONE" ? "good" : p.status === "FAILED" ? "bad" : "neutral"}>
-                  {p.status === "ANALYZING" ? "Analysiert…" : p.status === "DONE" ? "Analysiert" : "Fehler"}
+                  {p.status === "ANALYZING" ? (
+                    <>
+                      <span className="spinner" aria-hidden="true" />
+                      Analysiert…
+                    </>
+                  ) : p.status === "DONE" ? (
+                    "Analysiert"
+                  ) : (
+                    "Fehler"
+                  )}
                 </Chip>
                 {p.file.name}
+                {p.status === "ANALYZING" ? (
+                  <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>kann bis zu einer Minute dauern…</span>
+                ) : null}
                 {p.error ? <span style={{ color: "var(--bad)" }}>— {p.error}</span> : null}
               </li>
             ))}
@@ -246,7 +265,14 @@ export function PropertyCreateForm() {
 
         <div className="wizard-actions">
           <button type="submit" className="btn" style={{ width: "auto" }} disabled={saving}>
-            {saving ? "Legt an…" : "Objekt anlegen"}
+            {saving ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                Legt an…
+              </>
+            ) : (
+              "Objekt anlegen"
+            )}
           </button>
         </div>
       </form>
