@@ -502,6 +502,28 @@ Marktvergleich-Feld ja").
   erst als Rechercheschritt nach dem Anlegen, nicht beim ersten Erfassen; das ohnehin schon
   dichte Formular bleibt dadurch unverändert.
 
+## Nachgezogen (2026-08-19): Objektvergleich (`/vergleich`)
+
+Der Auftraggeber hatte bereits bei der ursprünglichen Deep-Dive-Vorschau angekündigt,
+dass Objekte im Tool auch verglichen werden sollen — jetzt als eigene Seite umgesetzt,
+direkt im Anschluss an Score und Marktvergleich-Feld ("ja mergen bitte und dann direkt
+zu Punkt 2").
+
+- **`/vergleich`** (neue Route, `SideNav`-Eintrag mit dem bereits für LandFinder
+  reservierten "scale"-Icon) — eine Zeile pro Objekt (Adresse/Kanton/Wohnfläche,
+  Kaufpreis, CHF/m², Bruttorendite, DD-Gesamtstatus-Ampel, Investment-Score), per Klick
+  (natives `<details>`, kein Client-JS nötig) aufklappbar zur Gesamteinschätzung in Prosa
+  und zum Link auf die vollständige Objektseite — dasselbe Kennzahlenzeile-zuerst-
+  Detail-auf-Klick-Muster wie in der ursprünglichen Deep-Dive-Vorschau skizziert, nur
+  jetzt über mehrere Objekte statt innerhalb eines einzelnen.
+- Sortierung: bester Investment-Score zuerst; Objekte ohne Score (keine
+  Due-Diligence-Synthese gelaufen) danach, untereinander nach Erfassungsdatum. Objekte
+  ohne Bestandsrendite-Fakten erscheinen trotzdem mit den verfügbaren Basisdaten, Rest
+  als „—" statt sie auszublenden.
+- Bewusst keine Auswahl/Filterung eingebaut (immer alle Objekte) — für ein privates
+  Instrument mit überschaubarer Objektzahl reicht das; würde die Liste grösser, wäre ein
+  Filter der naheliegende nächste Ausbauschritt.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
