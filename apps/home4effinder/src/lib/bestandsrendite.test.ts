@@ -171,4 +171,16 @@ describe("isAllowedUpdateField / applyFieldUpdate", () => {
     const updated = applyFieldUpdate(facts, "miete.wohnungsMieteChfPerMonth", 1300);
     expect(updated.renovation).toEqual({ initialRenovationCostChf: 5_000 });
   });
+
+  it("erlaubt auch Feldpfade ohne Punkt (liegen direkt auf der Wurzel von facts)", () => {
+    expect(isAllowedUpdateField("zimmerzahl")).toBe(true);
+    expect(isAllowedUpdateField("baujahr")).toBe(true);
+    expect(isAllowedUpdateField("parkplatzKaufpreisChf")).toBe(true);
+  });
+
+  it("setzt ein Feld ohne Punkt direkt auf der Wurzel, ohne andere Felder anzutasten", () => {
+    const facts = { zimmerzahl: 3, miete: { wohnungsMieteChfPerMonth: 1200 } };
+    const updated = applyFieldUpdate(facts, "baujahr", 1998);
+    expect(updated).toEqual({ zimmerzahl: 3, baujahr: 1998, miete: { wohnungsMieteChfPerMonth: 1200 } });
+  });
 });

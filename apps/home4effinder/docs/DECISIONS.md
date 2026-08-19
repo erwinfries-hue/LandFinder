@@ -297,6 +297,25 @@ stehen, das ohnehin für die Due-Diligence hochgeladen wird.
 - Migration `0002_listing_url.sql` — additiv (`alter table ... add column if not exists`),
   da `0001_init.sql` bereits gegen die produktive Datenbank gelaufen war.
 
+## Nachgezogen (2026-08-19): Ladespinner + Feldwert-Übernahmevorschläge auf mehr Felder ausgeweitet
+
+Zwei weitere Funde aus dem echten Live-Betrieb:
+
+- **Kein visuelles Feedback bei laufender Analyse:** ein Dokument, das noch von Claude
+  analysiert wird, zeigte nur einen statischen Text ("Analysiert…") ohne jede Animation —
+  sah aus wie ein hängender/fehlgeschlagener Request, obwohl eine Analyse legitim bis zu
+  einer Minute dauern kann. Reiner CSS-Spinner ergänzt, auf allen Buttons/Status-Chips, die
+  einen laufenden Claude-Aufruf abbilden.
+- **Feldwert-Übernahmevorschläge deckten nur 6 von 11 sinnvollen Feldern ab:** die
+  bestehende "Erkannte Werte zur Übernahme"-Funktion (Due-Diligence-Synthese →
+  `fieldUpdateProposals`) kannte Zimmerzahl, Baujahr, Parkplatz-Kaufpreis, sonstige
+  Einnahmen und Leerstand nicht — obwohl diese Werte oft aus Exposé/Mietvertrag/Grundriss
+  hervorgehen. `ALLOWED_UPDATE_FIELDS` (bestandsrendite.ts) und `buildKnownFields`
+  (due-diligence/route.ts) um diese fünf Felder erweitert. Dabei `applyFieldUpdate` so
+  angepasst, dass es neben `gruppe.feld`-Pfaden (verschachtelt) auch Feldpfade ohne Punkt
+  (`zimmerzahl`, `baujahr`, `parkplatzKaufpreisChf` — liegen direkt auf der Wurzel von
+  `BestandsrenditeFacts`) korrekt setzt.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.

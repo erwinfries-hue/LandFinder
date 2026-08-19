@@ -401,8 +401,13 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
  * unbemerkt eine falsche Stelle im Facts-Objekt beschreibt.
  */
 const ALLOWED_UPDATE_FIELDS = [
+  "zimmerzahl",
+  "baujahr",
+  "parkplatzKaufpreisChf",
   "miete.wohnungsMieteChfPerMonth",
   "miete.parkplatzMieteChfPerMonth",
+  "miete.sonstigeEinnahmenChfPerYear",
+  "miete.leerstandPercent",
   "betriebskosten.stwegAkontobeitragChfPerYear",
   "stweg.erneuerungsfondsSaldoChf",
   "stweg.erneuerungsfondsZielwertChf",
@@ -420,8 +425,11 @@ export function isAllowedUpdateField(field: string): field is AllowedUpdateField
  * Bestandsrendite-Facts-Objekt an — nie automatisch, nur nach explizitem "übernehmen"
  * (apps/home4effinder/docs/DECISIONS.md: "Keine Werte stillschweigend überschreiben").
  * Erstellt fehlende Zwischenobjekte (z.B. `stweg`), überschreibt nur das eine Blattfeld.
+ * Felder ohne Punkt (z.B. "zimmerzahl") liegen direkt auf der Wurzel von `facts`, statt
+ * in einer Untergruppe.
  */
 export function applyFieldUpdate(facts: Record<string, unknown>, field: AllowedUpdateField, newValue: string | number): Record<string, unknown> {
+  if (!field.includes(".")) return { ...facts, [field]: newValue };
   const [group, key] = field.split(".") as [string, string];
   const existingGroup = (facts[group] as Record<string, unknown> | undefined) ?? {};
   return { ...facts, [group]: { ...existingGroup, [key]: newValue } };
