@@ -10,7 +10,7 @@ import type { PropertyRow } from "@/lib/properties";
 export function PropertyEditForm({
   property,
 }: {
-  property: Pick<PropertyRow, "id" | "address_text" | "canton" | "asking_price_chf" | "wohnflaeche_m2" | "listing_url">;
+  property: Pick<PropertyRow, "id" | "address_text" | "canton" | "asking_price_chf" | "wohnflaeche_m2" | "listing_url" | "market_reference_notes">;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -27,12 +27,13 @@ export function PropertyEditForm({
     const askingPriceChf = Number(form.get("askingPriceChf"));
     const wohnflaecheM2 = Number(form.get("wohnflaecheM2"));
     const listingUrl = String(form.get("listingUrl") ?? "").trim();
+    const marketReferenceNotes = String(form.get("marketReferenceNotes") ?? "").trim();
 
     try {
       const res = await fetch(`/api/properties/${property.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ addressText, canton, askingPriceChf, wohnflaecheM2, listingUrl }),
+        body: JSON.stringify({ addressText, canton, askingPriceChf, wohnflaecheM2, listingUrl, marketReferenceNotes }),
       });
       const body = (await res.json()) as { saved?: boolean; error?: string };
       if (!res.ok || !body.saved) {
@@ -77,6 +78,16 @@ export function PropertyEditForm({
           <div className="field" style={{ gridColumn: "1 / -1" }}>
             <label htmlFor="edit-listingUrl">Inserat-Link (optional)</label>
             <input id="edit-listingUrl" name="listingUrl" type="url" placeholder="https://…" defaultValue={property.listing_url ?? ""} />
+          </div>
+          <div className="field" style={{ gridColumn: "1 / -1" }}>
+            <label htmlFor="edit-marketReferenceNotes">Marktvergleich (optional, frei eintragen)</label>
+            <textarea
+              id="edit-marketReferenceNotes"
+              name="marketReferenceNotes"
+              rows={4}
+              placeholder="z.B. selbst recherchierte Vergleichsmieten/Preise pro m² aus Inseraten in der Umgebung — wird nie automatisch abgerufen, nur was du hier einträgst."
+              defaultValue={property.market_reference_notes ?? ""}
+            />
           </div>
         </div>
 
