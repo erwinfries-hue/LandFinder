@@ -147,7 +147,8 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Kantonal/kommunal stark unterschiedlich (0–3.3%, mehrere Kantone 0% für Käufer) — grober Mittelwert, kein kantonsscharfer Satz.",
     unit: "%",
     defaultValue: 2,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source:
+      "Schweizweiter Fallback, falls kein Kanton bekannt ist. Wo bekannt, wird stattdessen der kantonsspezifische Wert verwendet (0% in 8 Kantonen bis 3.3% in VD/NE) — siehe apps/home4effinder/src/lib/cantonDefaults.ts (recherchiert August 2026).",
   }),
   notariatGrundbuchPercent: describe({
     key: "notariatGrundbuchPercent",
@@ -155,7 +156,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Pauschale für Beurkundung und Grundbucheintrag.",
     unit: "%",
     defaultValue: 0.5,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Marktüblicher Bereich 0.1–1% je nach Kanton und Kaufpreishöhe — 0.5% als grober, häufig zitierter Mittelwert.",
   }),
   maklerprovisionPercent: describe({
     key: "maklerprovisionPercent",
@@ -163,7 +164,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Default 0 — Annahme, dass Objekte primär direkt über Suchabo-Alerts gefunden werden, nicht über einen Makler.",
     unit: "%",
     defaultValue: 0,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Bewusst 0% als Standardfall (Direktsuche ohne Makler) — bei Maklerkauf marktüblich 2–3%, dann hier manuell überschreiben.",
   }),
   reparaturreservePercentOfKaufpreis: describe({
     key: "reparaturreservePercentOfKaufpreis",
@@ -171,7 +172,8 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Eigene Reserve für Reparaturen innerhalb der Wohnung (nicht die STWEG-Erneuerungsfonds-Beiträge, die separat in den Betriebskosten stecken) — Default gemäss Rückmeldung ca. 0.30% des Kaufpreises, per Wohnung auch als fixer CHF-Betrag überschreibbar.",
     unit: "% des Kaufpreises",
     defaultValue: 0.3,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source:
+      "Marktübliche Instandhaltungsrückstellungen für Wohneigentum liegen oft bei 0.5–1% des Gebäudewerts p.a.; 0.3% bewusst vorsichtiger gewählt, da es sich nur um die einzelne Wohnung (nicht die ganze Liegenschaft) handelt und die STWEG-Erneuerungsfonds-Beiträge bereits separat in den Betriebskosten stecken.",
   }),
   leerstandsreservePercentOfKaufpreis: describe({
     key: "leerstandsreservePercentOfKaufpreis",
@@ -179,7 +181,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Zusätzlicher, eigener Puffer für unerwartet lange Vermietungslücken — ergänzt (nicht ersetzt) die bereits im Ertrag berücksichtigte typische Leerstandsquote.",
     unit: "% des Kaufpreises",
     defaultValue: 0.3,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Ergänzender Eigenpuffer zusätzlich zur bereits im Ertrag verrechneten typischen Leerstandsquote — 0.3% als konservativer Zusatzpuffer für unerwartet lange Vermietungslücken.",
   }),
   leerstandLangfristigPercent: describe({
     key: "leerstandLangfristigPercent",
@@ -187,7 +189,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Typischer Mietausfall bei normaler langfristiger Vermietung.",
     unit: "%",
     defaultValue: 2,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Die schweizweite Leerwohnungsziffer liegt seit Jahren bei ca. 1–1.5% (BFS-Leerwohnungszählung) — 2% als vorsichtiger Aufschlag für das Einzelobjekt-Risiko (kein Portfolio-Durchschnitt).",
   }),
   leerstandMoebliertPercent: describe({
     key: "leerstandMoebliertPercent",
@@ -195,7 +197,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Höherer Mietausfall bei möblierter/mittelfristiger Vermietung — Rückmeldung nennt eine Spanne von 5–8%.",
     unit: "%",
     defaultValue: 6,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Möblierte/mittelfristige Vermietungen haben empirisch höhere Leerstände als unmöblierte Langzeitvermietung — 6% als Mittelwert der genannten 5–8%-Spanne.",
   }),
   moeblierungNutzungsdauerJahre: describe({
     key: "moeblierungNutzungsdauerJahre",
@@ -203,7 +205,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Nach dieser Anzahl Jahre wird im Mehrjahresmodell ein Möblierungsersatz als konkreter Cash-Abfluss angesetzt.",
     unit: "Jahre",
     defaultValue: 7,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Übliche wirtschaftliche Nutzungsdauer von Wohnungsmöblierung (Möbel/Geräte) wird meist mit 5–10 Jahren angegeben — 7 Jahre als Mittelwert.",
   }),
   moeblierungErsatzquotePercent: describe({
     key: "moeblierungErsatzquotePercent",
@@ -211,7 +213,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Anteil der (inflationierten) Initialkosten, der bei einem Ersatz tatsächlich erneut anfällt — selten 100%.",
     unit: "% der Möblierungs-Initialkosten",
     defaultValue: 70,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Bei einem Ersatz wird selten 100% der ursprünglichen Kosten erneut fällig, da nicht jedes Teil gleichzeitig ersetzt werden muss — 70% als grobe Erfahrungsschätzung.",
   }),
   kalkulatorischerSteuersatzPercent: describe({
     key: "kalkulatorischerSteuersatzPercent",
@@ -219,7 +221,8 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Grobe persönliche Schätzung für die Cashflow-Wasserfallrechnung — kein Steuerberatungsersatz, hängt real von Kanton/Gemeinde/Progression/Gesamtsituation ab.",
     unit: "%",
     defaultValue: 25,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source:
+      "Schweizweiter Fallback, falls kein Kanton bekannt ist. Wo bekannt, wird stattdessen eine grobe kantonale Einordnung (günstig/mittel/teuer, 18/24/29%) verwendet — siehe apps/home4effinder/src/lib/cantonDefaults.ts. Kombinierte Steuerbelastung (Bund/Kanton/Gemeinde) liegt real zwischen ca. 15% (günstigste Kantone) und 29% (teuerste); 25% als grobe schweizweite Mitte.",
   }),
   mietsteigerungPercentPerYear: describe({
     key: "mietsteigerungPercentPerYear",
@@ -227,7 +230,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Angenommenes jährliches Mietwachstum im 15-Jahres-Modell.",
     unit: "% p.a.",
     defaultValue: 1,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Orientiert an der langjährigen Schweizer Mietpreisentwicklung, die über längere Zeiträume typischerweise um rund 1% p.a. wächst — bewusst konservativ, kein Boom-Szenario.",
   }),
   kosteninflationPercentPerYear: describe({
     key: "kosteninflationPercentPerYear",
@@ -235,7 +238,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Angenommene jährliche Kostensteigerung (Betriebskosten, Reserven, Möblierungsersatz) im 15-Jahres-Modell.",
     unit: "% p.a.",
     defaultValue: 1.5,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Etwas über der angenommenen Mietsteigerung, da Betriebs-/Unterhaltskosten (Energie, Hauswart, Dienstleistungen) tendenziell stärker steigen als Mieten — orientiert an der Schweizer Konsumententeuerung der letzten Jahre.",
   }),
   wertsteigerungPercentPerYear: describe({
     key: "wertsteigerungPercentPerYear",
@@ -243,7 +246,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Angenommene jährliche Wertsteigerung der Liegenschaft im 15-Jahres-Modell.",
     unit: "% p.a.",
     defaultValue: 1,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Konservative langfristige Wertsteigerungsannahme für Schweizer Wohneigentum — deutlich unter den starken Marktjahren einzelner Regionen (v.a. ZH/GE/ZG), bewusst vorsichtig für ein Basisszenario.",
   }),
   sellingCostPercent: describe({
     key: "sellingCostPercent",
@@ -251,7 +254,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Grober Richtwert für Makler-/Verkaufsnebenkosten beim angenommenen Exit am Ende der Haltedauer.",
     unit: "%",
     defaultValue: 2.5,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Marktübliche Makler-/Vermarktungskosten beim Immobilienverkauf in der Schweiz liegen typischerweise bei 2–3%.",
   }),
   holdingPeriodYearsDefault: describe({
     key: "holdingPeriodYearsDefault",
@@ -259,7 +262,7 @@ export const BESTANDSRENDITE_PARAMETERS = {
     description: "Default-Haltedauer für das Mehrjahresmodell — 5 bis 30 Jahre wählbar, wie vorgegeben.",
     unit: "Jahre",
     defaultValue: 15,
-    source: "Platzhalter — noch nicht mit Auftraggeber abgestimmt",
+    source: "Mittlere, praxisnahe Haltedauer für ein Buy-to-let-Investment — der volle Bereich 5–30 Jahre bleibt pro Objekt frei wählbar.",
   }),
 } as const;
 

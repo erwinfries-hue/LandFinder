@@ -1,4 +1,5 @@
 import type { StwegFacts } from "@landfinder/domain";
+import { getCantonDefaults } from "./cantonDefaults";
 import {
   BESTANDSRENDITE_PARAMETERS,
   calculateNebenkosten,
@@ -112,6 +113,8 @@ export interface BestandsrenditeFacts {
 export interface BestandsrenditePropertyInput {
   kaufpreisChf: number;
   wohnflaecheM2: number;
+  /** Für kantonsspezifische Platzhalter-Defaults (Handänderungssteuer, kalkulatorischer Steuersatz) — siehe cantonDefaults.ts. Ohne Kanton greift der schweizweite Default. */
+  canton?: string;
 }
 
 const P = BESTANDSRENDITE_PARAMETERS;
@@ -146,7 +149,8 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     if (!used) assumptionNotes.push(`${label} nicht erfasst — Platzhalter-Default (${value}${unit}) verwendet, siehe BESTANDSRENDITE_PARAMETERS.`);
   };
 
-  const handaenderungssteuerPercent = facts.nebenkosten.handaenderungssteuerPercent ?? P.handaenderungssteuerPercent.defaultValue;
+  const cantonDefaults = getCantonDefaults(property.canton);
+  const handaenderungssteuerPercent = facts.nebenkosten.handaenderungssteuerPercent ?? cantonDefaults?.handaenderungssteuerPercent ?? P.handaenderungssteuerPercent.defaultValue;
   note("Handänderungssteuer", facts.nebenkosten.handaenderungssteuerPercent !== undefined, handaenderungssteuerPercent, "%");
   const notariatGrundbuchPercent = facts.nebenkosten.notariatGrundbuchPercent ?? P.notariatGrundbuchPercent.defaultValue;
   const maklerprovisionPercent = facts.nebenkosten.maklerprovisionPercent ?? P.maklerprovisionPercent.defaultValue;
@@ -197,7 +201,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   });
 
   const leerstandDefaultPercent = facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT" ? P.leerstandMoebliertPercent.defaultValue : P.leerstandLangfristigPercent.defaultValue;
-  const kalkulatorischerSteuersatzPercent = facts.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent.defaultValue;
+  const kalkulatorischerSteuersatzPercent = facts.kalkulatorischerSteuersatzPercent ?? cantonDefaults?.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent.defaultValue;
 
   const investmentCaseInput: InvestmentCaseInput = {
     kaufpreisChf,

@@ -96,6 +96,19 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(result.assumptionNotes.some((n) => n.includes("Leerstandsquote"))).toBe(true);
   });
 
+  it("nutzt bei bekanntem Kanton ohne Handänderungssteuer (z.B. ZH) einen tieferen Default als ohne Kanton", () => {
+    const ohneKanton = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    const mitZh = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75, canton: "ZH" }, fullFacts);
+    expect(mitZh.allInInvestitionChf).toBeLessThan(ohneKanton.allInInvestitionChf);
+  });
+
+  it("ein explizit erfasster Wert für die Handänderungssteuer hat immer Vorrang vor dem kantonalen Default", () => {
+    const factsWithExplicitTax: BestandsrenditeFacts = { ...fullFacts, nebenkosten: { ...fullFacts.nebenkosten, handaenderungssteuerPercent: 3.3 } };
+    const mitZh = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75, canton: "ZH" }, factsWithExplicitTax);
+    const mitGe = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75, canton: "GE" }, factsWithExplicitTax);
+    expect(mitZh.allInInvestitionChf).toEqual(mitGe.allInInvestitionChf);
+  });
+
   it("übernimmt explizit gesetzte Werte statt der Platzhalter (keine Notiz dafür)", () => {
     const customFacts: BestandsrenditeFacts = {
       ...fullFacts,
