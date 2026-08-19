@@ -29,6 +29,11 @@ Datenbank, eigener Login. Details zur Trennung und den getroffenen MVP-Entscheid
    Übernahmevorschläge) — läuft, wenn beim Anlegen schon Dokumente hochgeladen wurden,
    direkt mit und steht auf der Objektseite sofort bereit, statt manuell angestossen
    werden zu müssen.
+4. **Investment-Score (0-100)** auf der Objektseite — deterministisch aus Due-Diligence-
+   Status, Dokumentenvollständigkeit und Rendite/Cashflow berechnet, nicht von Claude
+   geschätzt, mit sichtbarer Aufschlüsselung statt nur einer nackten Zahl. Zusätzlich ein
+   optionales, rein manuell erfassbares Marktvergleich-Freitextfeld (nie automatisch
+   abgerufen, analog zum Inserat-Link).
 
 ## Struktur
 
@@ -71,7 +76,7 @@ Ohne `NEXT_PUBLIC_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` läuft die App, zeig
 ## Erstinbetriebnahme (siehe `docs/DECISIONS.md` für Details)
 
 1. Neues, separates Supabase-Projekt anlegen (Free-Tier reicht für den Start).
-2. Die Migration `supabase/migrations/0001_init.sql` dort ausführen (z.B. via
+2. Alle Migrationen aus `supabase/migrations/` dort der Reihe nach ausführen (z.B. via
    Supabase SQL-Editor — dieses Projekt hat noch keine Supabase-CLI-Anbindung
    eingerichtet).
 3. Neues Vercel-Projekt anlegen, dieses Repo verbinden, **Root Directory**

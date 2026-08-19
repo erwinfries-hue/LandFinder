@@ -678,6 +678,20 @@ table.sortable th {
 .field input:focus {
   border-color: var(--accent);
 }
+.field textarea {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.8125rem;
+  resize: vertical;
+}
+.field textarea:focus {
+  border-color: var(--accent);
+}
 .rowbetween {
   display: flex;
   align-items: center;

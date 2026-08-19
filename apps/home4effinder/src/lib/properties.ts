@@ -10,6 +10,8 @@ export interface PropertyRow {
   wohnflaeche_m2: number;
   /** Rein informativer Referenz-Link zum Original-Inserat — wird nie automatisch abgerufen/ausgelesen (siehe docs/DECISIONS.md, Homegate-Blockade-Erfahrung aus LandFinder). */
   listing_url: string | null;
+  /** Freitext-Marktvergleichsnotizen (Migration 0003) — manuell vom Nutzer erfasst, kein automatischer Abruf/Scraping, analog zu listing_url. */
+  market_reference_notes: string | null;
   /** Bestandsrendite-Fakten (siehe bestandsrendite.ts) — `null`, bis "Bestandsrendite-Fakten erfassen" ausgeführt wurde. */
   bestandsrendite: Record<string, unknown> | null;
   bestandsrendite_updated_at: string | null;

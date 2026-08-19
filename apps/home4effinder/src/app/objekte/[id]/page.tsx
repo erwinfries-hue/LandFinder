@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Panel } from "@landfinder/ui";
+import { Panel, Chip, type ChipTone } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
 import { getPropertyById, getPropertyDocuments, getPropertyDueDiligence, formatDateTime } from "@/lib/properties";
 import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
+import { computeInvestmentScore } from "@/lib/investmentScore";
 import { BestandsrenditeVertiefungForm } from "@/components/BestandsrenditeVertiefungForm";
 import { BestandsrenditeAnalysisView } from "@/components/BestandsrenditeAnalysisView";
 import { DueDiligencePanel, type DueDiligenceDocumentRow } from "@/components/DueDiligencePanel";
 import { PropertyDeleteButton } from "@/components/PropertyDeleteButton";
 import { PropertyEditForm } from "@/components/PropertyEditForm";
+
+function scoreTone(totalScore: number): ChipTone {
+  if (totalScore >= 70) return "good";
+  if (totalScore >= 40) return "warn";
+  return "bad";
+}
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +51,16 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
     ? computeBestandsrenditeAnalysis({ kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton }, facts)
     : null;
 
+  const investmentScore =
+    analysis && dueDiligence?.result
+      ? computeInvestmentScore({
+          categories: dueDiligence.result.categories,
+          missingDocuments: dueDiligence.result.missingDocuments,
+          bruttoRenditePercent: analysis.schnellcheck.bruttoRenditePercent,
+          cashflowChf: analysis.schnellcheck.groberCashflowChf,
+        })
+      : undefined;
+
   return (
     <div className="shell">
       <SideNav current="objekte" />
@@ -56,7 +73,16 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             </div>
             <PropertyDeleteButton propertyId={property.id} propertyLabel={property.title || property.address_text} />
           </div>
-          <div className="metricgrid">
+          {investmentScore ? (
+            <div style={{ display: "flex", alignItems: "center", gap: ".6rem", margin: ".6rem 0 0" }}>
+              <Chip tone={scoreTone(investmentScore.totalScore)}>Investment-Score {investmentScore.totalScore}/100</Chip>
+              <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>
+                Due Diligence {investmentScore.dueDiligenceScore}/60 · Dokumentation {investmentScore.documentationScore}/15 · Rendite {investmentScore.renditeScore}/25 —
+                errechnet, nicht von Claude geschätzt
+              </span>
+            </div>
+          ) : null}
+          <div className="metricgrid" style={{ marginTop: investmentScore ? ".8rem" : 0 }}>
             <Metric l="Kanton" v={property.canton} />
             <Metric l="Adresse" v={property.address_text} />
             <Metric l="Kaufpreis" v={`CHF ${formatChf(property.asking_price_chf)}`} />
@@ -72,6 +98,12 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
                 Zum Original-Inserat ↗
               </a>
             </p>
+          ) : null}
+          {property.market_reference_notes ? (
+            <div style={{ marginTop: ".8rem" }}>
+              <div className="eyebrow">Marktvergleich (manuell erfasst)</div>
+              <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: ".3rem 0 0", whiteSpace: "pre-wrap" }}>{property.market_reference_notes}</p>
+            </div>
           ) : null}
         </Panel>
 

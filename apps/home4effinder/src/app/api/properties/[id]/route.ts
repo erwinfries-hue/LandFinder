@@ -27,6 +27,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const wohnflaecheM2 = typeof b.wohnflaecheM2 === "number" ? b.wohnflaecheM2 : undefined;
   const listingUrlRaw = typeof b.listingUrl === "string" ? b.listingUrl.trim() : "";
   const listingUrl = listingUrlRaw ? listingUrlRaw : null;
+  const marketReferenceNotesRaw = typeof b.marketReferenceNotes === "string" ? b.marketReferenceNotes.trim() : "";
+  const marketReferenceNotes = marketReferenceNotesRaw ? marketReferenceNotesRaw : null;
 
   if (!addressText) return NextResponse.json({ error: "addressText fehlt" }, { status: 400 });
   if (!canton) return NextResponse.json({ error: "canton fehlt" }, { status: 400 });
@@ -52,7 +54,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { error: updateError } = await supabase
     .from("properties")
-    .update({ title: addressText, address_text: addressText, canton, asking_price_chf: askingPriceChf, wohnflaeche_m2: wohnflaecheM2, listing_url: listingUrl })
+    .update({
+      title: addressText,
+      address_text: addressText,
+      canton,
+      asking_price_chf: askingPriceChf,
+      wohnflaeche_m2: wohnflaecheM2,
+      listing_url: listingUrl,
+      market_reference_notes: marketReferenceNotes,
+    })
     .eq("id", propertyId);
   if (updateError) {
     console.error(`[api/properties/${propertyId}] Speichern fehlgeschlagen`, updateError);

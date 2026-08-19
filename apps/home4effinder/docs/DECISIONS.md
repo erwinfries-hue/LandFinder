@@ -476,9 +476,34 @@ Dateinamens.
   Unterlagenmappe des Auftraggebers (Erneuerungsfonds-Wert im Exposé liess sich als Summe
   zweier STWEG-Bankkonten aus dem Kapital-/Zinsausweis erklären, keine echte Diskrepanz).
 
+## Nachgezogen (2026-08-19): Investment-Score + manuelles Marktvergleich-Feld
+
+Auf explizite Rückfrage zur Objekt-Deep-Dive-Vorschau: beide vorgeschlagenen offenen
+Punkte vom Auftraggeber bestätigt ("numerischer Score ja und ein manuelles
+Marktvergleich-Feld ja").
+
+- **`computeInvestmentScore` (`investmentScore.ts`, neu)** — ein Score von 0-100, bewusst
+  **deterministisch berechnet, nicht von Claude geschätzt** (konsistent mit "nichts wird
+  erfunden" — ein LLM soll sich keine Gesamtpunktzahl ausdenken). Drei Komponenten:
+  Due-Diligence-Status (0-60, pro Kategorie gleich gewichtet, OK=voll/KLAERUNGSBEDARF=halb/
+  RISIKO=null), Dokumentenvollständigkeit (0-15, Anteil vorhandener "ZWINGEND"-Dokument-
+  typen), Rendite/Cashflow (0-25, Bruttorendite linear zwischen 2%/6% skaliert plus Bonus
+  bei nicht-negativem Cashflow). Liefert bewusst `undefined`, solange keine
+  Due-Diligence-Synthese gelaufen ist — sonst würde ein frisch angelegtes Objekt ohne jede
+  Prüfung fälschlich einen tiefen Score zeigen, statt "noch nicht geprüft". Auf der
+  Objektseite als Chip mit Aufschlüsselung angezeigt (nicht nur die Gesamtzahl — dieselbe
+  Transparenz-Haltung wie bei den "Standard: X"/"aus Dokument: X"-Labels).
+- **`market_reference_notes`** (Migration 0003, neue Spalte auf `properties`) — reines
+  Freitextfeld für selbst recherchierte Marktvergleiche (Vergleichsmieten, Preis/m² aus
+  Inseraten in der Umgebung), analog zu `listing_url` bewusst **ohne** automatischen
+  Abruf/Scraping. Über `PropertyEditForm`/`PATCH /api/properties/[id]` editierbar, auf der
+  Objektseite direkt unter den Basisdaten angezeigt. Bewusst **nicht** im
+  Neu-Erfassen-Formular (anders als `listing_url`) — Marktvergleiche entstehen typischerweise
+  erst als Rechercheschritt nach dem Anlegen, nicht beim ersten Erfassen; das ohnehin schon
+  dichte Formular bleibt dadurch unverändert.
+
 ## Bewusst weiterhin nicht gebaut
 
-- Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
 - Automatisierter Abruf/Scraping von Inserat-Links (siehe oben — bewusste Entscheidung wegen
   Portal-Blockaden). Die Objekt-Grunderfassung selbst ist weiterhin ein manueller Schritt
