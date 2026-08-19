@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { DocumentBasisdaten, DocumentExtractionResult, DueDiligenceDocumentType, DueDiligenceFinding } from "@landfinder/domain";
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
 import { AVAILABLE_CANTONS } from "./cantons";
+import { extractFirstJsonObject } from "./extractJsonObject";
 
 /**
  * Stufe 1 der Dokumenten-KI: Extraktion aus einem einzelnen hochgeladenen Dokument.
@@ -161,8 +162,8 @@ export async function extractDocumentFields(
   const textBlock = response.content.find((block) => block.type === "text");
   if (!textBlock || textBlock.type !== "text") throw new Error("Keine Text-Antwort von Anthropic erhalten");
 
-  const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Keine JSON-Struktur in der Anthropic-Antwort gefunden");
+  const json = extractFirstJsonObject(textBlock.text);
+  if (!json) throw new Error("Keine JSON-Struktur in der Anthropic-Antwort gefunden");
 
-  return parseDocumentExtractionResponse(jsonMatch[0], documentType);
+  return parseDocumentExtractionResponse(json, documentType);
 }

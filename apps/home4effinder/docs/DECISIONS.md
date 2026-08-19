@@ -359,6 +359,28 @@ Umsetzung:
   Default-Werts wirkt sich nicht rückwirkend auf bereits gespeicherte Objekte aus, die den
   alten Default unverändert übernommen hatten.
 
+## Nachgezogen (2026-08-19): zwei echte Bugs aus dem ersten Live-Test der neuen Vorausfüll-Funktion
+
+Anhand von Vercel-Server-Logs diagnostiziert (der Auftraggeber hat sie direkt kopiert):
+
+- **JSON-Extraktion aus der Claude-Antwort war nicht robust:** `extractDocumentFields`
+  und `synthesizeDueDiligence` matchten das JSON-Objekt bisher mit dem gierigen Regex
+  `/\{[\s\S]*\}/` — der reicht bis zur LETZTEN `}` im gesamten Antworttext, nicht bis zur
+  tatsächlich schliessenden Klammer des JSON-Objekts. Enthielt Claudes Antwort danach noch
+  irgendeinen Text mit eigenen geschweiften Klammern (z.B. eine schliessende
+  Markdown-Code-Fence mit Nachsatz), entstand ungültiges, zusammengeklebtes "JSON" —
+  in Produktion beobachtet als `SyntaxError: Unexpected non-whitespace character after
+  JSON`. Neue, gemeinsam genutzte Funktion `extractFirstJsonObject` (extractJsonObject.ts)
+  zählt stattdessen die Klammertiefe ab der ersten `{` und ignoriert Klammern innerhalb
+  von String-Literalen — liefert zuverlässig nur das erste vollständige JSON-Objekt.
+- **Storage-Upload schlug bei bestimmten Dateinamen fehl:** der Storage-Key enthielt bisher
+  den Original-Dateinamen direkt (`${propertyId}/${uuid}-${file.name}`) — Supabase Storage
+  lehnt manche Zeichen darin mit `InvalidKey` ab (in Produktion beobachtet bei
+  "PDF Exposé.pdf", wegen Leerzeichen/Akzent). Der Original-Dateiname wird ohnehin separat
+  in der Spalte `original_filename` gespeichert, daher braucht der Storage-Key ihn gar
+  nicht — jetzt nur noch `${propertyId}/${uuid}.pdf`. Betraf beide Upload-Routen
+  (`documents/route.ts` und das neue `documents/attach/route.ts`).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.
