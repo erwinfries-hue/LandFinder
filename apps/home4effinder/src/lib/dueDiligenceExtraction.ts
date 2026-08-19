@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { DocumentExtractionResult, DueDiligenceDocumentType, DueDiligenceFinding } from "@landfinder/domain";
+import type { DocumentBasisdaten, DocumentExtractionResult, DueDiligenceDocumentType, DueDiligenceFinding } from "@landfinder/domain";
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
+import { AVAILABLE_CANTONS } from "./cantons";
 
 /**
  * Stufe 1 der Dokumenten-KI: Extraktion aus einem einzelnen hochgeladenen Dokument.
@@ -24,6 +25,8 @@ export class AnthropicNotConfiguredError extends Error {
 /** Anthropics Dokumenten-API akzeptiert PDFs bis zu dieser Grösse (Stand der SDK-Dokumentation) — grösere Dateien vorher ablehnen statt einen unklaren API-Fehler zu riskieren. */
 export const MAX_DOCUMENT_SIZE_BYTES = 32 * 1024 * 1024;
 
+const CANTON_CODES = AVAILABLE_CANTONS.map((c) => c.code);
+
 function buildSystemPrompt(documentType: DueDiligenceDocumentType): string {
   const config = DOCUMENT_TYPE_CATALOG[documentType];
   return `Du bist ein Due-Diligence-Assistent für den Kauf einer Schweizer Eigentumswohnung als Rendite-/Buy-to-let-Objekt. Du analysierst genau EIN hochgeladenes Dokument vom Typ "${config.label}".
@@ -44,14 +47,21 @@ Gib AUSSCHLIESSLICH ein JSON-Objekt zurück, ohne Erklärtext, mit genau dieser 
       "sourcePage": number (optional, Seitenzahl im Dokument),
       "sourceQuote": string (optional, wörtliches Zitat aus dem Dokument als Beleg)
     }
-  ]
-}
+  ],
+  "basisdaten": object, optional — nur mitgeben, wenn das Dokument Objekt-Basisdaten klar erkennbar enthält (typischerweise bei Exposé/Inserat, manchmal auch Grundriss/Grundbuchauszug):
+  {
+    "adresseText": string (optional, vollständige Adresse inkl. PLZ/Ort),
+    "kantonCode": string (optional, zweistelliges Kürzel, einer von: ${CANTON_CODES.join(", ")}),
+    "kaufpreisChf": number (optional),
+    "wohnflaecheM2": number (optional)
+  }
 
 Wichtige Regeln:
 - Erfinde NIE einen Wert, der nicht im Dokument steht — fehlt eine Information, lasse das Feld weg statt zu schätzen.
 - Auch ein abgelehntes, vertagtes oder nur diskutiertes Vorhaben ist ein möglicher zukünftiger Risikofund, nicht nur bereits beschlossene Massnahmen.
 - Jeder wichtige Fund braucht nach Möglichkeit sourcePage und sourceQuote, damit der Nutzer die Aussage im Original nachvollziehen kann.
-- Bei rein positiven/unauffälligen Punkten ist severity "OK" — nicht alles muss ein Risiko sein.`;
+- Bei rein positiven/unauffälligen Punkten ist severity "OK" — nicht alles muss ein Risiko sein.
+- "basisdaten" komplett weglassen, wenn das Dokument keine dieser Angaben enthält.`;
 }
 
 const KNOWN_DOCUMENT_TYPES = new Set(Object.keys(DOCUMENT_TYPE_CATALOG));
@@ -67,6 +77,21 @@ const KNOWN_CATEGORIES = new Set([
   "DOKUMENTENVOLLSTAENDIGKEIT",
 ]);
 const KNOWN_SEVERITIES = new Set(["OK", "KLAERUNGSBEDARF", "RISIKO"]);
+const KNOWN_CANTON_CODES = new Set(CANTON_CODES);
+
+/** Defensiv geparst — jedes einzelne Feld wird nur übernommen, wenn Typ und (bei kantonCode) Wertebereich stimmen; alles andere wird stillschweigend weggelassen statt zu raten. */
+function parseBasisdaten(raw: unknown): DocumentBasisdaten | undefined {
+  if (typeof raw !== "object" || raw === null) return undefined;
+  const b = raw as Record<string, unknown>;
+
+  const basisdaten: DocumentBasisdaten = {};
+  if (typeof b.adresseText === "string" && b.adresseText.trim()) basisdaten.adresseText = b.adresseText.trim();
+  if (typeof b.kantonCode === "string" && KNOWN_CANTON_CODES.has(b.kantonCode.toUpperCase())) basisdaten.kantonCode = b.kantonCode.toUpperCase();
+  if (typeof b.kaufpreisChf === "number" && b.kaufpreisChf > 0) basisdaten.kaufpreisChf = b.kaufpreisChf;
+  if (typeof b.wohnflaecheM2 === "number" && b.wohnflaecheM2 > 0) basisdaten.wohnflaecheM2 = b.wohnflaecheM2;
+
+  return Object.keys(basisdaten).length > 0 ? basisdaten : undefined;
+}
 
 /**
  * Defensiv geparst — jede unerwartete Struktur führt dazu, dass der betroffene Fund
@@ -103,7 +128,9 @@ export function parseDocumentExtractionResponse(jsonText: string, fallbackDocume
     });
   }
 
-  return { detectedDocumentType, summary, facts, findings };
+  const basisdaten = parseBasisdaten(parsed.basisdaten);
+
+  return { detectedDocumentType, summary, facts, findings, ...(basisdaten ? { basisdaten } : {}) };
 }
 
 export async function extractDocumentFields(

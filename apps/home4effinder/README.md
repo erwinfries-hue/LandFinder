@@ -9,7 +9,9 @@ Datenbank, eigener Login. Details zur Trennung und den getroffenen MVP-Entscheid
 
 ## Was die App kann
 
-1. **Objekt erfassen** (`/neu`) — Adresse, Kanton, Kaufpreis, Wohnfläche.
+1. **Objekt erfassen** (`/neu`) — Adresse, Kanton, Kaufpreis, Wohnfläche; optional vorab aus
+   einem hochgeladenen Exposé/Inserat (oder anderen Dokumenten) automatisch vorausgefüllt.
+   Zusätzlich ein rein informativer, nie automatisch abgerufener Inserat-Link.
 2. **Bestandsrendite-Fakten erfassen** (auf der Objektseite) — Miete, Betriebskosten,
    STWEG-Fakten, Hypothek, Möblierung/Renovation, 15-Jahres-Annahmen.
 3. **Automatische Renditeanalyse** in drei Ebenen: Schnellcheck (Brutto-/Nettorendite),

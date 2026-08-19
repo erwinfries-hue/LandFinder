@@ -64,6 +64,13 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
               <Metric l="Bestandsrendite zuletzt aktualisiert" v={formatDateTime(property.bestandsrendite_updated_at)} />
             ) : null}
           </div>
+          {property.listing_url ? (
+            <p style={{ marginTop: ".6rem" }}>
+              <a href={property.listing_url} target="_blank" rel="noopener noreferrer" className="maplink">
+                Zum Original-Inserat ↗
+              </a>
+            </p>
+          ) : null}
         </Panel>
 
         <details style={{ marginTop: "1.2rem" }}>

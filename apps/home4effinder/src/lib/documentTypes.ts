@@ -174,6 +174,17 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     extractionGuidance: "Erfasse: Wertquote der Wohnung, Anzahl und Art aller Einheiten in der STWEG, Sonderrechte/-nutzungen laut Begründungsakt.",
   },
 
+  // --- Objekt-Basisdaten ---
+  EXPOSE_INSERAT: {
+    type: "EXPOSE_INSERAT",
+    label: "Exposé / Inserat",
+    priority: "EMPFOHLEN",
+    defaultCategory: "DOKUMENTENVOLLSTAENDIGKEIT",
+    description: "Verkaufsexposé bzw. ausgedrucktes Online-Inserat des Objekts.",
+    extractionGuidance:
+      "Erfasse als Basisdaten (siehe basisdaten-Feld): vollständige Adresse, Kanton, Kaufpreis, Wohnfläche. Erfasse zusätzlich als Fund, falls ersichtlich: Zimmerzahl, Baujahr, Stockwerk, beschriebener Zustand/Ausbaustandard, erwähnte Sonderrechte (Parkplatz, Keller, Balkon). Vergleiche die genannte Wohnfläche explizit mit anderen bereits vorliegenden Dokumenten (z.B. Grundriss) — jede Abweichung ist ein zu meldender Widerspruch.",
+  },
+
   // --- Auffangkategorie ---
   SONSTIGES: {
     type: "SONSTIGES",
