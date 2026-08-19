@@ -429,6 +429,53 @@ klicken). Jetzt ein einziger Schritt auf `/neu`:
   Ausbauschritt wäre ein Live-"überschrieben"-Badge (wie schon beim vorigen Nachtrag
   vermerkt), das dieses Risiko eliminieren würde.
 
+## Nachgezogen (2026-08-19): Dokumenttyp-Erkennung aus Dateiname, kategorisierte Dokumentenanzeige, Gesamteinschätzung
+
+Auslöser: der Auftraggeber hat anhand einer eigenen ChatGPT-Analyse eines realen Objekts
+(mit vollständiger Unterlagenmappe: STWEG-Protokolle, Betriebskosten-/Heizkostenabrechnungen,
+Budget, Kapital-/Zinsausweis, Grundbuchauszug, Exposé, …) zwei konkrete Anforderungen
+formuliert: (1) die App soll mindestens dieselbe Aussagekraft wie eine manuelle
+ChatGPT-Auswertung erreichen, (2) nach einem Mass-Upload soll eine übersichtliche
+Kategorisierung der Dokumente vorgeschlagen werden, wenn möglich automatisch anhand des
+Dateinamens.
+
+- **`documentTypeGuess.ts`** (neu) — `guessDocumentType(filename)` errät den
+  Dokumenttyp aus dem Dateinamen per Schlüsselwort-Regeln (z.B. "Protokoll"/"GV" →
+  STWEG-Protokoll, "Betriebskosten"+"Wohnung" → Nebenkostenabrechnung der Wohnung,
+  "Betriebskosten" allein → Jahresrechnung der STWEG, "Kapital"+"Zins" →
+  Erneuerungsfonds-Nachweis, …), Präfixvergleich statt Exaktvergleich wegen deutscher
+  Flexionsformen (Sanierung/Sanierungen). Liefert bewusst `undefined` statt zu raten, wenn
+  keine Regel passt (z.B. "Katasterplan.pdf", "Kaufangebot.pdf") — der Aufrufer fällt dann
+  auf "Sonstiges" zurück, der Nutzer sieht den Vorschlag immer als editierbares Feld, nie
+  als automatische Festlegung. Mit Tests anhand realer, vom Auftraggeber hochgeladener
+  Dateinamen.
+- **Upload-Flows umgebaut** (`PropertyCreateForm`, `DueDiligencePanel`): vorher ein
+  einziger Dokumenttyp-Dropdown, der für den gesamten ausgewählten Dateistapel galt — jetzt
+  ein Zwischenschritt ("Staging"): Dateien auswählen, jede Zeile bekommt sofort einen aus
+  dem Dateinamen vorgeschlagenen, aber editierbaren Dokumenttyp (Chip "erkannt" bei
+  Treffer), erst nach Bestätigen/Korrigieren wird tatsächlich hochgeladen bzw. analysiert.
+- **Kategorisierte Dokumentenanzeige**: sowohl die bereits hochgeladenen/analysierten
+  Dokumente auf der Objektseite als auch im Erfassen-Formular werden jetzt nach
+  `DueDiligenceCategory` gruppiert dargestellt (dieselben neun Kategorien wie im
+  Due-Diligence-Ergebnis) statt als flache Liste — nutzt dafür `defaultCategory`, das
+  jeder Dokumenttyp im Katalog (`documentTypes.ts`) bereits trägt.
+  **`dueDiligenceCategories.ts`** (neu) — einzige Quelle für Kategorie-Reihenfolge und
+  -Label, vorher an drei Stellen dupliziert (Synthese-Prompt, `DueDiligencePanel`).
+- **`overallSummary`** (neuer Pflicht-String auf `DueDiligenceResult`, `@landfinder/domain`)
+  — 2-4 Sätze Gesamteinschätzung als Fliesstext, vom Synthese-Prompt explizit angefordert
+  ("Kernaussage zuerst, dann wichtigste Einschränkung, dann grösstes Risiko"), direkt an
+  der Objektseite und im Erfassen-Formular über den Kategorien angezeigt. Zielt auf genau
+  die Lücke zur ChatGPT-Analyse, die zuvor am deutlichsten war: ein Gesamturteil in
+  Prosa statt nur Kategorien-Ampeln.
+- **Zahlen-Abgleich zwischen Dokumenten als explizite Prompt-Anweisung**: der
+  Synthese-Prompt fordert jetzt ausdrücklich, eine zahlenmässige Abweichung zwischen zwei
+  Dokumenten zuerst rechnerisch zu erklären (Summe mehrerer Konten, Fondssaldo + bekannte
+  Jahreseinlage), bevor sie als ungeklärter Widerspruch gemeldet wird — findet sich eine
+  Erklärung, wird der Fund als gelöst (OK) mit der Rechnung im Detail-Feld markiert, nicht
+  weiter als Klärungsbedarf offengehalten. Ausgelöst durch ein konkretes Beispiel aus der
+  Unterlagenmappe des Auftraggebers (Erneuerungsfonds-Wert im Exposé liess sich als Summe
+  zweier STWEG-Bankkonten aus dem Kapital-/Zinsausweis erklären, keine echte Diskrepanz).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.

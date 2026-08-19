@@ -20,11 +20,15 @@ Datenbank, eigener Login. Details zur Trennung und den getroffenen MVP-Entscheid
    Investment Case (5-stufige Cashflow-Kaskade, Break-even-Werte), 15-Jahres-Modell
    (Levered/Unlevered IRR, Equity Multiple, Investment-Treiber-Attribution).
 3. **Dokumenten-KI / Due-Diligence** — PDF-Upload (STWEG-Protokolle, Jahresrechnung,
-   Mietverträge, Grundbuchauszug, …), automatische Extraktion je Dokument via Claude,
-   Cross-Dokument-Synthese (Kategorien-Ampel, Widersprüche, fehlende Dokumente,
-   Rückfragen an Verkäufer/Makler inkl. E-Mail-Export, Feldwert-Übernahmevorschläge) —
-   läuft, wenn beim Anlegen schon Dokumente hochgeladen wurden, direkt mit und steht auf
-   der Objektseite sofort bereit, statt manuell angestossen werden zu müssen.
+   Mietverträge, Grundbuchauszug, …) mit Dokumenttyp-Vorschlag aus dem Dateinamen
+   (editierbar, nie automatisch festgelegt) und nach Kategorie gruppierter Anzeige,
+   automatische Extraktion je Dokument via Claude, Cross-Dokument-Synthese (Gesamtein-
+   schätzung in Fliesstext, Kategorien-Ampel, Widersprüche — inkl. Versuch einer
+   rechnerischen Erklärung, bevor eine Zahlenabweichung als ungeklärt gilt —, fehlende
+   Dokumente, Rückfragen an Verkäufer/Makler inkl. E-Mail-Export, Feldwert-
+   Übernahmevorschläge) — läuft, wenn beim Anlegen schon Dokumente hochgeladen wurden,
+   direkt mit und steht auf der Objektseite sofort bereit, statt manuell angestossen
+   werden zu müssen.
 
 ## Struktur
 

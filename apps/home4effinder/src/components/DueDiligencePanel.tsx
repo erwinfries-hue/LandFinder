@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Panel, Chip, type ChipTone } from "@landfinder/ui";
 import type { DueDiligenceDocumentType, DueDiligenceResult, DueDiligenceSeverity } from "@landfinder/domain";
 import { DOCUMENT_TYPE_CATALOG } from "@/lib/documentTypes";
+import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/dueDiligenceCategories";
+import { guessDocumentType } from "@/lib/documentTypeGuess";
 import { formatDateTime } from "@/lib/properties";
 import { buildSellerQuestionsEmailDraft, buildMailtoUrl } from "@/lib/sellerQuestionsEmail";
 
@@ -20,18 +22,10 @@ export interface DueDiligenceDocumentRow {
 
 const SEVERITY_TONE: Record<DueDiligenceSeverity, ChipTone> = { OK: "good", KLAERUNGSBEDARF: "warn", RISIKO: "bad" };
 const SEVERITY_LABEL: Record<DueDiligenceSeverity, string> = { OK: "Unauffällig", KLAERUNGSBEDARF: "Klärungsbedarf", RISIKO: "Wesentliches Risiko" };
-const CATEGORY_LABEL: Record<string, string> = {
-  GRUNDBUCH_RECHTE: "Grundbuch/Rechte",
-  STWEG: "STWEG",
-  ERNEUERUNGSFONDS: "Erneuerungsfonds",
-  GEBAEUDE_SANIERUNGEN: "Gebäude/Sanierungen",
-  MIETVERHAELTNIS: "Mietverhältnis",
-  NEBENKOSTEN: "Nebenkosten",
-  HEIZUNG_ENERGIE: "Heizung/Energie",
-  TECHNISCHE_UNTERLAGEN: "Technische Unterlagen",
-  DOKUMENTENVOLLSTAENDIGKEIT: "Dokumentenvollständigkeit",
-};
 const PRIORITY_LABEL: Record<string, string> = { ZWINGEND: "Zwingend vor Kauf", EMPFOHLEN: "Empfehlenswert", OPTIONAL: "Optional" };
+
+/** Datei, die ausgewählt aber noch nicht hochgeladen ist — Dokumenttyp aus dem Dateinamen vorgeschlagen, vor dem Hochladen editierbar. */
+type StagedFile = { file: File; documentType: DueDiligenceDocumentType; guessed: boolean };
 
 type UploadState = { filename: string; status: "UPLOADING" | "DONE" | "FAILED"; error?: string };
 
@@ -48,7 +42,7 @@ export function DueDiligencePanel({
   initialDueDiligence: { status: string; result: DueDiligenceResult | null; error_message: string | null; generated_at: string | null } | null;
 }) {
   const router = useRouter();
-  const [documentType, setDocumentType] = useState<DueDiligenceDocumentType>("STWEG_PROTOKOLL");
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [uploading, setUploading] = useState(false);
   const [synthesizing, setSynthesizing] = useState(false);
@@ -57,17 +51,34 @@ export function DueDiligencePanel({
   const [deleting, setDeleting] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
 
-  async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const input = (event.currentTarget.elements.namedItem("files") as HTMLInputElement) ?? null;
-    const files = input?.files ? Array.from(input.files) : [];
-    if (files.length === 0) return;
+  function handleFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    if (files.length > 0) {
+      const newlyStaged: StagedFile[] = files.map((file) => {
+        const guessed = guessDocumentType(file.name);
+        return { file, documentType: guessed ?? "SONSTIGES", guessed: guessed !== undefined };
+      });
+      setStagedFiles((prev) => [...prev, ...newlyStaged]);
+    }
+    event.target.value = ""; // dieselbe Datei danach erneut auswählbar
+  }
+  function updateStagedType(index: number, documentType: DueDiligenceDocumentType) {
+    setStagedFiles((prev) => prev.map((s, i) => (i === index ? { ...s, documentType, guessed: false } : s)));
+  }
+  function removeStaged(index: number) {
+    setStagedFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleUpload() {
+    if (stagedFiles.length === 0) return;
+    const toUpload = stagedFiles;
+    setStagedFiles([]);
 
     setUploading(true);
-    setUploads(files.map((f) => ({ filename: f.name, status: "UPLOADING" as const })));
+    setUploads(toUpload.map((s) => ({ filename: s.file.name, status: "UPLOADING" as const })));
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    for (let i = 0; i < toUpload.length; i++) {
+      const { file, documentType } = toUpload[i];
       try {
         const formData = new FormData();
         formData.append("file", file);
@@ -81,7 +92,6 @@ export function DueDiligencePanel({
     }
 
     setUploading(false);
-    if (input) input.value = "";
     router.refresh();
   }
 
@@ -157,32 +167,46 @@ export function DueDiligencePanel({
         Rückfragen.
       </p>
 
-      <form onSubmit={handleUpload} style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "flex-end", marginBottom: "1.2rem" }}>
-        <div className="field" style={{ minWidth: "260px" }}>
-          <label htmlFor="documentType">Dokumenttyp (gilt für alle ausgewählten Dateien)</label>
-          <select id="documentType" value={documentType} onChange={(e) => setDocumentType(e.target.value as DueDiligenceDocumentType)}>
-            {Object.values(DOCUMENT_TYPE_CATALOG).map((c) => (
-              <option key={c.type} value={c.type}>
-                {c.label} ({PRIORITY_LABEL[c.priority]})
-              </option>
+      <div className="field" style={{ marginBottom: stagedFiles.length > 0 ? ".8rem" : "1.2rem" }}>
+        <label htmlFor="files">PDF-Dateien auswählen</label>
+        <input id="files" type="file" accept="application/pdf" multiple onChange={handleFilesSelected} />
+      </div>
+
+      {stagedFiles.length > 0 ? (
+        <div style={{ marginBottom: "1.2rem" }}>
+          <p style={{ color: "var(--ink-soft)", fontSize: ".78rem", margin: "0 0 .5rem" }}>
+            Dokumenttyp aus dem Dateinamen vorgeschlagen, wo erkennbar — bei Bedarf korrigieren, dann hochladen.
+          </p>
+          <ul style={{ listStyle: "none", margin: "0 0 .8rem", padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
+            {stagedFiles.map((s, i) => (
+              <li key={i} style={{ fontSize: ".8125rem", display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ minWidth: "0", flex: "1 1 220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.file.name}</span>
+                <select value={s.documentType} onChange={(e) => updateStagedType(i, e.target.value as DueDiligenceDocumentType)} style={{ fontSize: ".78rem", padding: ".2rem .4rem" }}>
+                  {Object.values(DOCUMENT_TYPE_CATALOG).map((c) => (
+                    <option key={c.type} value={c.type}>
+                      {c.label} ({PRIORITY_LABEL[c.priority]})
+                    </option>
+                  ))}
+                </select>
+                {s.guessed ? <Chip tone="neutral">erkannt</Chip> : null}
+                <button type="button" className="btn" style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem" }} onClick={() => removeStaged(i)}>
+                  Entfernen
+                </button>
+              </li>
             ))}
-          </select>
+          </ul>
+          <button type="button" className="btn" style={{ width: "auto" }} disabled={uploading} onClick={handleUpload}>
+            {uploading ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                Lädt hoch…
+              </>
+            ) : (
+              `${stagedFiles.length} Datei(en) hochladen`
+            )}
+          </button>
         </div>
-        <div className="field">
-          <label htmlFor="files">PDF-Dateien</label>
-          <input id="files" name="files" type="file" accept="application/pdf" multiple />
-        </div>
-        <button type="submit" className="btn" style={{ width: "auto" }} disabled={uploading}>
-          {uploading ? (
-            <>
-              <span className="spinner" aria-hidden="true" />
-              Lädt hoch…
-            </>
-          ) : (
-            "Hochladen"
-          )}
-        </button>
-      </form>
+      ) : null}
 
       {uploads.length > 0 ? (
         <ul style={{ listStyle: "none", margin: "0 0 1.2rem", padding: 0, display: "flex", flexDirection: "column", gap: ".3rem" }}>
@@ -214,33 +238,46 @@ export function DueDiligencePanel({
       {initialDocuments.length === 0 ? (
         <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Noch keine Dokumente hochgeladen.</p>
       ) : (
-        <ul style={{ listStyle: "none", margin: "0 0 1.4rem", padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
-          {initialDocuments.map((d) => (
-            <li key={d.id} style={{ fontSize: ".8125rem" }}>
-              <div style={{ display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
-                <Chip tone={d.analysis_status === "DONE" ? "good" : d.analysis_status === "FAILED" ? "bad" : "neutral"}>{d.analysis_status}</Chip>
-                <strong>{DOCUMENT_TYPE_CATALOG[d.document_type as DueDiligenceDocumentType]?.label ?? d.document_type}</strong>
-                <span style={{ color: "var(--ink-faint)" }}>{d.original_filename}</span>
-                <span style={{ color: "var(--ink-faint)" }}>{formatDateTime(d.uploaded_at)}</span>
-                {d.analysis_error ? <span style={{ color: "var(--bad)" }}>— {d.analysis_error}</span> : null}
-                <button
-                  type="button"
-                  className="btn"
-                  style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
-                  disabled={deleting === d.id}
-                  onClick={() => handleDeleteDocument(d.id, d.original_filename)}
-                >
-                  {deleting === d.id ? "Löscht…" : "Löschen"}
-                </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: ".9rem", marginBottom: "1.4rem" }}>
+          {CATEGORY_ORDER.map((category) => {
+            const inCategory = initialDocuments.filter((d) => (DOCUMENT_TYPE_CATALOG[d.document_type as DueDiligenceDocumentType]?.defaultCategory ?? "DOKUMENTENVOLLSTAENDIGKEIT") === category);
+            if (inCategory.length === 0) return null;
+            return (
+              <div key={category}>
+                <div className="eyebrow" style={{ marginBottom: ".3rem" }}>
+                  {CATEGORY_LABEL[category]}
+                </div>
+                <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
+                  {inCategory.map((d) => (
+                    <li key={d.id} style={{ fontSize: ".8125rem" }}>
+                      <div style={{ display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
+                        <Chip tone={d.analysis_status === "DONE" ? "good" : d.analysis_status === "FAILED" ? "bad" : "neutral"}>{d.analysis_status}</Chip>
+                        <strong>{DOCUMENT_TYPE_CATALOG[d.document_type as DueDiligenceDocumentType]?.label ?? d.document_type}</strong>
+                        <span style={{ color: "var(--ink-faint)" }}>{d.original_filename}</span>
+                        <span style={{ color: "var(--ink-faint)" }}>{formatDateTime(d.uploaded_at)}</span>
+                        {d.analysis_error ? <span style={{ color: "var(--bad)" }}>— {d.analysis_error}</span> : null}
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
+                          disabled={deleting === d.id}
+                          onClick={() => handleDeleteDocument(d.id, d.original_filename)}
+                        >
+                          {deleting === d.id ? "Löscht…" : "Löschen"}
+                        </button>
+                      </div>
+                      {/* Sofortiges Feedback aus Stufe 1 — sonst sieht der Nutzer vor dem nächsten
+                          "Due-Diligence aktualisieren" nichts vom bereits extrahierten Inhalt. */}
+                      {d.extraction?.summary ? (
+                        <p style={{ color: "var(--ink-soft)", fontSize: ".78rem", margin: ".3rem 0 0" }}>{d.extraction.summary}</p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              {/* Sofortiges Feedback aus Stufe 1 — sonst sieht der Nutzer vor dem nächsten
-                  "Due-Diligence aktualisieren" nichts vom bereits extrahierten Inhalt. */}
-              {d.extraction?.summary ? (
-                <p style={{ color: "var(--ink-soft)", fontSize: ".78rem", margin: ".3rem 0 0" }}>{d.extraction.summary}</p>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+            );
+          })}
+        </div>
       )}
 
       <div className="wizard-actions" style={{ marginBottom: result ? "1.4rem" : 0 }}>
@@ -265,10 +302,11 @@ export function DueDiligencePanel({
 
       {result ? (
         <>
-          <div style={{ display: "flex", alignItems: "center", gap: ".7rem", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: ".7rem", marginBottom: result.overallSummary ? ".6rem" : "1rem" }}>
             <Chip tone={SEVERITY_TONE[result.overallStatus]}>{SEVERITY_LABEL[result.overallStatus]}</Chip>
             <strong style={{ fontSize: ".875rem" }}>Gesamtstatus</strong>
           </div>
+          {result.overallSummary ? <p className="lede" style={{ fontSize: "1rem", marginBottom: "1.2rem" }}>{result.overallSummary}</p> : null}
 
           <div style={{ display: "flex", flexDirection: "column", gap: ".8rem", marginBottom: "1.4rem" }}>
             {result.categories.map((c) => (

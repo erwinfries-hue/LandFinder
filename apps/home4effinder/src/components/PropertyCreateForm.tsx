@@ -7,9 +7,14 @@ import type { DocumentExtractionResult, DueDiligenceDocumentType, DueDiligenceRe
 import type { RenovationPosition, Vermietungsmodell } from "@landfinder/financial-engine";
 import { AVAILABLE_CANTONS } from "@/lib/cantons";
 import { DOCUMENT_TYPE_CATALOG } from "@/lib/documentTypes";
+import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/dueDiligenceCategories";
+import { guessDocumentType } from "@/lib/documentTypeGuess";
 import { BestandsrenditeFactsFields, emptyRenovationPosition } from "./BestandsrenditeFactsFields";
 import { buildBestandsrenditeFactsFromFormData } from "@/lib/bestandsrenditeFormParsing";
 import { BESTANDSRENDITE_KNOWN_FIELD_LABELS } from "@/lib/bestandsrenditeKnownFields";
+
+/** Datei, die ausgewählt aber noch nicht analysiert ist — Dokumenttyp aus dem Dateinamen vorgeschlagen (`documentTypeGuess.ts`), vor dem Hochladen editierbar. */
+type StagedFile = { file: File; documentType: DueDiligenceDocumentType; guessed: boolean };
 
 type PrefillFile = {
   file: File;
@@ -61,7 +66,7 @@ export function PropertyCreateForm() {
   const [vermietungsmodell, setVermietungsmodell] = useState<Vermietungsmodell>("LANGFRISTIG_UNMOEBLIERT");
   const [renovationPositionen, setRenovationPositionen] = useState<RenovationPosition[]>([]);
 
-  const [prefillDocumentType, setPrefillDocumentType] = useState<DueDiligenceDocumentType>("EXPOSE_INSERAT");
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const [prefillFiles, setPrefillFiles] = useState<PrefillFile[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -125,14 +130,30 @@ export function PropertyCreateForm() {
     }
   }
 
-  async function handleAnalyze(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const input = (event.currentTarget.elements.namedItem("prefillFiles") as HTMLInputElement) ?? null;
-    const files = input?.files ? Array.from(input.files) : [];
-    if (files.length === 0) return;
+  function handleFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    if (files.length > 0) {
+      const newlyStaged: StagedFile[] = files.map((file) => {
+        const guessed = guessDocumentType(file.name);
+        return { file, documentType: guessed ?? "SONSTIGES", guessed: guessed !== undefined };
+      });
+      setStagedFiles((prev) => [...prev, ...newlyStaged]);
+    }
+    event.target.value = ""; // dieselbe Datei danach erneut auswählbar
+  }
+  function updateStagedType(index: number, documentType: DueDiligenceDocumentType) {
+    setStagedFiles((prev) => prev.map((s, i) => (i === index ? { ...s, documentType, guessed: false } : s)));
+  }
+  function removeStaged(index: number) {
+    setStagedFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleAnalyze() {
+    if (stagedFiles.length === 0) return;
 
     setAnalyzing(true);
-    const newEntries: PrefillFile[] = files.map((file) => ({ file, documentType: prefillDocumentType, status: "ANALYZING" as const }));
+    const newEntries: PrefillFile[] = stagedFiles.map((s) => ({ file: s.file, documentType: s.documentType, status: "ANALYZING" as const }));
+    setStagedFiles([]);
     // Lokaler Snapshot statt React-State, damit wir am Ende der Schleife garantiert den
     // vollständigen, aktuellen Stand haben (State-Updates in der Schleife sind async).
     let allFiles = [...prefillFiles, ...newEntries];
@@ -164,7 +185,6 @@ export function PropertyCreateForm() {
     }
 
     setAnalyzing(false);
-    if (input) input.value = "";
 
     await runSynthesisPrefill(allFiles);
   }
@@ -260,56 +280,90 @@ export function PropertyCreateForm() {
           angehängt und die daraus schon berechnete Due-Diligence-Prüfung gleich mitgespeichert — keine zweite
           Analyse nötig, steht auf der Objektseite sofort bereit.
         </p>
-        <form onSubmit={handleAnalyze} style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "flex-end", marginBottom: prefillFiles.length > 0 ? ".8rem" : 0 }}>
-          <div className="field" style={{ minWidth: "220px" }}>
-            <label htmlFor="prefillDocumentType">Dokumenttyp</label>
-            <select id="prefillDocumentType" value={prefillDocumentType} onChange={(e) => setPrefillDocumentType(e.target.value as DueDiligenceDocumentType)}>
-              {Object.values(DOCUMENT_TYPE_CATALOG).map((c) => (
-                <option key={c.type} value={c.type}>
-                  {c.label}
-                </option>
+        <div className="field" style={{ marginBottom: stagedFiles.length > 0 ? ".8rem" : 0 }}>
+          <label htmlFor="prefillFiles">PDF-Dateien auswählen</label>
+          <input id="prefillFiles" type="file" accept="application/pdf" multiple onChange={handleFilesSelected} />
+        </div>
+
+        {stagedFiles.length > 0 ? (
+          <div style={{ marginBottom: "1rem" }}>
+            <p style={{ color: "var(--ink-soft)", fontSize: ".78rem", margin: "0 0 .5rem" }}>
+              Dokumenttyp aus dem Dateinamen vorgeschlagen, wo erkennbar — bei Bedarf korrigieren, dann analysieren.
+            </p>
+            <ul style={{ listStyle: "none", margin: "0 0 .8rem", padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
+              {stagedFiles.map((s, i) => (
+                <li key={i} style={{ fontSize: ".8125rem", display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
+                  <span style={{ minWidth: "0", flex: "1 1 220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.file.name}</span>
+                  <select value={s.documentType} onChange={(e) => updateStagedType(i, e.target.value as DueDiligenceDocumentType)} style={{ fontSize: ".78rem", padding: ".2rem .4rem" }}>
+                    {Object.values(DOCUMENT_TYPE_CATALOG).map((c) => (
+                      <option key={c.type} value={c.type}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  {s.guessed ? <Chip tone="neutral">erkannt</Chip> : null}
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem" }}
+                    onClick={() => removeStaged(i)}
+                  >
+                    Entfernen
+                  </button>
+                </li>
               ))}
-            </select>
+            </ul>
+            <button type="button" className="btn" style={{ width: "auto" }} disabled={analyzing} onClick={handleAnalyze}>
+              {analyzing ? (
+                <>
+                  <span className="spinner" aria-hidden="true" />
+                  Analysiert…
+                </>
+              ) : (
+                `${stagedFiles.length} Datei(en) analysieren`
+              )}
+            </button>
           </div>
-          <div className="field">
-            <label htmlFor="prefillFiles">PDF-Dateien</label>
-            <input id="prefillFiles" name="prefillFiles" type="file" accept="application/pdf" multiple />
-          </div>
-          <button type="submit" className="btn" style={{ width: "auto" }} disabled={analyzing}>
-            {analyzing ? (
-              <>
-                <span className="spinner" aria-hidden="true" />
-                Analysiert…
-              </>
-            ) : (
-              "Analysieren"
-            )}
-          </button>
-        </form>
+        ) : null}
+
         {prefillFiles.length > 0 ? (
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".3rem" }}>
-            {prefillFiles.map((p, i) => (
-              <li key={i} style={{ fontSize: ".8125rem", display: "flex", gap: ".5rem", alignItems: "center" }}>
-                <Chip tone={p.status === "DONE" ? "good" : p.status === "FAILED" ? "bad" : "neutral"}>
-                  {p.status === "ANALYZING" ? (
-                    <>
-                      <span className="spinner" aria-hidden="true" />
-                      Analysiert…
-                    </>
-                  ) : p.status === "DONE" ? (
-                    "Analysiert"
-                  ) : (
-                    "Fehler"
-                  )}
-                </Chip>
-                {p.file.name}
-                {p.status === "ANALYZING" ? (
-                  <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>kann bis zu einer Minute dauern…</span>
-                ) : null}
-                {p.error ? <span style={{ color: "var(--bad)" }}>— {p.error}</span> : null}
-              </li>
-            ))}
-          </ul>
+          <div style={{ display: "flex", flexDirection: "column", gap: ".8rem" }}>
+            {CATEGORY_ORDER.map((category) => {
+              const inCategory = prefillFiles.filter((p) => DOCUMENT_TYPE_CATALOG[p.documentType].defaultCategory === category);
+              if (inCategory.length === 0) return null;
+              return (
+                <div key={category}>
+                  <div className="eyebrow" style={{ marginBottom: ".3rem" }}>
+                    {CATEGORY_LABEL[category]}
+                  </div>
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".3rem" }}>
+                    {inCategory.map((p, i) => (
+                      <li key={i} style={{ fontSize: ".8125rem", display: "flex", gap: ".5rem", alignItems: "center" }}>
+                        <Chip tone={p.status === "DONE" ? "good" : p.status === "FAILED" ? "bad" : "neutral"}>
+                          {p.status === "ANALYZING" ? (
+                            <>
+                              <span className="spinner" aria-hidden="true" />
+                              Analysiert…
+                            </>
+                          ) : p.status === "DONE" ? (
+                            "Analysiert"
+                          ) : (
+                            "Fehler"
+                          )}
+                        </Chip>
+                        <span style={{ color: "var(--ink-faint)" }}>{DOCUMENT_TYPE_CATALOG[p.documentType].label}</span>
+                        {p.file.name}
+                        {p.status === "ANALYZING" ? (
+                          <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>kann bis zu einer Minute dauern…</span>
+                        ) : null}
+                        {p.error ? <span style={{ color: "var(--bad)" }}>— {p.error}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
         ) : null}
         {synthesizing ? (
           <p style={{ color: "var(--ink-soft)", fontSize: ".8rem", marginTop: ".6rem", display: "flex", alignItems: "center", gap: ".4rem" }}>
@@ -319,11 +373,18 @@ export function PropertyCreateForm() {
         ) : null}
         {synthesisError ? <p style={{ color: "var(--bad)", fontSize: ".8rem", marginTop: ".6rem" }}>{synthesisError}</p> : null}
         {!synthesizing && synthesisResult ? (
-          <p style={{ color: "var(--good)", fontSize: ".8rem", marginTop: ".6rem" }}>
-            {Object.keys(docFieldProposals).length > 0
-              ? `${Object.keys(docFieldProposals).length} Feld(er) unten aus den Dokumenten vorausgefüllt.`
-              : "Dokumente ausgewertet — keine der bekannten Bestandsrendite-Felder konnten daraus eindeutig abgeleitet werden."}
-          </p>
+          <>
+            {synthesisResult.overallSummary ? (
+              <p className="lede" style={{ fontSize: ".9rem", marginTop: ".7rem" }}>
+                {synthesisResult.overallSummary}
+              </p>
+            ) : null}
+            <p style={{ color: "var(--good)", fontSize: ".8rem", marginTop: ".4rem" }}>
+              {Object.keys(docFieldProposals).length > 0
+                ? `${Object.keys(docFieldProposals).length} Feld(er) unten aus den Dokumenten vorausgefüllt.`
+                : "Dokumente ausgewertet — keine der bekannten Bestandsrendite-Felder konnten daraus eindeutig abgeleitet werden."}
+            </p>
+          </>
         ) : null}
       </div>
 

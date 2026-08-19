@@ -11,6 +11,7 @@ import type {
   DueDiligenceSeverity,
 } from "@landfinder/domain";
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
+import { CATEGORY_ORDER } from "./dueDiligenceCategories";
 import { AnthropicNotConfiguredError } from "./dueDiligenceExtraction";
 import { extractFirstJsonObject } from "./extractJsonObject";
 
@@ -70,18 +71,7 @@ export function computeOverallStatus(categories: DueDiligenceCategoryResult[]): 
   return "OK";
 }
 
-const ALL_CATEGORIES: DueDiligenceCategory[] = [
-  "GRUNDBUCH_RECHTE",
-  "STWEG",
-  "ERNEUERUNGSFONDS",
-  "GEBAEUDE_SANIERUNGEN",
-  "MIETVERHAELTNIS",
-  "NEBENKOSTEN",
-  "HEIZUNG_ENERGIE",
-  "TECHNISCHE_UNTERLAGEN",
-  "DOKUMENTENVOLLSTAENDIGKEIT",
-];
-const KNOWN_CATEGORIES = new Set(ALL_CATEGORIES);
+const KNOWN_CATEGORIES = new Set(CATEGORY_ORDER);
 const KNOWN_SEVERITIES = new Set<DueDiligenceSeverity>(["OK", "KLAERUNGSBEDARF", "RISIKO"]);
 
 function buildSynthesisPrompt(documents: SynthesisDocumentInput[], knownFacts: SynthesisKnownFact[], knownFields: SynthesisKnownField[]): string {
@@ -105,11 +95,14 @@ ${documentsBlock}
 
 Beispiele für Widersprüche, auf die du besonders achten sollst: abweichende Flächenangaben zwischen Inserat und Grundriss/Grundbuch; ein im Inserat behauptetes Renovationsjahr ohne passenden Beleg in Rechnungen; ein angeblich inkludierter Parkplatz, der grundbuchlich nicht oder anders zugeordnet ist; ein in einem STWEG-Protokoll diskutiertes, aber abgelehntes/vertagtes Vorhaben (das trotzdem ein zukünftiges Risiko ist, nicht ignorieren).
 
+Bevor du eine zahlenmässige Abweichung zwischen zwei Dokumenten als ungeklärten Widerspruch meldest: prüfe zuerst, ob sich die Differenz rechnerisch erklären lässt — z.B. weil ein Dokument die Summe mehrerer Konten/Positionen nennt, die ein anderes Dokument einzeln ausweist, oder weil ein späterer Kontostand sich aus einem früheren plus bekannten, regelmässigen Beiträgen ergibt (Fondssaldo + jährliche Einlage laut Budget). Findest du eine schlüssige Erklärung, ist das ein gelöster Punkt (severity "OK"), nicht mehr Klärungsbedarf — nenne die Rechnung im "detail"-Feld, damit sie nachvollziehbar bleibt. Nur eine tatsächlich unerklärliche Differenz bleibt ein Widerspruch mit "isContradiction": true.
+
 Gib AUSSCHLIESSLICH ein JSON-Objekt zurück, ohne Erklärtext, mit genau dieser Struktur:
 {
+  "overallSummary": string (2-4 Sätze Fliesstext: Gesamteinschätzung des Objekts als Rendite-/Buy-to-let-Investment — Kernaussage zuerst, dann die wichtigste Bedingung/Einschränkung, dann das grösste Risiko; konkret und auf dieses Objekt bezogen, keine Floskeln),
   "categories": [
     {
-      "category": string (einer von: ${ALL_CATEGORIES.join(", ")}),
+      "category": string (einer von: ${CATEGORY_ORDER.join(", ")}),
       "status": string (OK, KLAERUNGSBEDARF, oder RISIKO),
       "findings": [
         {
@@ -168,6 +161,7 @@ function parseFinding(
 /** Defensiv geparst wie `parseDocumentExtractionResponse` — unbekannte/fehlerhafte Einträge werden übersprungen statt das ganze Ergebnis zu verwerfen. */
 export function parseSynthesisResponse(jsonText: string, documents: SynthesisDocumentInput[], knownFields: SynthesisKnownField[]): DueDiligenceResult {
   const parsed = JSON.parse(jsonText) as Record<string, unknown>;
+  const overallSummary = typeof parsed.overallSummary === "string" ? parsed.overallSummary : "";
   const knownDocumentIds = new Set(documents.map((d) => d.id));
   const documentNameById = new Map(documents.map((d) => [d.id, d.filename]));
   const knownFieldPaths = new Set(knownFields.map((f) => f.field));
@@ -215,7 +209,7 @@ export function parseSynthesisResponse(jsonText: string, documents: SynthesisDoc
     });
   }
 
-  return { overallStatus: computeOverallStatus(categories), categories, missingDocuments: computeMissingDocuments(documents.map((d) => d.documentType)), sellerQuestions, fieldUpdateProposals };
+  return { overallStatus: computeOverallStatus(categories), overallSummary, categories, missingDocuments: computeMissingDocuments(documents.map((d) => d.documentType)), sellerQuestions, fieldUpdateProposals };
 }
 
 export async function synthesizeDueDiligence(
@@ -227,7 +221,7 @@ export async function synthesizeDueDiligence(
   if (!apiKey) throw new AnthropicNotConfiguredError();
 
   if (documents.length === 0) {
-    return { overallStatus: "KLAERUNGSBEDARF", categories: [], missingDocuments: computeMissingDocuments([]), sellerQuestions: [], fieldUpdateProposals: [] };
+    return { overallStatus: "KLAERUNGSBEDARF", overallSummary: "", categories: [], missingDocuments: computeMissingDocuments([]), sellerQuestions: [], fieldUpdateProposals: [] };
   }
 
   const client = new Anthropic({ apiKey });
