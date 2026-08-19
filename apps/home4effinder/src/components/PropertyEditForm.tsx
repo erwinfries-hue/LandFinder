@@ -7,7 +7,11 @@ import { AVAILABLE_CANTONS } from "@/lib/cantons";
 import type { PropertyRow } from "@/lib/properties";
 
 /** Korrigiert die Objekt-Basisdaten nachträglich — z.B. einen Tippfehler in der Adresse, ohne das ganze Objekt neu anlegen zu müssen. */
-export function PropertyEditForm({ property }: { property: Pick<PropertyRow, "id" | "address_text" | "canton" | "asking_price_chf" | "wohnflaeche_m2"> }) {
+export function PropertyEditForm({
+  property,
+}: {
+  property: Pick<PropertyRow, "id" | "address_text" | "canton" | "asking_price_chf" | "wohnflaeche_m2" | "listing_url">;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -22,12 +26,13 @@ export function PropertyEditForm({ property }: { property: Pick<PropertyRow, "id
     const canton = String(form.get("canton") ?? "");
     const askingPriceChf = Number(form.get("askingPriceChf"));
     const wohnflaecheM2 = Number(form.get("wohnflaecheM2"));
+    const listingUrl = String(form.get("listingUrl") ?? "").trim();
 
     try {
       const res = await fetch(`/api/properties/${property.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ addressText, canton, askingPriceChf, wohnflaecheM2 }),
+        body: JSON.stringify({ addressText, canton, askingPriceChf, wohnflaecheM2, listingUrl }),
       });
       const body = (await res.json()) as { saved?: boolean; error?: string };
       if (!res.ok || !body.saved) {
@@ -68,6 +73,10 @@ export function PropertyEditForm({ property }: { property: Pick<PropertyRow, "id
           <div className="field">
             <label htmlFor="edit-wohnflaecheM2">Wohnfläche (m²)</label>
             <input id="edit-wohnflaecheM2" name="wohnflaecheM2" type="number" step="0.5" min="1" required defaultValue={property.wohnflaeche_m2} />
+          </div>
+          <div className="field" style={{ gridColumn: "1 / -1" }}>
+            <label htmlFor="edit-listingUrl">Inserat-Link (optional)</label>
+            <input id="edit-listingUrl" name="listingUrl" type="url" placeholder="https://…" defaultValue={property.listing_url ?? ""} />
           </div>
         </div>
 

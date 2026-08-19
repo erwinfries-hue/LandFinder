@@ -32,6 +32,9 @@ export type DueDiligenceDocumentType =
   | "BAUBESCHRIEB"
   | "PARKPLATZ_UNTERLAGEN"
   | "STWEG_BEGRUENDUNG"
+  // Objekt-Basisdaten (kein Due-Diligence-Dokument im engeren Sinn, aber Quelle für
+  // Adresse/Kaufpreis/Wohnfläche beim Anlegen eines neuen Objekts)
+  | "EXPOSE_INSERAT"
   // Auffangkategorie
   | "SONSTIGES";
 
@@ -115,6 +118,21 @@ export interface DueDiligenceResult {
   fieldUpdateProposals: DueDiligenceFieldUpdateProposal[];
 }
 
+/**
+ * Aus einem Dokument (typischerweise Exposé/Inserat, ggf. auch Grundriss/Grundbuchauszug)
+ * erkannte Objekt-Basisdaten — jedes Feld nur befüllt, wenn im Dokument klar ersichtlich
+ * ("nichts wird erfunden"). Dient ausschliesslich dem Vorausfüllen des Erfassungsformulars
+ * für ein NEUES Objekt; ersetzt nie automatisch einen bereits erfassten Wert (dafür gibt es
+ * die DueDiligenceFieldUpdateProposal-Flow für bestehende Objekte).
+ */
+export interface DocumentBasisdaten {
+  adresseText?: string;
+  /** Zweistelliges Kantonskürzel (z.B. "ZH") — nur, wenn eindeutig aus der Adresse/dem Dokument ableitbar. */
+  kantonCode?: string;
+  kaufpreisChf?: number;
+  wohnflaecheM2?: number;
+}
+
 /** Ergebnis der Stufe-1-Extraktion eines einzelnen Dokuments. */
 export interface DocumentExtractionResult {
   /** Von der KI erkannter/bestätigter Dokumenttyp — kann vom beim Upload gewählten Typ abweichen (dann als Fund markiert). */
@@ -123,4 +141,6 @@ export interface DocumentExtractionResult {
   /** Freie, dokumenttypspezifische Fakten (z.B. Erneuerungsfonds-Saldo, Mietbeginn) — bewusst als offenes Objekt, siehe documentTypes.ts für die je Typ erwartete Form. */
   facts: Record<string, unknown>;
   findings: DueDiligenceFinding[];
+  /** Nur befüllt, wenn das Dokument Objekt-Basisdaten enthält (siehe DocumentBasisdaten). */
+  basisdaten?: DocumentBasisdaten;
 }

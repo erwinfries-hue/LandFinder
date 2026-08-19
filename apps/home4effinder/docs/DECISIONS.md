@@ -267,9 +267,41 @@ unsichtbaren Werte, sondern fehlende Grundfunktionen:
   Dokumente und die Due-Diligence-Synthese mit sich gerissen hätte. Neue Route
   `PATCH /api/properties/[id]` + ein-/ausklappbares Bearbeiten-Formular.
 
+## Nachgezogen (2026-08-19): Objekt-Erfassung aus Dokumenten vorausfüllen + Inserat-Link
+
+Erster Fund aus dem echten Live-Betrieb (nach erfolgreicher Erstinbetriebnahme durch den
+Auftraggeber): beim Anlegen eines neuen Objekts mussten Adresse/Kanton/Kaufpreis/Wohnfläche
+komplett manuell abgetippt werden, obwohl diese Angaben meist schon in einem Exposé/Inserat
+stehen, das ohnehin für die Due-Diligence hochgeladen wird.
+
+- **Neuer Dokumenttyp `EXPOSE_INSERAT`** im Katalog (Priorität EMPFOHLEN) — Extraktionsanleitung
+  gezielt auf Adresse/Kaufpreis/Wohnfläche (plus als Fund: Zimmerzahl, Baujahr, Widerspruch zu
+  Grundriss-Fläche).
+- **Neues, generisches `basisdaten`-Feld** im Stufe-1-Extraktionsergebnis (nicht nur für
+  `EXPOSE_INSERAT` — jedes Dokumenttyp-Prompt fragt danach, z.B. kann auch ein Grundbuchauszug
+  die Adresse bestätigen) — defensiv geparst, jedes Einzelfeld nur übernommen bei korrektem Typ
+  (Kantonscode gegen die bekannte 26er-Liste geprüft, Beträge/Flächen müssen positiv sein).
+- **Zustandslose Vorab-Analyse** (`POST /api/properties/prefill`): läuft, BEVOR das Objekt
+  existiert (kein `property_id` verfügbar) — analysiert das Dokument, schreibt aber nichts in
+  DB/Storage. Das Ergebnis füllt nur die Formularfelder vor (bleiben editierbar, nichts wird
+  automatisch als Fakt übernommen — konsistent mit dem bestehenden
+  Feldwert-Übernahmevorschlag-Muster für bereits erfasste Objekte).
+- **Keine doppelte Analyse:** Beim tatsächlichen "Objekt anlegen" wird das schon berechnete
+  Extraktionsergebnis über `POST /api/properties/[id]/documents/attach` ans neu erstellte
+  Objekt angehängt, statt Claude ein zweites Mal für dasselbe Dokument aufzurufen.
+- **Bewusst KEIN automatischer Abruf eines Inserat-Links:** LandFinder hat gezeigt, dass
+  grosse Schweizer Portale (v.a. Homegate) automatisierte Abrufe aktiv blockieren, auch von
+  Vercel-Servern aus. Der neue `listing_url`-Spalte/-Feld ist rein informativ — wird
+  gespeichert und auf der Objektseite verlinkt, aber nie serverseitig abgerufen. Diese
+  Einschränkung wurde dem Auftraggeber explizit zur Wahl gestellt, bevor gebaut wurde.
+- Migration `0002_listing_url.sql` — additiv (`alter table ... add column if not exists`),
+  da `0001_init.sql` bereits gegen die produktive Datenbank gelaufen war.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
-- Automatisierte Objekt-Erfassung (kein Portal-Scraping/E-Mail-Ingestion wie bei
-  LandFinder) — Objekte werden ausschliesslich manuell erfasst.
+- Automatisierter Abruf/Scraping von Inserat-Links (siehe oben — bewusste Entscheidung wegen
+  Portal-Blockaden). Die Objekt-Grunderfassung selbst ist weiterhin ein manueller Schritt
+  (Formular ausfüllen bzw. bestätigen), auch wenn er sich jetzt optional aus Dokumenten
+  vorausfüllen lässt — es gibt kein Portal-Scraping/E-Mail-Ingestion wie bei LandFinder.

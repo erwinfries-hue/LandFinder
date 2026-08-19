@@ -2,15 +2,15 @@ import { describe, it, expect } from "vitest";
 import { computeMissingDocuments, computeOverallStatus, parseSynthesisResponse, type SynthesisDocumentInput, type SynthesisKnownField } from "./dueDiligenceSynthesis";
 
 describe("computeMissingDocuments", () => {
-  it("listet alle 17 Prio-A/B-Typen als fehlend, wenn nichts hochgeladen ist", () => {
+  it("listet alle 18 Prio-A/B-Typen als fehlend, wenn nichts hochgeladen ist", () => {
     const missing = computeMissingDocuments([]);
-    expect(missing).toHaveLength(17);
+    expect(missing).toHaveLength(18);
     expect(missing.some((m) => m.documentType === "SONSTIGES")).toBe(false);
   });
 
   it("entfernt bereits hochgeladene Typen aus der fehlenden Liste", () => {
     const missing = computeMissingDocuments(["STWEG_PROTOKOLL", "GRUNDBUCHAUSZUG"]);
-    expect(missing).toHaveLength(15);
+    expect(missing).toHaveLength(16);
     expect(missing.some((m) => m.documentType === "STWEG_PROTOKOLL")).toBe(false);
     expect(missing.some((m) => m.documentType === "GRUNDBUCHAUSZUG")).toBe(false);
   });

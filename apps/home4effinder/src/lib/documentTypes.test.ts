@@ -22,6 +22,7 @@ const ALL_TYPES: DueDiligenceDocumentType[] = [
   "BAUBESCHRIEB",
   "PARKPLATZ_UNTERLAGEN",
   "STWEG_BEGRUENDUNG",
+  "EXPOSE_INSERAT",
   "SONSTIGES",
 ];
 
@@ -42,10 +43,10 @@ describe("DOCUMENT_TYPE_CATALOG", () => {
     }
   });
 
-  it("genau 9 Priorität-A- und 8 Priorität-B-Dokumenttypen, wie in der Produktvorgabe gelistet", () => {
+  it("genau 9 Priorität-A- und 9 Priorität-B-Dokumenttypen (8 aus der Produktvorgabe + EXPOSE_INSERAT)", () => {
     const byPriority = documentTypesByPriority();
     expect(byPriority.ZWINGEND).toHaveLength(9);
-    expect(byPriority.EMPFOHLEN).toHaveLength(8);
+    expect(byPriority.EMPFOHLEN).toHaveLength(9);
     expect(byPriority.OPTIONAL).toHaveLength(1); // SONSTIGES
   });
 });
@@ -53,7 +54,7 @@ describe("DOCUMENT_TYPE_CATALOG", () => {
 describe("requiredAndRecommendedDocumentTypes", () => {
   it("enthält alle Priorität-A- und -B-Typen, aber nicht SONSTIGES", () => {
     const types = requiredAndRecommendedDocumentTypes();
-    expect(types).toHaveLength(17);
+    expect(types).toHaveLength(18);
     expect(types).not.toContain("SONSTIGES");
     expect(types).toContain("STWEG_PROTOKOLL");
     expect(types).toContain("SINA");

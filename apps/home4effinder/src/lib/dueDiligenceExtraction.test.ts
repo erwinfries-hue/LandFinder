@@ -60,3 +60,51 @@ describe("parseDocumentExtractionResponse", () => {
     expect(() => parseDocumentExtractionResponse("kein json", "SONSTIGES")).toThrow();
   });
 });
+
+describe("parseDocumentExtractionResponse — basisdaten", () => {
+  it("übernimmt eine vollständige, gültige basisdaten-Angabe", () => {
+    const json = JSON.stringify({
+      summary: "x",
+      facts: {},
+      findings: [],
+      basisdaten: { adresseText: "Obere Haldenstrasse 42, 5610 Wohlen", kantonCode: "ag", kaufpreisChf: 690000, wohnflaecheM2: 78 },
+    });
+
+    const result = parseDocumentExtractionResponse(json, "EXPOSE_INSERAT");
+
+    expect(result.basisdaten).toEqual({
+      adresseText: "Obere Haldenstrasse 42, 5610 Wohlen",
+      kantonCode: "AG", // wird normalisiert auf Grossbuchstaben
+      kaufpreisChf: 690000,
+      wohnflaecheM2: 78,
+    });
+  });
+
+  it("fehlt basisdaten komplett im Ergebnis, wenn das Dokument keine Angaben enthält", () => {
+    const result = parseDocumentExtractionResponse(JSON.stringify({ summary: "x", facts: {}, findings: [] }), "SONSTIGES");
+    expect(result.basisdaten).toBeUndefined();
+  });
+
+  it("verwirft ein unbekanntes Kantonskürzel statt es zu übernehmen", () => {
+    const json = JSON.stringify({ summary: "x", facts: {}, findings: [], basisdaten: { kantonCode: "XX", kaufpreisChf: 500000 } });
+    const result = parseDocumentExtractionResponse(json, "EXPOSE_INSERAT");
+    expect(result.basisdaten).toEqual({ kaufpreisChf: 500000 });
+  });
+
+  it("verwirft nicht-positive oder falsch typisierte Werte einzeln, statt basisdaten ganz zu verwerfen", () => {
+    const json = JSON.stringify({
+      summary: "x",
+      facts: {},
+      findings: [],
+      basisdaten: { adresseText: "", kaufpreisChf: -1, wohnflaecheM2: "78", kantonCode: "ZH" },
+    });
+    const result = parseDocumentExtractionResponse(json, "EXPOSE_INSERAT");
+    expect(result.basisdaten).toEqual({ kantonCode: "ZH" });
+  });
+
+  it("liefert basisdaten: undefined statt eines leeren Objekts, wenn kein Feld gültig ist", () => {
+    const json = JSON.stringify({ summary: "x", facts: {}, findings: [], basisdaten: { kantonCode: "XX" } });
+    const result = parseDocumentExtractionResponse(json, "EXPOSE_INSERAT");
+    expect(result.basisdaten).toBeUndefined();
+  });
+});

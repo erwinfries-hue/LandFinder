@@ -17,11 +17,20 @@ export async function POST(request: Request): Promise<Response> {
   const canton = typeof b.canton === "string" ? b.canton.trim() : "";
   const askingPriceChf = typeof b.askingPriceChf === "number" ? b.askingPriceChf : undefined;
   const wohnflaecheM2 = typeof b.wohnflaecheM2 === "number" ? b.wohnflaecheM2 : undefined;
+  const listingUrlRaw = typeof b.listingUrl === "string" ? b.listingUrl.trim() : "";
+  const listingUrl = listingUrlRaw ? listingUrlRaw : null;
 
   if (!addressText) return NextResponse.json({ error: "addressText fehlt" }, { status: 400 });
   if (!canton) return NextResponse.json({ error: "canton fehlt" }, { status: 400 });
   if (askingPriceChf === undefined || askingPriceChf <= 0) return NextResponse.json({ error: "askingPriceChf fehlt oder ungültig" }, { status: 400 });
   if (wohnflaecheM2 === undefined || wohnflaecheM2 <= 0) return NextResponse.json({ error: "wohnflaecheM2 fehlt oder ungültig" }, { status: 400 });
+  if (listingUrl !== null) {
+    try {
+      new URL(listingUrl);
+    } catch {
+      return NextResponse.json({ error: "listingUrl ist keine gültige URL" }, { status: 400 });
+    }
+  }
 
   const supabase = createSupabaseServerClient();
   if (!supabase) return NextResponse.json({ saved: false, configured: false }, { status: 200 });
@@ -34,6 +43,7 @@ export async function POST(request: Request): Promise<Response> {
       canton,
       asking_price_chf: askingPriceChf,
       wohnflaeche_m2: wohnflaecheM2,
+      listing_url: listingUrl,
     })
     .select("id")
     .single();
