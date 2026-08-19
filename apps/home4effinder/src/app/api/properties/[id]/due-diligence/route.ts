@@ -7,20 +7,26 @@ import { synthesizeDueDiligence, type SynthesisDocumentInput, type SynthesisKnow
 
 export const maxDuration = 60;
 
-/** Feldpfade, die Claude für Feldwert-Übernahmevorschläge referenzieren darf — muss mit `BestandsrenditeFacts` (bestandsrendite.ts) übereinstimmen. */
+/** Feldpfade, die Claude für Feldwert-Übernahmevorschläge referenzieren darf — muss mit `BestandsrenditeFacts` (bestandsrendite.ts, `ALLOWED_UPDATE_FIELDS`) übereinstimmen. */
 function buildKnownFields(facts: Record<string, unknown> | null): SynthesisKnownField[] {
-  const f = (facts ?? {}) as Record<string, Record<string, unknown> | undefined>;
+  const f = (facts ?? {}) as Record<string, unknown>;
+  const nested = (group: string): Record<string, unknown> | undefined => f[group] as Record<string, unknown> | undefined;
   const val = (obj: Record<string, unknown> | undefined, key: string): number | string | undefined => {
     const v = obj?.[key];
     return typeof v === "number" || typeof v === "string" ? v : undefined;
   };
   return [
-    { field: "miete.wohnungsMieteChfPerMonth", label: "Nettomiete Wohnung (CHF/Monat)", currentValue: val(f.miete, "wohnungsMieteChfPerMonth") },
-    { field: "miete.parkplatzMieteChfPerMonth", label: "Miete Parkplatz (CHF/Monat)", currentValue: val(f.miete, "parkplatzMieteChfPerMonth") },
-    { field: "betriebskosten.stwegAkontobeitragChfPerYear", label: "STWEG-Akontobeitrag (CHF/Jahr)", currentValue: val(f.betriebskosten, "stwegAkontobeitragChfPerYear") },
-    { field: "stweg.erneuerungsfondsSaldoChf", label: "Erneuerungsfonds-Saldo (CHF)", currentValue: val(f.stweg, "erneuerungsfondsSaldoChf") },
-    { field: "stweg.erneuerungsfondsZielwertChf", label: "Erneuerungsfonds-Zielwert (CHF)", currentValue: val(f.stweg, "erneuerungsfondsZielwertChf") },
-    { field: "stweg.wertquotePromille", label: "Wertquote (Promille)", currentValue: val(f.stweg, "wertquotePromille") },
+    { field: "zimmerzahl", label: "Zimmerzahl", currentValue: val(f, "zimmerzahl") },
+    { field: "baujahr", label: "Baujahr", currentValue: val(f, "baujahr") },
+    { field: "parkplatzKaufpreisChf", label: "Parkplatz-Kaufpreis (CHF)", currentValue: val(f, "parkplatzKaufpreisChf") },
+    { field: "miete.wohnungsMieteChfPerMonth", label: "Nettomiete Wohnung (CHF/Monat)", currentValue: val(nested("miete"), "wohnungsMieteChfPerMonth") },
+    { field: "miete.parkplatzMieteChfPerMonth", label: "Miete Parkplatz (CHF/Monat)", currentValue: val(nested("miete"), "parkplatzMieteChfPerMonth") },
+    { field: "miete.sonstigeEinnahmenChfPerYear", label: "Sonstige Einnahmen (CHF/Jahr)", currentValue: val(nested("miete"), "sonstigeEinnahmenChfPerYear") },
+    { field: "miete.leerstandPercent", label: "Leerstand (%)", currentValue: val(nested("miete"), "leerstandPercent") },
+    { field: "betriebskosten.stwegAkontobeitragChfPerYear", label: "STWEG-Akontobeitrag (CHF/Jahr)", currentValue: val(nested("betriebskosten"), "stwegAkontobeitragChfPerYear") },
+    { field: "stweg.erneuerungsfondsSaldoChf", label: "Erneuerungsfonds-Saldo (CHF)", currentValue: val(nested("stweg"), "erneuerungsfondsSaldoChf") },
+    { field: "stweg.erneuerungsfondsZielwertChf", label: "Erneuerungsfonds-Zielwert (CHF)", currentValue: val(nested("stweg"), "erneuerungsfondsZielwertChf") },
+    { field: "stweg.wertquotePromille", label: "Wertquote (Promille)", currentValue: val(nested("stweg"), "wertquotePromille") },
   ];
 }
 
