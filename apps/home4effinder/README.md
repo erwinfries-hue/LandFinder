@@ -34,6 +34,9 @@ Datenbank, eigener Login. Details zur Trennung und den getroffenen MVP-Entscheid
    geschätzt, mit sichtbarer Aufschlüsselung statt nur einer nackten Zahl. Zusätzlich ein
    optionales, rein manuell erfassbares Marktvergleich-Freitextfeld (nie automatisch
    abgerufen, analog zum Inserat-Link).
+5. **Objektvergleich** (`/vergleich`) — alle Objekte in einer Zeile pro Objekt (Kaufpreis,
+   CHF/m², Bruttorendite, DD-Status, Investment-Score), sortiert nach Score, je aufklappbar
+   zur Gesamteinschätzung und zum Link auf die Objektseite.
 
 ## Struktur
 
