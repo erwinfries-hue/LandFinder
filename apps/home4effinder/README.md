@@ -1,0 +1,71 @@
+# HOME4efFINDER
+
+Privates Due-Diligence- und Renditeinstrument für **bestehende Eigentumswohnungen**
+in der Schweiz, ausschliesslich als Rendite-/Buy-to-let-Investment (kein
+Eigennutzungs-Anwendungsfall — das wäre "4efHOME", nicht Teil dieser App). Eigene,
+von LandFinder (`apps/web`) unabhängige Applikation — eigenes Hosting, eigene
+Datenbank, eigener Login. Details zur Trennung und den getroffenen MVP-Entscheidungen:
+[`docs/DECISIONS.md`](./docs/DECISIONS.md).
+
+## Was die App kann
+
+1. **Objekt erfassen** (`/neu`) — Adresse, Kanton, Kaufpreis, Wohnfläche.
+2. **Bestandsrendite-Fakten erfassen** (auf der Objektseite) — Miete, Betriebskosten,
+   STWEG-Fakten, Hypothek, Möblierung/Renovation, 15-Jahres-Annahmen.
+3. **Automatische Renditeanalyse** in drei Ebenen: Schnellcheck (Brutto-/Nettorendite),
+   Investment Case (5-stufige Cashflow-Kaskade, Break-even-Werte), 15-Jahres-Modell
+   (Levered/Unlevered IRR, Equity Multiple, Investment-Treiber-Attribution).
+4. **Dokumenten-KI / Due-Diligence** — PDF-Upload (STWEG-Protokolle, Jahresrechnung,
+   Mietverträge, Grundbuchauszug, …), automatische Extraktion je Dokument via Claude,
+   Cross-Dokument-Synthese (Kategorien-Ampel, Widersprüche, fehlende Dokumente,
+   Rückfragen an Verkäufer/Makler inkl. E-Mail-Export, Feldwert-Übernahmevorschläge).
+
+## Struktur
+
+```
+src/lib/                 Reine Logik: Bestandsrendite-Fakten, Dokumenttypen-Katalog,
+                          Dokumenten-KI (Extraktion + Synthese), E-Mail-Export
+src/components/           UI-Komponenten (Formulare, Analyseansicht, Due-Diligence-Panel)
+src/app/                  Next.js App Router: Login, Objektliste, Objekt-Erfassung, Objekt-Detail
+supabase/migrations/       Eigenes, schlankes Datenbankschema (properties/property_documents/
+                          property_due_diligence) — NICHT dasselbe Projekt wie LandFinder
+```
+
+Wiederverwendet aus LandFinder (als gemeinsame Packages, siehe
+`docs/DECISIONS.md`): den Bestandsrendite-Rechenkern (`@landfinder/financial-engine`),
+die Due-Diligence-/STWEG-Domain-Typen (`@landfinder/domain`) und das Design-System
+(`@landfinder/ui` + `globals.css`, gleicher Teal-Akzent wie im HOME4efFINDER-Logo).
+
+## Entwicklung
+
+```bash
+npm install                        # von der Repo-Wurzel aus
+npm run dev:home4effinder          # startet diese App auf http://localhost:3000
+npm run build:home4effinder
+npm run lint:home4effinder
+npm test                           # vitest über alle packages/* + beide Apps
+```
+
+## Benötigte Umgebungsvariablen
+
+| Variable | Zweck |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | **Eigenes** Supabase-Projekt — NICHT dasselbe wie LandFinders `NEXT_PUBLIC_SUPABASE_URL` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-Role-Key desselben eigenen Projekts |
+| `ANTHROPIC_API_KEY` | Für die Dokumenten-KI (Extraktion + Synthese) — kann derselbe Key wie bei LandFinder sein, reine Nutzungskosten |
+| `SESSION_SIGNING_SECRET` | Beliebiger langer Zufallsstring — signiert das Session-Cookie. Ohne diese Variable bleibt die App komplett gesperrt (fail closed) |
+
+Ohne `NEXT_PUBLIC_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` läuft die App, zeigt aber
+überall "Supabase ist nicht konfiguriert" statt echter Daten — kein Absturz.
+
+## Erstinbetriebnahme (siehe `docs/DECISIONS.md` für Details)
+
+1. Neues, separates Supabase-Projekt anlegen (Free-Tier reicht für den Start).
+2. Die Migration `supabase/migrations/0001_init.sql` dort ausführen (z.B. via
+   Supabase SQL-Editor — dieses Projekt hat noch keine Supabase-CLI-Anbindung
+   eingerichtet).
+3. Neues Vercel-Projekt anlegen, dieses Repo verbinden, **Root Directory**
+   `apps/home4effinder` setzen (wichtig — sonst versucht Vercel, `apps/web` zu bauen).
+4. Die vier Umgebungsvariablen oben in den Vercel-Projekteinstellungen setzen.
+5. Einloggen mit der E-Mail-Adresse, die in
+   `src/app/api/auth/login/route.ts::ALLOWED_EMAIL` hinterlegt ist.

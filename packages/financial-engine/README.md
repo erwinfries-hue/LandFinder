@@ -36,5 +36,24 @@ UI-Teil folgt mit dem Suchprofil-Wizard (Schritt 5).
 | `residualwert.ts` | 13 | Verkehrswert, Residualwert, Break-even-Miete/-Baukosten |
 | `szenarien.ts` | 14 | Orchestrierung Base-Case, Ableitung Stress-Case |
 
-Offen: Anbindung an `packages/scoring-engine` (Schritt 3) und die reale Verwendung im
-Suchprofil-Wizard/der Objekt-Detailseite.
+Diese sieben Module gehören zu LandFinder (Bauland/Development, `apps/web`).
+
+### Bestandsrendite — Buy-to-let auf Eigentumswohnungen (`apps/home4effinder`)
+
+Ein zweiter, unabhängiger Rechenkern für bestehende Eigentumswohnungen als
+Rendite-/Buy-to-let-Investment — nutzt keine der obigen Bauland-Module, teilt sich nur
+`numeric.ts` (Bisektion für Break-even-Werte/IRR).
+
+| Datei | Inhalt |
+|---|---|
+| `numeric.ts` | `bisectRoot`, `netPresentValue`, `internalRateOfReturn` — Bisektion statt Newton-Raphson (keine Ableitungen nötig) |
+| `bestandsrendite.ts` | Ebene A (Schnellcheck: Brutto-/Nettorendite) und Ebene B (Investment Case: 5-stufige Cashflow-Kaskade, Break-even-Werte) |
+| `bestandsrenditeValueAdd.ts` | Möblierung/Renovation als eigene Module mit eigenem ROI (Furniture-/Renovation-ROI, Payback-Periode) |
+| `bestandsrenditeMehrjahresmodell.ts` | Ebene C (15-Jahres-Modell: Jahr-für-Jahr-Simulation, Levered/Unlevered IRR, Equity Multiple, Exit inkl. optionaler Grundstückgewinnsteuer-Näherung), mechanische Investment-Treiber-Attribution |
+
+Bewusst **kein** DCF/WACC/NPV/Monte-Carlo — die Tiefe endet bei
+Brutto→Netto→Cashflow→Cash-on-Cash→15-Jahres-IRR, siehe
+`apps/home4effinder/docs/DECISIONS.md`.
+
+Offen (Bauland-Seite): Anbindung an `packages/scoring-engine` und die reale Verwendung
+im Suchprofil-Wizard/der Objekt-Detailseite.
