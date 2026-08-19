@@ -316,6 +316,49 @@ Zwei weitere Funde aus dem echten Live-Betrieb:
   (`zimmerzahl`, `baujahr`, `parkplatzKaufpreisChf` — liegen direkt auf der Wurzel von
   `BestandsrenditeFacts`) korrekt setzt.
 
+## Nachgezogen (2026-08-19): seriöse, teils kantonsspezifische Default-Werte + sichtbar vorausgefüllte Formularfelder
+
+Auftrag: "bei allen Feldern möglichst einen seriösen Default-Wert eintragen (und sollte
+als Default sichtbar sein resp. wenn er überschrieben wird)". Dazu vorab zwei
+Design-Entscheidungen mit dem Auftraggeber abgestimmt:
+
+1. **Datenquelle für orts-/objektspezifische Werte**: eine jetzt (statt live pro Objekt)
+   recherchierte, statische Tabelle — kein Live-Web-Lookup pro Objekt (Kosten/Latenz/
+   Komplexität gegenüber Nutzen nicht gerechtfertigt für eine Ein-Personen-App). Muss
+   künftig manuell aufgefrischt werden.
+2. **Einstellungsort für die allgemeinen (nicht ortsbezogenen) Defaults**: bleibt Code —
+   keine neue Einstellungen-Seite/DB-Tabelle/API. Änderungswunsch einfach mitteilen.
+
+Umsetzung:
+
+- Neue Datei `apps/home4effinder/src/lib/cantonDefaults.ts`: recherchierte
+  Handänderungssteuer-Sätze für alle 26 Kantone (0% in acht Kantonen bis 3.3% in VD/NE;
+  Quellen: ESTV-Steuermäppchen, mehrere Immobilien-Ratgeber, quergecheckt) sowie eine
+  grobe dreistufige Einordnung (günstig/mittel/teuer, 18/24/29%) der kantonalen
+  Einkommenssteuerbelastung als Grundlage für den "Kalkulatorischer Steuersatz"-Default.
+  Bewusst KEINE scheinbar präzise Einzelzahl pro Kanton für den Steuersatz — hängt real zu
+  stark von Einkommen/Zivilstand/Gemeinde ab, eine erfundene Präzision wäre irreführender
+  als eine grobe, aber gut belegte Kategorisierung ("nichts wird erfunden").
+- `computeBestandsrenditeAnalysis` erhält jetzt optional den Kanton des Objekts und nutzt
+  bei bekanntem Kanton den kantonsspezifischen statt den schweizweiten Platzhalter-Default
+  für Handänderungssteuer und kalkulatorischen Steuersatz — ein explizit erfasster Wert
+  hat immer Vorrang.
+- Alle 15 `BESTANDSRENDITE_PARAMETERS`-Einträge (packages/financial-engine/parameters.ts)
+  von "Platzhalter — noch nicht mit Auftraggeber abgestimmt" auf eine echte, nachvollziehbare
+  Begründung umgestellt (z.B. Referenz auf die schweizweite Leerwohnungsziffer, marktübliche
+  Makler-/Notariatskosten-Bandbreiten, langjährige Mietpreis-/Teuerungsentwicklung).
+- `BestandsrenditeVertiefungForm` zeigt jetzt bei rund einem Dutzend Feldern den
+  tatsächlichen Zahlenwert des Defaults direkt im Feld UND im Label ("Standard: X") an,
+  statt eines leeren Felds mit dem Text "leer = Default" — inkl. drei bisher im Formular
+  gar nicht vorhandener Felder (Handänderungssteuer, Notariat/Grundbuch, Maklerprovision),
+  die zwar schon lange von der Engine berechnet, aber nie erfassbar waren.
+- Bewusste Vereinfachung: kein live nachverfolgter "wurde dieser Wert vom Nutzer
+  überschrieben"-Badge — der vorausgefüllte Wert wird beim Speichern wie jeder andere
+  Wert behandelt (fest gespeichert, kein "merkt sich, dass es noch der Default war" mehr).
+  Vorteil: einfacher, vorhersehbares Verhalten. Nachteil: eine spätere Anpassung eines
+  Default-Werts wirkt sich nicht rückwirkend auf bereits gespeicherte Objekte aus, die den
+  alten Default unverändert übernommen hatten.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Scoring/Hard-Gates auf Basis der Due-Diligence-Ergebnisse.

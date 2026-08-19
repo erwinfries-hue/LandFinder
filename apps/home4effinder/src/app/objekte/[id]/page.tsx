@@ -40,7 +40,9 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
 
   const [documents, dueDiligence] = await Promise.all([getPropertyDocuments(property.id), getPropertyDueDiligence(property.id)]);
 
-  const analysis = facts ? computeBestandsrenditeAnalysis({ kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2 }, facts) : null;
+  const analysis = facts
+    ? computeBestandsrenditeAnalysis({ kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton }, facts)
+    : null;
 
   return (
     <div className="shell">
@@ -83,7 +85,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
           <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>
             Bestandsrendite-Fakten {facts ? "bearbeiten" : "erfassen"}
           </summary>
-          <BestandsrenditeVertiefungForm propertyId={property.id} existing={facts} />
+          <BestandsrenditeVertiefungForm propertyId={property.id} existing={facts} canton={property.canton} />
         </details>
 
         <DueDiligencePanel

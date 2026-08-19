@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Panel } from "@landfinder/ui";
-import type { Vermietungsmodell, RenovationPosition, RenovationKategorie, SteuerlicheAbzugsfaehigkeit } from "@landfinder/financial-engine";
+import { BESTANDSRENDITE_PARAMETERS, type Vermietungsmodell, type RenovationPosition, type RenovationKategorie, type SteuerlicheAbzugsfaehigkeit } from "@landfinder/financial-engine";
 import type { BestandsrenditeFacts } from "@/lib/bestandsrendite";
+import { getCantonDefaults } from "@/lib/cantonDefaults";
 
 const RENOVATION_KATEGORIE_LABEL: Record<RenovationKategorie, string> = {
   WERTERHALTEND: "Werterhaltend",
@@ -23,12 +24,18 @@ function emptyRenovationPosition(): RenovationPosition {
  * transparent ausgewiesenen Platzhalter-Default zurück (siehe
  * `computeBestandsrenditeAnalysis`).
  */
-export function BestandsrenditeVertiefungForm({ propertyId, existing }: { propertyId: string; existing: BestandsrenditeFacts | null }) {
+export function BestandsrenditeVertiefungForm({ propertyId, existing, canton }: { propertyId: string; existing: BestandsrenditeFacts | null; canton?: string }) {
   const router = useRouter();
   const [vermietungsmodell, setVermietungsmodell] = useState<Vermietungsmodell>(existing?.miete.vermietungsmodell ?? "LANGFRISTIG_UNMOEBLIERT");
   const [renovationPositionen, setRenovationPositionen] = useState<RenovationPosition[]>(existing?.renovation.positionen ?? []);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const P = BESTANDSRENDITE_PARAMETERS;
+  const cantonDefaults = getCantonDefaults(canton);
+  const defaultHandaenderungssteuerPercent = cantonDefaults?.handaenderungssteuerPercent ?? P.handaenderungssteuerPercent.defaultValue;
+  const defaultKalkulatorischerSteuersatzPercent = cantonDefaults?.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent.defaultValue;
+  const defaultLeerstandPercent = vermietungsmodell === "MITTELFRISTIG_MOEBLIERT" ? P.leerstandMoebliertPercent.defaultValue : P.leerstandLangfristigPercent.defaultValue;
 
   function updateRenovationPosition(index: number, patch: Partial<RenovationPosition>) {
     setRenovationPositionen((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
@@ -144,8 +151,10 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
     <Panel style={{ padding: "1.4rem 1.6rem", marginTop: "1.6rem" }}>
       <div className="eyebrow">Bestandsrendite-Fakten{existing ? " — bearbeiten" : " erfassen"}</div>
       <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: "0.4rem 0 1.1rem" }}>
-        Nur Miete, Hypothek-Eckwerte und Vermietungsmodell sind Pflicht — alles andere fällt beim Berechnen transparent
-        auf einen ausgewiesenen Platzhalter-Wert zurück.
+        Nur Miete, Hypothek-Eckwerte und Vermietungsmodell sind Pflicht. Alle übrigen Felder mit &quot;Standard: …&quot;
+        im Label sind bereits mit einem recherchierten Vorschlagswert vorausgefüllt (bei Kanton-abhängigen Werten wie
+        Handänderungssteuer und Steuersatz auf {canton ?? "das Objekt"} bezogen) — einfach überschreiben, falls du es
+        genauer weisst.
       </p>
       <form onSubmit={handleSubmit}>
         <div className="eyebrow" style={{ marginBottom: ".5rem" }}>
@@ -163,6 +172,45 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
           <div className="field">
             <label htmlFor="parkplatzKaufpreisChf">Parkplatz-Kaufpreis (CHF, 0 falls keiner)</label>
             <input id="parkplatzKaufpreisChf" name="parkplatzKaufpreisChf" type="number" step="1000" defaultValue={existing?.parkplatzKaufpreisChf ?? 0} />
+          </div>
+        </div>
+
+        <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
+          Kaufnebenkosten
+        </div>
+        <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .6rem" }}>
+          Vorausgefüllt mit einem Vorschlagswert{canton ? ` für Kanton ${canton}` : ""} — bei Bedarf einfach überschreiben.
+        </p>
+        <div className="fieldgrid">
+          <div className="field">
+            <label htmlFor="handaenderungssteuerPercent">Handänderungssteuer (%, Standard: {defaultHandaenderungssteuerPercent})</label>
+            <input
+              id="handaenderungssteuerPercent"
+              name="handaenderungssteuerPercent"
+              type="number"
+              step="0.1"
+              defaultValue={existing?.nebenkosten.handaenderungssteuerPercent ?? defaultHandaenderungssteuerPercent}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="notariatGrundbuchPercent">Notariat/Grundbuch (%, Standard: {P.notariatGrundbuchPercent.defaultValue})</label>
+            <input
+              id="notariatGrundbuchPercent"
+              name="notariatGrundbuchPercent"
+              type="number"
+              step="0.1"
+              defaultValue={existing?.nebenkosten.notariatGrundbuchPercent ?? P.notariatGrundbuchPercent.defaultValue}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="maklerprovisionPercent">Maklerprovision (%, Standard: {P.maklerprovisionPercent.defaultValue})</label>
+            <input
+              id="maklerprovisionPercent"
+              name="maklerprovisionPercent"
+              type="number"
+              step="0.1"
+              defaultValue={existing?.nebenkosten.maklerprovisionPercent ?? P.maklerprovisionPercent.defaultValue}
+            />
           </div>
         </div>
 
@@ -197,8 +245,8 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
             </div>
           ) : (
             <div className="field">
-              <label htmlFor="leerstandPercent">Leerstand (%, leer = Default)</label>
-              <input id="leerstandPercent" name="leerstandPercent" type="number" step="0.5" defaultValue={existing?.miete.leerstandPercent} />
+              <label htmlFor="leerstandPercent">Leerstand (%, Standard: {defaultLeerstandPercent})</label>
+              <input id="leerstandPercent" name="leerstandPercent" type="number" step="0.5" defaultValue={existing?.miete.leerstandPercent ?? defaultLeerstandPercent} />
             </div>
           )}
         </div>
@@ -216,12 +264,24 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
             <input id="mietPremiumChfPerMonth" name="mietPremiumChfPerMonth" type="number" step="10" defaultValue={existing?.moeblierung.mietPremiumChfPerMonth ?? 0} />
           </div>
           <div className="field">
-            <label htmlFor="moeblierungNutzungsdauerJahre">Nutzungsdauer (Jahre, leer = Default)</label>
-            <input id="moeblierungNutzungsdauerJahre" name="moeblierungNutzungsdauerJahre" type="number" step="1" defaultValue={existing?.moeblierung.nutzungsdauerJahre} />
+            <label htmlFor="moeblierungNutzungsdauerJahre">Nutzungsdauer (Jahre, Standard: {P.moeblierungNutzungsdauerJahre.defaultValue})</label>
+            <input
+              id="moeblierungNutzungsdauerJahre"
+              name="moeblierungNutzungsdauerJahre"
+              type="number"
+              step="1"
+              defaultValue={existing?.moeblierung.nutzungsdauerJahre ?? P.moeblierungNutzungsdauerJahre.defaultValue}
+            />
           </div>
           <div className="field">
-            <label htmlFor="jaehrlicherErsatzsatzPercent">Jährliche Ersatzquote (%, leer = Default)</label>
-            <input id="jaehrlicherErsatzsatzPercent" name="jaehrlicherErsatzsatzPercent" type="number" step="1" defaultValue={existing?.moeblierung.jaehrlicherErsatzsatzPercent} />
+            <label htmlFor="jaehrlicherErsatzsatzPercent">Jährliche Ersatzquote (%, Standard: {P.moeblierungErsatzquotePercent.defaultValue})</label>
+            <input
+              id="jaehrlicherErsatzsatzPercent"
+              name="jaehrlicherErsatzsatzPercent"
+              type="number"
+              step="1"
+              defaultValue={existing?.moeblierung.jaehrlicherErsatzsatzPercent ?? P.moeblierungErsatzquotePercent.defaultValue}
+            />
           </div>
           <div className="field">
             <label htmlFor="moeblierungKostensteigerungPercentPerYear">Kosteninflation Möblierung (%/Jahr, leer = allgemeine Kosteninflation)</label>
@@ -376,16 +436,28 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
             <input id="reparaturChfPerYear" name="reparaturChfPerYear" type="number" step="100" defaultValue={existing?.reserven.reparaturChfPerYear} />
           </div>
           <div className="field">
-            <label htmlFor="reparaturPercentOfKaufpreis">Reparaturreserve (% Kaufpreis)</label>
-            <input id="reparaturPercentOfKaufpreis" name="reparaturPercentOfKaufpreis" type="number" step="0.05" defaultValue={existing?.reserven.reparaturPercentOfKaufpreis} />
+            <label htmlFor="reparaturPercentOfKaufpreis">Reparaturreserve (% Kaufpreis, Standard: {P.reparaturreservePercentOfKaufpreis.defaultValue})</label>
+            <input
+              id="reparaturPercentOfKaufpreis"
+              name="reparaturPercentOfKaufpreis"
+              type="number"
+              step="0.05"
+              defaultValue={existing?.reserven.reparaturPercentOfKaufpreis ?? (existing?.reserven.reparaturChfPerYear ? undefined : P.reparaturreservePercentOfKaufpreis.defaultValue)}
+            />
           </div>
           <div className="field">
             <label htmlFor="leerstandReserveChfPerYear">Leerstandsreserve (CHF/Jahr)</label>
             <input id="leerstandReserveChfPerYear" name="leerstandReserveChfPerYear" type="number" step="100" defaultValue={existing?.reserven.leerstandChfPerYear} />
           </div>
           <div className="field">
-            <label htmlFor="leerstandReservePercentOfKaufpreis">Leerstandsreserve (% Kaufpreis)</label>
-            <input id="leerstandReservePercentOfKaufpreis" name="leerstandReservePercentOfKaufpreis" type="number" step="0.05" defaultValue={existing?.reserven.leerstandPercentOfKaufpreis} />
+            <label htmlFor="leerstandReservePercentOfKaufpreis">Leerstandsreserve (% Kaufpreis, Standard: {P.leerstandsreservePercentOfKaufpreis.defaultValue})</label>
+            <input
+              id="leerstandReservePercentOfKaufpreis"
+              name="leerstandReservePercentOfKaufpreis"
+              type="number"
+              step="0.05"
+              defaultValue={existing?.reserven.leerstandPercentOfKaufpreis ?? (existing?.reserven.leerstandChfPerYear ? undefined : P.leerstandsreservePercentOfKaufpreis.defaultValue)}
+            />
           </div>
         </div>
 
@@ -406,34 +478,75 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing }: { proper
             <input id="amortisationChfPerYear" name="amortisationChfPerYear" type="number" step="500" required defaultValue={existing?.hypothek.amortisationChfPerYear ?? 0} />
           </div>
           <div className="field">
-            <label htmlFor="kalkulatorischerSteuersatzPercent">Kalkulatorischer Steuersatz (%, leer = Default)</label>
-            <input id="kalkulatorischerSteuersatzPercent" name="kalkulatorischerSteuersatzPercent" type="number" step="1" defaultValue={existing?.kalkulatorischerSteuersatzPercent} />
+            <label htmlFor="kalkulatorischerSteuersatzPercent">
+              Kalkulatorischer Steuersatz (%, Standard: {defaultKalkulatorischerSteuersatzPercent}
+              {canton ? ` für ${canton}` : ""})
+            </label>
+            <input
+              id="kalkulatorischerSteuersatzPercent"
+              name="kalkulatorischerSteuersatzPercent"
+              type="number"
+              step="1"
+              defaultValue={existing?.kalkulatorischerSteuersatzPercent ?? defaultKalkulatorischerSteuersatzPercent}
+            />
           </div>
         </div>
 
         <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
-          15-Jahres-Modell (leer = Default)
+          15-Jahres-Modell (vorausgefüllt mit Standardwerten, bei Bedarf überschreiben)
         </div>
         <div className="fieldgrid">
           <div className="field">
-            <label htmlFor="holdingPeriodYears">Haltedauer (5–30 Jahre)</label>
-            <input id="holdingPeriodYears" name="holdingPeriodYears" type="number" step="1" min="5" max="30" defaultValue={existing?.mehrjahresmodell.holdingPeriodYears} />
+            <label htmlFor="holdingPeriodYears">Haltedauer (5–30 Jahre, Standard: {P.holdingPeriodYearsDefault.defaultValue})</label>
+            <input
+              id="holdingPeriodYears"
+              name="holdingPeriodYears"
+              type="number"
+              step="1"
+              min="5"
+              max="30"
+              defaultValue={existing?.mehrjahresmodell.holdingPeriodYears ?? P.holdingPeriodYearsDefault.defaultValue}
+            />
           </div>
           <div className="field">
-            <label htmlFor="mietsteigerungPercentPerYear">Mietsteigerung (%/Jahr)</label>
-            <input id="mietsteigerungPercentPerYear" name="mietsteigerungPercentPerYear" type="number" step="0.1" defaultValue={existing?.mehrjahresmodell.mietsteigerungPercentPerYear} />
+            <label htmlFor="mietsteigerungPercentPerYear">Mietsteigerung (%/Jahr, Standard: {P.mietsteigerungPercentPerYear.defaultValue})</label>
+            <input
+              id="mietsteigerungPercentPerYear"
+              name="mietsteigerungPercentPerYear"
+              type="number"
+              step="0.1"
+              defaultValue={existing?.mehrjahresmodell.mietsteigerungPercentPerYear ?? P.mietsteigerungPercentPerYear.defaultValue}
+            />
           </div>
           <div className="field">
-            <label htmlFor="kosteninflationPercentPerYear">Kosteninflation (%/Jahr)</label>
-            <input id="kosteninflationPercentPerYear" name="kosteninflationPercentPerYear" type="number" step="0.1" defaultValue={existing?.mehrjahresmodell.kosteninflationPercentPerYear} />
+            <label htmlFor="kosteninflationPercentPerYear">Kosteninflation (%/Jahr, Standard: {P.kosteninflationPercentPerYear.defaultValue})</label>
+            <input
+              id="kosteninflationPercentPerYear"
+              name="kosteninflationPercentPerYear"
+              type="number"
+              step="0.1"
+              defaultValue={existing?.mehrjahresmodell.kosteninflationPercentPerYear ?? P.kosteninflationPercentPerYear.defaultValue}
+            />
           </div>
           <div className="field">
-            <label htmlFor="wertsteigerungPercentPerYear">Wertsteigerung (%/Jahr)</label>
-            <input id="wertsteigerungPercentPerYear" name="wertsteigerungPercentPerYear" type="number" step="0.1" defaultValue={existing?.mehrjahresmodell.wertsteigerungPercentPerYear} />
+            <label htmlFor="wertsteigerungPercentPerYear">Wertsteigerung (%/Jahr, Standard: {P.wertsteigerungPercentPerYear.defaultValue})</label>
+            <input
+              id="wertsteigerungPercentPerYear"
+              name="wertsteigerungPercentPerYear"
+              type="number"
+              step="0.1"
+              defaultValue={existing?.mehrjahresmodell.wertsteigerungPercentPerYear ?? P.wertsteigerungPercentPerYear.defaultValue}
+            />
           </div>
           <div className="field">
-            <label htmlFor="sellingCostPercent">Verkaufskosten Exit (%)</label>
-            <input id="sellingCostPercent" name="sellingCostPercent" type="number" step="0.1" defaultValue={existing?.mehrjahresmodell.sellingCostPercent} />
+            <label htmlFor="sellingCostPercent">Verkaufskosten Exit (%, Standard: {P.sellingCostPercent.defaultValue})</label>
+            <input
+              id="sellingCostPercent"
+              name="sellingCostPercent"
+              type="number"
+              step="0.1"
+              defaultValue={existing?.mehrjahresmodell.sellingCostPercent ?? P.sellingCostPercent.defaultValue}
+            />
           </div>
           <div className="field">
             <label htmlFor="grundstueckgewinnsteuerPercent">Grundstückgewinnsteuer (%, optional, grobe Näherung)</label>
