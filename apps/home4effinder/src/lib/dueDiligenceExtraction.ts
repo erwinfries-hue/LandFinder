@@ -26,6 +26,34 @@ export class AnthropicNotConfiguredError extends Error {
 /** Anthropics Dokumenten-API akzeptiert PDFs bis zu dieser Grösse (Stand der SDK-Dokumentation) — grösere Dateien vorher ablehnen statt einen unklaren API-Fehler zu riskieren. */
 export const MAX_DOCUMENT_SIZE_BYTES = 32 * 1024 * 1024;
 
+/**
+ * Eingabequelle für Stufe 1: entweder ein hochgeladenes PDF ODER eingefügter Text (z.B.
+ * aus einer E-Mail oder einem Online-Inserat kopiert, ohne dafür erst eine PDF-Datei
+ * erzeugen zu müssen). Beide laufen als Anthropic-"document"-Content-Block, nur mit
+ * unterschiedlichem `source.type` — der Rest der Extraktion (Prompt, Parsing) ist
+ * identisch.
+ */
+export type DocumentSourceInput = { kind: "pdf"; pdfBase64: string } | { kind: "text"; text: string };
+
+/** Grosszügige, aber sinnvolle Obergrenze für eingefügten Text — verhindert, dass ein versehentlich riesiger Paste den LLM-Aufruf sprengt. */
+export const MAX_PASTED_TEXT_LENGTH = 200_000;
+
+function isPdfFilename(name: string): boolean {
+  return name.toLowerCase().endsWith(".pdf");
+}
+
+/** PDF ODER Text-Datei — nach Vorgabe des Nutzers ("Möglichkeit bestehen, Texte einzukopieren") um Klartext-Uploads erweitert, weiterhin keine anderen Formate. */
+export function isSupportedDocumentFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  if (file.type === "application/pdf" || isPdfFilename(name)) return true;
+  if (file.type === "text/plain" || name.endsWith(".txt")) return true;
+  return false;
+}
+
+export function isPdfDocumentFile(file: File): boolean {
+  return file.type === "application/pdf" || (file.type !== "text/plain" && isPdfFilename(file.name));
+}
+
 const CANTON_CODES = AVAILABLE_CANTONS.map((c) => c.code);
 
 function buildSystemPrompt(documentType: DueDiligenceDocumentType): string {
@@ -135,7 +163,7 @@ export function parseDocumentExtractionResponse(jsonText: string, fallbackDocume
 }
 
 export async function extractDocumentFields(
-  pdfBase64: string,
+  source: DocumentSourceInput,
   documentType: DueDiligenceDocumentType,
   filename: string,
 ): Promise<DocumentExtractionResult> {
@@ -143,6 +171,11 @@ export async function extractDocumentFields(
   if (!apiKey) throw new AnthropicNotConfiguredError();
 
   const client = new Anthropic({ apiKey });
+
+  const documentBlock =
+    source.kind === "pdf"
+      ? ({ type: "document", source: { type: "base64", media_type: "application/pdf", data: source.pdfBase64 }, title: filename } as const)
+      : ({ type: "document", source: { type: "text", media_type: "text/plain", data: source.text }, title: filename } as const);
 
   const response = await client.messages.create({
     model: "claude-sonnet-5",
@@ -159,7 +192,7 @@ export async function extractDocumentFields(
       {
         role: "user",
         content: [
-          { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 }, title: filename },
+          documentBlock,
           { type: "text", text: "Analysiere dieses Dokument gemäss den Anweisungen im System-Prompt und gib ausschliesslich das beschriebene JSON zurück." },
         ],
       },

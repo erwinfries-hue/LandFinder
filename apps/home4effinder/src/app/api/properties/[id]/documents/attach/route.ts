@@ -3,7 +3,7 @@ import type { DueDiligenceDocumentType } from "@landfinder/domain";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { hasValidSession } from "@/lib/authSession";
 import { DOCUMENT_TYPE_CATALOG } from "@/lib/documentTypes";
-import { parseDocumentExtractionResponse, MAX_DOCUMENT_SIZE_BYTES } from "@/lib/dueDiligenceExtraction";
+import { parseDocumentExtractionResponse, MAX_DOCUMENT_SIZE_BYTES, isSupportedDocumentFile, isPdfDocumentFile } from "@/lib/dueDiligenceExtraction";
 
 /**
  * Hängt ein Dokument an ein GERADE erst angelegtes Objekt an, dessen Stufe-1-Analyse
@@ -39,9 +39,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
     return NextResponse.json({ error: `Datei zu gross (max. ${Math.round(MAX_DOCUMENT_SIZE_BYTES / 1024 / 1024)} MB)` }, { status: 400 });
   }
-  if (file.type && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-    return NextResponse.json({ error: "Nur PDF-Dateien werden unterstützt" }, { status: 400 });
+  if (!isSupportedDocumentFile(file)) {
+    return NextResponse.json({ error: "Nur PDF- oder Text-Dateien werden unterstützt" }, { status: 400 });
   }
+  const isPdf = isPdfDocumentFile(file);
 
   let extraction;
   try {
@@ -62,9 +63,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const bytes = new Uint8Array(await file.arrayBuffer());
   // Siehe Kommentar in documents/route.ts — Storage-Key bewusst ohne Original-Dateinamen.
-  const storagePath = `${propertyId}/${crypto.randomUUID()}.pdf`;
+  const storagePath = `${propertyId}/${crypto.randomUUID()}.${isPdf ? "pdf" : "txt"}`;
 
-  const { error: uploadError } = await supabase.storage.from("property-documents").upload(storagePath, bytes, { contentType: "application/pdf" });
+  const { error: uploadError } = await supabase.storage
+    .from("property-documents")
+    .upload(storagePath, bytes, { contentType: isPdf ? "application/pdf" : "text/plain" });
   if (uploadError) {
     console.error(`[api/properties/${propertyId}/documents/attach] Upload in Storage fehlgeschlagen`, uploadError);
     return NextResponse.json({ error: "storage upload failed" }, { status: 500 });

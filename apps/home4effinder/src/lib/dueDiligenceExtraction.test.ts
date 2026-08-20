@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseDocumentExtractionResponse } from "./dueDiligenceExtraction";
+import { parseDocumentExtractionResponse, isSupportedDocumentFile, isPdfDocumentFile } from "./dueDiligenceExtraction";
 
 describe("parseDocumentExtractionResponse", () => {
   it("parst eine vollständige, gültige Antwort", () => {
@@ -106,5 +106,30 @@ describe("parseDocumentExtractionResponse — basisdaten", () => {
     const json = JSON.stringify({ summary: "x", facts: {}, findings: [], basisdaten: { kantonCode: "XX" } });
     const result = parseDocumentExtractionResponse(json, "EXPOSE_INSERAT");
     expect(result.basisdaten).toBeUndefined();
+  });
+});
+
+describe("isSupportedDocumentFile / isPdfDocumentFile", () => {
+  it("akzeptiert ein PDF anhand des MIME-Typs", () => {
+    const file = new File(["%PDF-1.4"], "expose.pdf", { type: "application/pdf" });
+    expect(isSupportedDocumentFile(file)).toBe(true);
+    expect(isPdfDocumentFile(file)).toBe(true);
+  });
+
+  it("akzeptiert ein PDF anhand der Dateiendung, wenn der MIME-Typ fehlt", () => {
+    const file = new File(["%PDF-1.4"], "expose.pdf", { type: "" });
+    expect(isSupportedDocumentFile(file)).toBe(true);
+    expect(isPdfDocumentFile(file)).toBe(true);
+  });
+
+  it("akzeptiert eine Text-Datei (eingefügter Text) und erkennt sie NICHT als PDF", () => {
+    const file = new File(["Hallo Welt"], "Eingefügter Text.txt", { type: "text/plain" });
+    expect(isSupportedDocumentFile(file)).toBe(true);
+    expect(isPdfDocumentFile(file)).toBe(false);
+  });
+
+  it("lehnt andere Dateitypen ab, z.B. Word-Dokumente", () => {
+    const file = new File(["x"], "vertrag.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    expect(isSupportedDocumentFile(file)).toBe(false);
   });
 });

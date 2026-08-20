@@ -16,6 +16,9 @@ import { BESTANDSRENDITE_KNOWN_FIELD_LABELS } from "@/lib/bestandsrenditeKnownFi
 /** Datei, die ausgewählt aber noch nicht analysiert ist — Dokumenttyp aus dem Dateinamen vorgeschlagen (`documentTypeGuess.ts`), vor dem Hochladen editierbar. */
 type StagedFile = { file: File; documentType: DueDiligenceDocumentType; guessed: boolean };
 
+/** Bewusst dieselbe Grenze wie `MAX_PASTED_TEXT_LENGTH` in dueDiligenceExtraction.ts (nicht von dort importiert, um den Anthropic-SDK-Server-Code nicht ins Client-Bundle zu ziehen). */
+const MAX_PASTED_TEXT_LENGTH = 200_000;
+
 type PrefillFile = {
   file: File;
   documentType: DueDiligenceDocumentType;
@@ -69,6 +72,9 @@ export function PropertyCreateForm() {
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const [prefillFiles, setPrefillFiles] = useState<PrefillFile[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [pasteTitle, setPasteTitle] = useState("");
+  const [pasteDocumentType, setPasteDocumentType] = useState<DueDiligenceDocumentType>("SONSTIGES");
 
   const [synthesizing, setSynthesizing] = useState(false);
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
@@ -148,6 +154,40 @@ export function PropertyCreateForm() {
     setStagedFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
+  /** Eingefügter Text wird als reguläre Text-Datei in den bestehenden Staging-/Analyse-Ablauf eingespiesen — kein separater Codepfad nötig. */
+  function handleAddPastedText() {
+    const trimmed = pasteText.trim();
+    if (!trimmed) return;
+    const filename = `${pasteTitle.trim() || "Eingefügter Text"}.txt`;
+    const file = new File([trimmed], filename, { type: "text/plain" });
+    setStagedFiles((prev) => [...prev, { file, documentType: pasteDocumentType, guessed: false }]);
+    setPasteText("");
+    setPasteTitle("");
+  }
+
+  /** Analysiert einen einzelnen Eintrag (Stufe 1) und liefert das aktualisierte Ergebnis — gemeinsam genutzt vom Erst-Anstoss und vom Erneut-versuchen-Retry einzelner fehlgeschlagener Dateien. */
+  async function analyzeEntry(entry: PrefillFile): Promise<PrefillFile> {
+    try {
+      const formData = new FormData();
+      formData.append("file", entry.file);
+      formData.append("documentType", entry.documentType);
+      const res = await fetch("/api/properties/prefill", { method: "POST", body: formData });
+      const body = (await res.json()) as { analyzed?: boolean; extraction?: DocumentExtractionResult; error?: string };
+      const updated: PrefillFile = { ...entry, status: body.analyzed ? "DONE" : "FAILED", extraction: body.extraction, error: body.error };
+
+      if (body.analyzed && body.extraction?.basisdaten) {
+        const b = body.extraction.basisdaten;
+        if (b.adresseText) setAddressText(b.adresseText);
+        if (b.kantonCode) setCanton(b.kantonCode);
+        if (b.kaufpreisChf) setAskingPriceChf(String(b.kaufpreisChf));
+        if (b.wohnflaecheM2) setWohnflaecheM2(String(b.wohnflaecheM2));
+      }
+      return updated;
+    } catch {
+      return { ...entry, status: "FAILED", error: "Netzwerkfehler" };
+    }
+  }
+
   async function handleAnalyze() {
     if (stagedFiles.length === 0) return;
 
@@ -160,31 +200,26 @@ export function PropertyCreateForm() {
     setPrefillFiles(allFiles);
 
     for (const entry of newEntries) {
-      try {
-        const formData = new FormData();
-        formData.append("file", entry.file);
-        formData.append("documentType", entry.documentType);
-        const res = await fetch("/api/properties/prefill", { method: "POST", body: formData });
-        const body = (await res.json()) as { analyzed?: boolean; extraction?: DocumentExtractionResult; error?: string };
-        const updated: PrefillFile = { ...entry, status: body.analyzed ? "DONE" : "FAILED", extraction: body.extraction, error: body.error };
-        allFiles = allFiles.map((p) => (p === entry ? updated : p));
-        setPrefillFiles(allFiles);
-
-        if (body.analyzed && body.extraction?.basisdaten) {
-          const b = body.extraction.basisdaten;
-          if (b.adresseText) setAddressText(b.adresseText);
-          if (b.kantonCode) setCanton(b.kantonCode);
-          if (b.kaufpreisChf) setAskingPriceChf(String(b.kaufpreisChf));
-          if (b.wohnflaecheM2) setWohnflaecheM2(String(b.wohnflaecheM2));
-        }
-      } catch {
-        const updated: PrefillFile = { ...entry, status: "FAILED", error: "Netzwerkfehler" };
-        allFiles = allFiles.map((p) => (p === entry ? updated : p));
-        setPrefillFiles(allFiles);
-      }
+      const updated = await analyzeEntry(entry);
+      allFiles = allFiles.map((p) => (p === entry ? updated : p));
+      setPrefillFiles(allFiles);
     }
 
     setAnalyzing(false);
+
+    await runSynthesisPrefill(allFiles);
+  }
+
+  /** Stösst die Analyse für genau eine bereits fehlgeschlagene Datei erneut an, ohne alle anderen neu zu analysieren — schliesst danach mit einer neuen Synthese ab, falls diese Datei jetzt erfolgreich war. */
+  async function retryAnalyze(entry: PrefillFile) {
+    if (entry.status !== "FAILED") return;
+    const analyzing: PrefillFile = { ...entry, status: "ANALYZING", error: undefined };
+    let allFiles = prefillFiles.map((p) => (p === entry ? analyzing : p));
+    setPrefillFiles(allFiles);
+
+    const updated = await analyzeEntry(analyzing);
+    allFiles = allFiles.map((p) => (p === analyzing ? updated : p));
+    setPrefillFiles(allFiles);
 
     await runSynthesisPrefill(allFiles);
   }
@@ -280,9 +315,51 @@ export function PropertyCreateForm() {
           angehängt und die daraus schon berechnete Due-Diligence-Prüfung gleich mitgespeichert — keine zweite
           Analyse nötig, steht auf der Objektseite sofort bereit.
         </p>
-        <div className="field" style={{ marginBottom: stagedFiles.length > 0 ? ".8rem" : 0 }}>
+        <div className="field" style={{ marginBottom: ".8rem" }}>
           <label htmlFor="prefillFiles">PDF-Dateien auswählen</label>
           <input id="prefillFiles" type="file" accept="application/pdf" multiple onChange={handleFilesSelected} />
+        </div>
+
+        <div className="field" style={{ marginBottom: stagedFiles.length > 0 ? ".8rem" : 0 }}>
+          <label htmlFor="pasteText">…oder Text einfügen (z.B. aus E-Mail oder Inserat kopiert)</label>
+          <textarea
+            id="pasteText"
+            rows={4}
+            maxLength={MAX_PASTED_TEXT_LENGTH}
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder="Text hier einfügen…"
+            style={{ width: "100%" }}
+          />
+          <div style={{ display: "flex", gap: ".5rem", marginTop: ".4rem", flexWrap: "wrap", alignItems: "center" }}>
+            <input
+              type="text"
+              placeholder="Titel (optional)"
+              value={pasteTitle}
+              onChange={(e) => setPasteTitle(e.target.value)}
+              style={{ flex: "1 1 160px" }}
+            />
+            <select
+              value={pasteDocumentType}
+              onChange={(e) => setPasteDocumentType(e.target.value as DueDiligenceDocumentType)}
+              style={{ fontSize: ".78rem", padding: ".2rem .4rem" }}
+            >
+              {Object.values(DOCUMENT_TYPE_CATALOG).map((c) => (
+                <option key={c.type} value={c.type}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn"
+              style={{ width: "auto" }}
+              disabled={!pasteText.trim()}
+              onClick={handleAddPastedText}
+            >
+              Text hinzufügen
+            </button>
+          </div>
         </div>
 
         {stagedFiles.length > 0 ? (
@@ -357,6 +434,16 @@ export function PropertyCreateForm() {
                           <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>kann bis zu einer Minute dauern…</span>
                         ) : null}
                         {p.error ? <span style={{ color: "var(--bad)" }}>— {p.error}</span> : null}
+                        {p.status === "FAILED" ? (
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
+                            onClick={() => retryAnalyze(p)}
+                          >
+                            Erneut versuchen
+                          </button>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
