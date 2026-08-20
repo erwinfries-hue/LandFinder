@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { computeMissingDocuments, computeOverallStatus, parseSynthesisResponse, type SynthesisDocumentInput, type SynthesisKnownField } from "./dueDiligenceSynthesis";
+import {
+  computeMissingDocuments,
+  computeOverallStatus,
+  parseSynthesisResponse,
+  buildSynthesisToolSchema,
+  type SynthesisDocumentInput,
+  type SynthesisKnownField,
+} from "./dueDiligenceSynthesis";
+import { CATEGORY_ORDER } from "./dueDiligenceCategories";
 
 describe("computeMissingDocuments", () => {
   it("listet alle 18 Prio-A/B-Typen als fehlend, wenn nichts hochgeladen ist", () => {
@@ -117,5 +125,33 @@ describe("parseSynthesisResponse", () => {
     const result = parseSynthesisResponse(json, documents, knownFields);
     expect(result.categories).toHaveLength(1);
     expect(result.categories[0].category).toBe("MIETVERHAELTNIS");
+  });
+});
+
+describe("buildSynthesisToolSchema", () => {
+  it("schränkt fieldUpdateProposals.field strukturell auf die übergebenen bekannten Feldpfade ein", () => {
+    const fields: SynthesisKnownField[] = [
+      { field: "zimmerzahl", label: "Zimmerzahl" },
+      { field: "baujahr", label: "Baujahr" },
+    ];
+    const schema = buildSynthesisToolSchema(fields);
+    const properties = schema.properties as Record<string, unknown>;
+    const fieldUpdateProposalsField = (properties.fieldUpdateProposals as { items: { properties: Record<string, unknown> } }).items.properties.field;
+    expect(fieldUpdateProposalsField).toMatchObject({ enum: ["zimmerzahl", "baujahr"] });
+  });
+
+  it("erlaubt eine leere enum für fieldUpdateProposals.field, wenn keine bekannten Felder übergeben werden", () => {
+    const schema = buildSynthesisToolSchema([]);
+    const properties = schema.properties as Record<string, unknown>;
+    const fieldUpdateProposalsField = (properties.fieldUpdateProposals as { items: { properties: Record<string, unknown> } }).items.properties.field;
+    expect(fieldUpdateProposalsField).toMatchObject({ enum: [] });
+  });
+
+  it("listet exakt die bekannten Kategorien/Severities als enum", () => {
+    const schema = buildSynthesisToolSchema([]);
+    const properties = schema.properties as Record<string, unknown>;
+    const categoryItems = (properties.categories as { items: { properties: Record<string, unknown> } }).items.properties;
+    expect(categoryItems.category).toMatchObject({ enum: CATEGORY_ORDER });
+    expect(categoryItems.status).toMatchObject({ enum: ["OK", "KLAERUNGSBEDARF", "RISIKO"] });
   });
 });

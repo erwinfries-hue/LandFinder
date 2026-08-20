@@ -664,6 +664,46 @@ Bewusst nur an `EXPOSE_INSERAT` geändert (der gemeldete Fall), nicht an allen
 Dokumenttypen, die diese Felder am Rande erwähnen könnten — kein Anlass, den Prompt
 über den gemeldeten Fall hinaus aufzublähen.
 
+## Nachgezogen (2026-08-20): Dokumenten-KI auf erzwungenen Tool-Aufruf statt Freitext-JSON umgestellt
+
+Auslöser: frische Vercel-Logs (vom Auftraggeber kopiert) zeigten weiterhin Fehler beim
+Hochladen — u.a. mehrere `Vercel Runtime Timeout Error: Task timed out after 60 seconds`
+auf `/api/properties/prefill` (Screenshot zeigte entsprechend mehrere "Netzwerkfehler",
+da `res.json()` auf der Timeout-Fehlerseite scheitert und im Catch-Block landet) sowie
+ein `SyntaxError: Expected ',' or '}' after property value in JSON` bei einem
+Erneuerungsfonds-Dokument — diesmal NICHT durch `max_tokens`-Abschneiden (das wird
+separat geprüft und hätte eine eigene Fehlermeldung ausgelöst), sondern vermutlich durch
+ein nicht korrekt escapetes Zeichen (z.B. ein eingebettetes Anführungszeichen) in einem
+wörtlichen Zitat, das Claude beim Freitext-JSON gelegentlich nicht sauber escaped.
+
+Fix (in `dueDiligenceExtraction.ts` UND `dueDiligenceSynthesis.ts`, dasselbe Muster):
+- Beide Claude-Aufrufe verlangen jetzt einen **erzwungenen Tool-Aufruf**
+  (`tool_choice: {type: "tool", name: ...}`) mit einem JSON-Schema statt eines
+  Freitext-"gib JSON zurück"-Prompts. Die Anthropic-API validiert/parst das
+  `tool_use`-`input` bereits serverseitig zu einem echten Objekt — die Fehlerklasse
+  ungültigen JSONs ist damit strukturell ausgeschlossen, statt nur nachträglich am Text
+  erkannt zu werden. `extractFirstJsonObject`/regelbasiertes Nachparsen entfällt für
+  diese beiden Aufrufe komplett (die Hilfsfunktion selbst bleibt bestehen, falls künftig
+  wieder gebraucht). Die vorhandene defensive Validierung (`parseDocumentExtractionResponse`/
+  `parseSynthesisResponse`) bleibt unverändert bestehen — bekommt den Tool-Output nur
+  via `JSON.stringify(toolUseBlock.input)` statt eines rohen Modelltexts.
+- Bei der Synthese zusätzlich verbessert: `fieldUpdateProposals.field` ist jetzt direkt
+  im Schema per `enum` auf die tatsächlich übergebenen `knownFields`-Pfade eingeschränkt
+  (statt nur textuell im Prompt aufgelistet) — ein strukturelles statt nur ein
+  nachträglich geprüftes Constraint.
+- `sourceQuote` ist im Schema auf `maxLength: 280` begrenzt und im Prompt zusätzlich als
+  "kurz halten" instruiert — reduziert die Antwortlänge bei fundreichen/zitatlastigen
+  Dokumenten (z.B. mehrjährige Betriebskostenaufstellungen, Grundbuchauszüge), was das
+  Risiko verringert, die harte 60-Sekunden-Obergrenze der Vercel-Hobby-Funktion zu
+  reissen — behebt das Timeout-Risiko aber nicht vollständig (weiterhin eine bekannte
+  Plattformgrenze, siehe unten). Der bereits vorhandene "Erneut versuchen"-Button pro
+  Dokument bleibt das Sicherheitsnetz für den Fall, dass ein einzelnes Dokument trotzdem
+  einmal über die Zeit läuft.
+- Mit Tests abgesichert: `buildExtractionToolSchema`/`buildSynthesisToolSchema` prüfen,
+  dass die Schema-`enum`s exakt mit dem Dokumenttyp-Katalog/den Kategorien/Severities
+  bzw. den übergebenen bekannten Feldpfaden übereinstimmen, damit Schema und übrige
+  Validierung nicht auseinanderlaufen können.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

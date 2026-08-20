@@ -13,7 +13,6 @@ import type {
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
 import { CATEGORY_ORDER } from "./dueDiligenceCategories";
 import { AnthropicNotConfiguredError } from "./dueDiligenceExtraction";
-import { extractFirstJsonObject } from "./extractJsonObject";
 
 /**
  * Stufe 2 der Dokumenten-KI (apps/home4effinder/docs/DECISIONS.md): Synthese über alle
@@ -97,39 +96,72 @@ Beispiele für Widersprüche, auf die du besonders achten sollst: abweichende Fl
 
 Bevor du eine zahlenmässige Abweichung zwischen zwei Dokumenten als ungeklärten Widerspruch meldest: prüfe zuerst, ob sich die Differenz rechnerisch erklären lässt — z.B. weil ein Dokument die Summe mehrerer Konten/Positionen nennt, die ein anderes Dokument einzeln ausweist, oder weil ein späterer Kontostand sich aus einem früheren plus bekannten, regelmässigen Beiträgen ergibt (Fondssaldo + jährliche Einlage laut Budget). Findest du eine schlüssige Erklärung, ist das ein gelöster Punkt (severity "OK"), nicht mehr Klärungsbedarf — nenne die Rechnung im "detail"-Feld, damit sie nachvollziehbar bleibt. Nur eine tatsächlich unerklärliche Differenz bleibt ein Widerspruch mit "isContradiction": true.
 
-Gib AUSSCHLIESSLICH ein JSON-Objekt zurück, ohne Erklärtext, mit genau dieser Struktur:
-{
-  "overallSummary": string (2-4 Sätze Fliesstext: Gesamteinschätzung des Objekts als Rendite-/Buy-to-let-Investment — Kernaussage zuerst, dann die wichtigste Bedingung/Einschränkung, dann das grösste Risiko; konkret und auf dieses Objekt bezogen, keine Floskeln),
-  "categories": [
-    {
-      "category": string (einer von: ${CATEGORY_ORDER.join(", ")}),
-      "status": string (OK, KLAERUNGSBEDARF, oder RISIKO),
-      "findings": [
-        {
-          "summary": string,
-          "detail": string (optional),
-          "sourceDocumentId": string (optional, exakt eine der oben genannten documentId, wenn der Fund einem bestimmten Dokument zuzuordnen ist),
-          "sourcePage": number (optional),
-          "sourceQuote": string (optional),
-          "isContradiction": boolean (optional, true wenn dies ein Widerspruch zwischen Quellen ist)
-        }
-      ]
-    }
-  ],
-  "sellerQuestions": [
-    { "question": string, "relatedFindingSummary": string (optional) }
-  ],
-  "fieldUpdateProposals": [
-    { "field": string (exakt einer der unten gelisteten Feldpfade), "newValue": string oder number, "sourceDocumentId": string, "sourcePage": number (optional) }
-  ]
-}
+Rufe AUSSCHLIESSLICH das Tool "${SYNTHESIS_TOOL_NAME}" mit dem Ergebnis auf, ohne zusätzlichen Erklärtext.
 
 Für "categories": erzeuge für JEDE der neun Kategorien einen Eintrag, auch wenn dazu (noch) keine Dokumente vorliegen (dann status "KLAERUNGSBEDARF" mit einem Fund, der die fehlende Grundlage nennt, oder "OK" wenn diese Kategorie hier ersichtlich unproblematisch ist).
 
 Für "fieldUpdateProposals": nur Werte vorschlagen, die eindeutig aus einem Dokument hervorgehen UND einem der folgenden bekannten Felder entsprechen — erfinde nie einen neuen Feldnamen:
 ${fieldsBlock}
 
-Erfinde nie einen Wert, der nicht in den Dokumenten/Daten oben steht.`;
+sourceQuote-Felder kurz halten (nur der entscheidende Ausschnitt, nicht ganze Absätze). Erfinde nie einen Wert, der nicht in den Dokumenten/Daten oben steht.`;
+}
+
+const SYNTHESIS_TOOL_NAME = "emit_due_diligence_synthesis";
+
+/** JSON-Schema für erzwungenen Tool-Aufruf — siehe Begründung bei `buildExtractionToolSchema` in dueDiligenceExtraction.ts, hier zusätzlich mit `knownFields`-Feldpfaden strukturell statt nur textuell auf gültige Werte eingeschränkt. */
+export function buildSynthesisToolSchema(knownFields: SynthesisKnownField[]): { type: "object"; properties: Record<string, unknown>; required: string[] } {
+  const findingProperties = {
+    summary: { type: "string" },
+    detail: { type: "string", description: "Optional, Begründung." },
+    sourceDocumentId: { type: "string", description: "Optional, exakt eine der genannten documentId." },
+    sourcePage: { type: "number" },
+    sourceQuote: { type: "string", maxLength: 280, description: "Optional, kurz halten." },
+    isContradiction: { type: "boolean", description: "true, wenn dies ein Widerspruch zwischen Quellen ist." },
+  };
+  return {
+    type: "object",
+    properties: {
+      overallSummary: {
+        type: "string",
+        description:
+          "2-4 Sätze Fliesstext: Gesamteinschätzung des Objekts als Rendite-/Buy-to-let-Investment — Kernaussage zuerst, dann die wichtigste Bedingung/Einschränkung, dann das grösste Risiko.",
+      },
+      categories: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            category: { type: "string", enum: [...CATEGORY_ORDER] },
+            status: { type: "string", enum: [...KNOWN_SEVERITIES] },
+            findings: { type: "array", items: { type: "object", properties: findingProperties, required: ["summary"] } },
+          },
+          required: ["category", "status", "findings"],
+        },
+      },
+      sellerQuestions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { question: { type: "string" }, relatedFindingSummary: { type: "string" } },
+          required: ["question"],
+        },
+      },
+      fieldUpdateProposals: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            field: { type: "string", enum: knownFields.map((f) => f.field) },
+            newValue: { type: ["string", "number"] },
+            sourceDocumentId: { type: "string" },
+            sourcePage: { type: "number" },
+          },
+          required: ["field", "newValue", "sourceDocumentId"],
+        },
+      },
+    },
+    required: ["overallSummary", "categories", "sellerQuestions", "fieldUpdateProposals"],
+  };
 }
 
 /** `category`/`severity` kommen vom Aufrufer (Kategorie-Kontext bzw. Fallback auf den Kategorie-Status, falls das Finding selbst keine eigene Severity nennt). */
@@ -229,14 +261,18 @@ export async function synthesizeDueDiligence(
     model: "claude-sonnet-5",
     max_tokens: 8192,
     system: buildSynthesisPrompt(documents, knownFacts, knownFields),
-    messages: [{ role: "user", content: "Erstelle die Due-Diligence-Synthese gemäss den Anweisungen im System-Prompt und gib ausschliesslich das beschriebene JSON zurück." }],
+    tools: [{ name: SYNTHESIS_TOOL_NAME, description: "Nimmt das Due-Diligence-Syntheseergebnis entgegen.", input_schema: buildSynthesisToolSchema(knownFields) }],
+    tool_choice: { type: "tool", name: SYNTHESIS_TOOL_NAME },
+    messages: [{ role: "user", content: "Erstelle die Due-Diligence-Synthese gemäss den Anweisungen im System-Prompt und rufe das Tool mit dem Ergebnis auf." }],
   });
 
-  const textBlock = response.content.find((block) => block.type === "text");
-  if (!textBlock || textBlock.type !== "text") throw new Error("Keine Text-Antwort von Anthropic erhalten");
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("Antwort von Claude wurde bei max_tokens abgeschnitten — vermutlich zu viele/umfangreiche Dokumente für eine einzelne Synthese.");
+  }
 
-  const json = extractFirstJsonObject(textBlock.text);
-  if (!json) throw new Error("Keine JSON-Struktur in der Anthropic-Antwort gefunden");
+  // Erzwungener Tool-Aufruf statt Freitext-JSON — siehe Begründung in dueDiligenceExtraction.ts.
+  const toolUseBlock = response.content.find((block) => block.type === "tool_use" && block.name === SYNTHESIS_TOOL_NAME);
+  if (!toolUseBlock || toolUseBlock.type !== "tool_use") throw new Error("Keine strukturierte Antwort (Tool-Aufruf) von Anthropic erhalten");
 
-  return parseSynthesisResponse(json, documents, knownFields);
+  return parseSynthesisResponse(JSON.stringify(toolUseBlock.input), documents, knownFields);
 }
