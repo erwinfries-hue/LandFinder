@@ -146,7 +146,14 @@ export async function extractDocumentFields(
 
   const response = await client.messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 4096,
+    // War bisher 4096 — bei mehrseitigen, fundreichen Dokumenten (z.B. STWEG-Protokolle
+    // mit vielen Einzelfunden inkl. wörtlichem Zitat, Grundbuchauszüge, mehrjährige
+    // Betriebskostenaufstellungen) reichte das nicht: die Antwort wurde mitten in der
+    // JSON-Struktur abgeschnitten, was je nach Abbruchstelle als "keine Text-Antwort",
+    // "keine JSON-Struktur gefunden" oder als JSON.parse-SyntaxError auffiel (echte
+    // Produktionsfehler, anhand von Vercel-Logs diagnostiziert). 8192 entspricht dem
+    // bereits für die Synthese verwendeten Wert (dueDiligenceSynthesis.ts).
+    max_tokens: 8192,
     system: buildSystemPrompt(documentType),
     messages: [
       {
@@ -158,6 +165,13 @@ export async function extractDocumentFields(
       },
     ],
   });
+
+  // Explizit prüfen statt nur am Parse-Fehler zu erkennen — liefert im Log sofort die
+  // richtige Diagnose ("Dokument zu umfangreich") statt eines irreführenden
+  // JSON-Parse-Fehlers, der wie ein Format-/Prompt-Problem aussieht.
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(`Antwort von Claude wurde bei max_tokens abgeschnitten — "${filename}" ist vermutlich zu umfangreich für eine einzelne Analyse.`);
+  }
 
   const textBlock = response.content.find((block) => block.type === "text");
   if (!textBlock || textBlock.type !== "text") throw new Error("Keine Text-Antwort von Anthropic erhalten");

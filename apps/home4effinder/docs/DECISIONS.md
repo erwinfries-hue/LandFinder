@@ -524,6 +524,37 @@ zu Punkt 2").
   Instrument mit überschaubarer Objektzahl reicht das; würde die Liste grösser, wäre ein
   Filter der naheliegende nächste Ausbauschritt.
 
+## Nachgezogen (2026-08-20): Dokumentenanalyse schlug bei mehrseitigen/fundreichen PDFs fehl
+
+Anhand echter Vercel-Server-Logs diagnostiziert (Auftraggeber hat sie kopiert, wie beim
+letzten Mal) — beim Hochladen mehrerer realer Objekt-Unterlagen (Grundbuchauszug,
+mehrjährige Heiz-/Betriebskostenaufstellungen, mehrere STWEG-Protokolle) schlug die
+Stufe-1-Extraktion regelmässig fehl, mit drei unterschiedlich aussehenden, aber
+zusammenhängenden Fehlern: "Keine Text-Antwort von Anthropic erhalten", "Keine
+JSON-Struktur in der Anthropic-Antwort gefunden" und ein `JSON.parse`-`SyntaxError`
+mitten im Text. Ursache in allen drei Fällen dieselbe: `extractDocumentFields`
+(`dueDiligenceExtraction.ts`) rief Claude mit `max_tokens: 4096` auf — bei
+mehrseitigen, fundreichen Dokumenten (viele Einzelfunde inkl. wörtlichem Zitat, mehrere
+Jahre Kostenaufstellung) reichte das nicht, die Antwort wurde mitten in der JSON-Struktur
+abgeschnitten. Je nachdem, WO genau abgeschnitten wurde, sah das wie drei verschiedene
+Bugs aus, war aber ein einziger. → `max_tokens` auf 8192 angehoben (entspricht dem
+bereits für die Synthese verwendeten Wert) und zusätzlich `stop_reason === "max_tokens"`
+explizit geprüft, damit ein künftiger Abbruch im Log sofort als "Dokument zu umfangreich"
+erkennbar ist statt wie ein Parsing-/Prompt-Problem auszusehen.
+
+Zwei separate, kleinere Beobachtungen aus denselben Logs, bewusst nicht behoben:
+- Ein einzelner `Vercel Runtime Timeout Error` (60s) auf `/api/properties/prefill-synthesis`
+  bei einem Objekt mit sehr vielen hochgeladenen Dokumenten. 60s ist die harte Obergrenze
+  des Vercel-Hobby-Plans — im Code nicht weiter erhöhbar. Da nur ein einziges Vorkommnis,
+  aktuell keine Änderung; würde es häufiger auftreten, wäre eine Straffung des
+  Synthese-Prompts (kürzere Zitate/Fakten pro Dokument) oder ein Wechsel auf einen
+  bezahlten Vercel-Plan der nächste Schritt.
+- Ein einzelnes `PGRST303 "JWT issued at future"` beim Lesen der Objektliste — wurde
+  bereits von der bestehenden Fehlerbehandlung abgefangen (leere Liste statt Absturz,
+  Response blieb 200). Sieht nach einer transienten Uhrzeit-Toleranzabweichung auf
+  Supabase-Seite aus, kein wiederkehrendes Muster in den Logs — nicht weiter verfolgt,
+  ausser es tritt erneut auf.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
