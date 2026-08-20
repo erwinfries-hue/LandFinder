@@ -1,4 +1,4 @@
-import type { RenovationPosition, Vermietungsmodell } from "@landfinder/financial-engine";
+import type { AmortisationModus, RenovationPosition, Vermietungsmodell } from "@landfinder/financial-engine";
 
 /**
  * Baut den Request-Body für `POST /api/properties/[id]/bestandsrendite` aus den rohen
@@ -74,9 +74,23 @@ export function buildBestandsrenditeFactsFromFormData(
       leerstandPercentOfKaufpreis: num("leerstandReservePercentOfKaufpreis"),
     },
     hypothek: {
-      loanToValuePercent: req("loanToValuePercent"),
+      ersteHypothek: {
+        belehnungPercent: req("ersteHypothekBelehnungPercent"),
+        amortisation: {
+          modus: (form.get("ersteHypothekAmortisationModus") as AmortisationModus) ?? "PROZENT_PRO_JAHR",
+          prozentProJahr: num("ersteHypothekAmortisationProzentProJahr"),
+          dauerJahre: num("ersteHypothekAmortisationDauerJahre"),
+        },
+      },
+      zweiteHypothek: {
+        belehnungPercent: req("zweiteHypothekBelehnungPercent"),
+        amortisation: {
+          modus: (form.get("zweiteHypothekAmortisationModus") as AmortisationModus) ?? "DAUER_JAHRE",
+          prozentProJahr: num("zweiteHypothekAmortisationProzentProJahr"),
+          dauerJahre: num("zweiteHypothekAmortisationDauerJahre"),
+        },
+      },
       interestRatePercent: req("interestRatePercent"),
-      amortisationChfPerYear: req("amortisationChfPerYear"),
     },
     kalkulatorischerSteuersatzPercent: num("kalkulatorischerSteuersatzPercent"),
     mehrjahresmodell: {

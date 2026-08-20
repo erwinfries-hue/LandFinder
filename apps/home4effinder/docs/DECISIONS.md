@@ -555,6 +555,35 @@ Zwei separate, kleinere Beobachtungen aus denselben Logs, bewusst nicht behoben:
   Supabase-Seite aus, kein wiederkehrendes Muster in den Logs — nicht weiter verfolgt,
   ausser es tritt erneut auf.
 
+## Nachgezogen (2026-08-20): 1./2. Hypothek getrennt mit je eigener Amortisation
+
+Auf Wunsch des Auftraggebers: "bei der Belehnung bitte eine 1. Hypothek und eine 2.
+Hypothek einbauen mit entsprechender Amortisation. Die 2. Amortisation bei der 1. und
+2. einen Prozentsatz oder Dauer in Jahren als Variable einbauen" — übliche Schweizer
+Finanzierungsstruktur (1. Hypothek oft ohne Pflichtamortisation, 2. Hypothek meist
+über eine feste Dauer getilgt), bisher war "Belehnung" nur ein einziger Blockwert ohne
+Tranchentrennung.
+
+- **`resolveAmortisationChfPerYear` + `AmortisationSpec`/`AmortisationModus`**
+  (`bestandsrendite.ts`, financial-engine) — leitet den fixen jährlichen
+  Amortisationsbetrag einer Tranche aus deren ursprünglichem Betrag her, wahlweise über
+  `PROZENT_PRO_JAHR` (Prozentsatz vom ursprünglichen Betrag) oder `DAUER_JAHRE`
+  (linear bis 0 über eine Zieldauer) — exakt dieselbe zweite-Eingabemethode-Struktur wie
+  bei `ReserveInput`/`resolveReserveChf`.
+- **Ebene C (`bestandsrenditeMehrjahresmodell.ts`) trackt jetzt zwei Restschulden**
+  (`ersteHypothek`/`zweiteHypothek`) statt einer — jede Tranche amortisiert unabhängig
+  und wird bei Erreichen von 0 dort gedeckelt, während die andere ggf. weiterläuft. Ein
+  gemeinsamer Zinssatz für beide Tranchen (kein abgestimmter Bedarf für getrennte
+  Zinssätze). Ebene A (Schnellcheck, kennt ohnehin keine Amortisation) und Ebene B
+  (Investment Case, nur Jahr 1) bekommen weiterhin blendete Summen von der
+  aufrufenden App-Schicht — kein Grund, deren Signaturen aufzubrechen.
+- **UI** (`BestandsrenditeFactsFields.tsx`): "1. Hypothek"/"2. Hypothek" je mit
+  Belehnung (%), einem Modus-Dropdown (Prozentsatz pro Jahr / Dauer in Jahren) und dem
+  zum gewählten Modus passenden Eingabefeld (lokal per `useState` umgeschaltet, kein
+  Formular-Zustand nötig). Zinssatz bleibt ein gemeinsames Feld für beide Tranchen.
+  Die Objekt-/Mehrjahres-Analyseansicht zeigt zusätzlich die aufgeschlüsselten
+  Tranchenbeträge und deren Amortisation/Jahr, nicht nur die kombinierte Belehnung.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

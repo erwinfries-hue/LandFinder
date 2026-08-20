@@ -10,10 +10,12 @@ import {
   breakEvenZinsPercent,
   breakEvenAuslastungPercent,
   resolveReserveChf,
+  resolveAmortisationChfPerYear,
   type Vermietungsmodell,
   type InvestmentCaseInput,
   type SchnellcheckResult,
   type InvestmentCaseResult,
+  type AmortisationSpec,
 } from "@landfinder/financial-engine";
 import {
   calculateFurnitureRoi,
@@ -90,9 +92,10 @@ export interface BestandsrenditeFacts {
   };
 
   hypothek: {
-    loanToValuePercent: number;
+    ersteHypothek: HypothekTrancheFacts;
+    zweiteHypothek: HypothekTrancheFacts;
+    /** Ein gemeinsamer Zinssatz für beide Tranchen — kein separat abgestimmter Bedarf für unterschiedliche Zinssätze je Hypothek. */
     interestRatePercent: number;
-    amortisationChfPerYear: number;
   };
 
   kalkulatorischerSteuersatzPercent?: number;
@@ -107,6 +110,17 @@ export interface BestandsrenditeFacts {
   };
 
   notes?: string;
+}
+
+/**
+ * Eine einzelne Hypothekartranche (1. oder 2. Hypothek) — Betrag als Prozentsatz des
+ * Kaufpreises (analog zur bisherigen "Belehnung"), Amortisation über `AmortisationSpec`
+ * entweder als Prozentsatz vom ursprünglichen Tranchenbetrag pro Jahr oder als Zieldauer
+ * in Jahren (Rückmeldung: "Prozentsatz oder Dauer in Jahren als Variable").
+ */
+export interface HypothekTrancheFacts {
+  belehnungPercent: number;
+  amortisation: AmortisationSpec;
 }
 
 /** Minimale, aus dem Objekt selbst stammende Eingaben für die Engine. */
@@ -132,6 +146,7 @@ export interface BestandsrenditeAnalysisResult {
   renovationSummary: RenovationPositionenSummary;
   mehrjahresmodell: MehrjahresmodellResult;
   investmentTreiber: InvestmentTreiberResult;
+  hypothek: { ersteHypothekChf: number; zweiteHypothekChf: number; ersteAmortisationChfPerYear: number; zweiteAmortisationChfPerYear: number };
   /** Unveränderte STWEG-Fakten aus den Facts — reine Datenhaltung ohne Scoring/Formel, siehe StwegFacts. */
   stweg: StwegFacts;
   assumptionNotes: string[];
@@ -172,7 +187,13 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     sonstigeInitialkostenChf: 0,
   });
 
-  const hypothekChf = kaufpreisChf * (facts.hypothek.loanToValuePercent / 100);
+  const ersteHypothekChf = kaufpreisChf * (facts.hypothek.ersteHypothek.belehnungPercent / 100);
+  const zweiteHypothekChf = kaufpreisChf * (facts.hypothek.zweiteHypothek.belehnungPercent / 100);
+  const hypothekChf = ersteHypothekChf + zweiteHypothekChf;
+  const belehnungPercent = facts.hypothek.ersteHypothek.belehnungPercent + facts.hypothek.zweiteHypothek.belehnungPercent;
+  const ersteAmortisationChfPerYear = resolveAmortisationChfPerYear(ersteHypothekChf, facts.hypothek.ersteHypothek.amortisation);
+  const zweiteAmortisationChfPerYear = resolveAmortisationChfPerYear(zweiteHypothekChf, facts.hypothek.zweiteHypothek.amortisation);
+  const amortisationChfPerYear = ersteAmortisationChfPerYear + zweiteAmortisationChfPerYear;
   const eigenkapitalChf = allInInvestitionChf - hypothekChf;
 
   const kaufnebenkostenPercent = handaenderungssteuerPercent + notariatGrundbuchPercent + maklerprovisionPercent;
@@ -185,7 +206,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     kaufnebenkostenPercent,
     laufendeKostenChfPerYear:
       facts.betriebskosten.stwegAkontobeitragChfPerYear + facts.betriebskosten.eigentuemerkostenChfPerYear + facts.betriebskosten.vermietungskostenChfPerYear,
-    loanToValuePercent: facts.hypothek.loanToValuePercent,
+    loanToValuePercent: belehnungPercent,
     interestRatePercent: facts.hypothek.interestRatePercent,
   });
 
@@ -218,7 +239,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     betriebskosten: facts.betriebskosten,
     hypothekChf,
     interestRatePercent: facts.hypothek.interestRatePercent,
-    amortisationChfPerYear: facts.hypothek.amortisationChfPerYear,
+    amortisationChfPerYear,
     kalkulatorischerSteuersatzPercent,
     reparaturreserveChf,
     leerstandsreserveChf,
@@ -259,7 +280,11 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     wertsteigerungPercentPerYear: facts.mehrjahresmodell.wertsteigerungPercentPerYear ?? P.wertsteigerungPercentPerYear.defaultValue,
     wertvermehrendeRenovationChf: renovationSummary.totalByKategorie.WERTVERMEHREND,
     moeblierung: moeblierungLebenszyklus,
-    hypothek: { initialLoanChf: hypothekChf, interestRatePercent: facts.hypothek.interestRatePercent, amortisationChfPerYear: facts.hypothek.amortisationChfPerYear },
+    hypothek: {
+      ersteHypothek: { initialLoanChf: ersteHypothekChf, amortisation: facts.hypothek.ersteHypothek.amortisation },
+      zweiteHypothek: { initialLoanChf: zweiteHypothekChf, amortisation: facts.hypothek.zweiteHypothek.amortisation },
+      interestRatePercent: facts.hypothek.interestRatePercent,
+    },
     kalkulatorischerSteuersatzPercent,
     exit: {
       sellingCostPercent: facts.mehrjahresmodell.sellingCostPercent ?? P.sellingCostPercent.defaultValue,
@@ -296,6 +321,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     renovationSummary,
     mehrjahresmodell,
     investmentTreiber,
+    hypothek: { ersteHypothekChf, zweiteHypothekChf, ersteAmortisationChfPerYear, zweiteAmortisationChfPerYear },
     stweg: facts.stweg,
     assumptionNotes,
   };
@@ -320,8 +346,20 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
   }
 
   const hypothek = body.hypothek as Record<string, unknown> | undefined;
-  if (!hypothek || typeof hypothek.loanToValuePercent !== "number" || typeof hypothek.interestRatePercent !== "number" || typeof hypothek.amortisationChfPerYear !== "number") {
-    return { error: "hypothek.loanToValuePercent/interestRatePercent/amortisationChfPerYear fehlt" };
+  const ersteHypothek = hypothek?.ersteHypothek as Record<string, unknown> | undefined;
+  const zweiteHypothek = hypothek?.zweiteHypothek as Record<string, unknown> | undefined;
+  if (!hypothek || typeof hypothek.interestRatePercent !== "number") return { error: "hypothek.interestRatePercent fehlt" };
+  if (!ersteHypothek || typeof ersteHypothek.belehnungPercent !== "number" || typeof ersteHypothek.amortisationModus !== "string") {
+    return { error: "hypothek.ersteHypothek.belehnungPercent/amortisationModus fehlt" };
+  }
+  if (!zweiteHypothek || typeof zweiteHypothek.belehnungPercent !== "number" || typeof zweiteHypothek.amortisationModus !== "string") {
+    return { error: "hypothek.zweiteHypothek.belehnungPercent/amortisationModus fehlt" };
+  }
+  if (ersteHypothek.amortisationModus !== "PROZENT_PRO_JAHR" && ersteHypothek.amortisationModus !== "DAUER_JAHRE") {
+    return { error: "hypothek.ersteHypothek.amortisationModus muss PROZENT_PRO_JAHR oder DAUER_JAHRE sein" };
+  }
+  if (zweiteHypothek.amortisationModus !== "PROZENT_PRO_JAHR" && zweiteHypothek.amortisationModus !== "DAUER_JAHRE") {
+    return { error: "hypothek.zweiteHypothek.amortisationModus muss PROZENT_PRO_JAHR oder DAUER_JAHRE sein" };
   }
 
   const betriebskosten = (body.betriebskosten as Record<string, unknown>) ?? {};
@@ -379,9 +417,23 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
         leerstandPercentOfKaufpreis: num(reserven.leerstandPercentOfKaufpreis),
       },
       hypothek: {
-        loanToValuePercent: hypothek.loanToValuePercent,
+        ersteHypothek: {
+          belehnungPercent: ersteHypothek.belehnungPercent,
+          amortisation: {
+            modus: ersteHypothek.amortisationModus,
+            prozentProJahr: num(ersteHypothek.amortisationProzentProJahr),
+            dauerJahre: num(ersteHypothek.amortisationDauerJahre),
+          },
+        },
+        zweiteHypothek: {
+          belehnungPercent: zweiteHypothek.belehnungPercent,
+          amortisation: {
+            modus: zweiteHypothek.amortisationModus,
+            prozentProJahr: num(zweiteHypothek.amortisationProzentProJahr),
+            dauerJahre: num(zweiteHypothek.amortisationDauerJahre),
+          },
+        },
         interestRatePercent: hypothek.interestRatePercent,
-        amortisationChfPerYear: hypothek.amortisationChfPerYear,
       },
       kalkulatorischerSteuersatzPercent: num(body.kalkulatorischerSteuersatzPercent),
       mehrjahresmodell: {

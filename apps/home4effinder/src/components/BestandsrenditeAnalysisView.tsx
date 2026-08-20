@@ -10,7 +10,7 @@ import type { BestandsrenditeAnalysisResult } from "@/lib/bestandsrendite";
  * Client-Live-Recompute nötig.
  */
 export function BestandsrenditeAnalysisView({ result }: { result: BestandsrenditeAnalysisResult }) {
-  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, moeblierungReserveChfPerJahr, renovationRoi, renovationSummary, breakEven, stweg } = result;
+  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, moeblierungReserveChfPerJahr, renovationRoi, renovationSummary, breakEven, stweg, hypothek } = result;
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
 
   return (
@@ -31,6 +31,14 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
             v={`CHF ${formatChf(Math.round(schnellcheck.groberCashflowChf))}`}
             valueColor={schnellcheck.groberCashflowChf >= 0 ? "var(--good)" : "var(--bad)"}
           />
+        </div>
+
+        <div className="sectionhead" style={{ marginTop: "1.2rem" }}>
+          <h2 style={{ fontSize: ".85rem" }}>1./2. Hypothek</h2>
+        </div>
+        <div className="metricgrid">
+          <Metric l="1. Hypothek" v={`CHF ${formatChf(Math.round(hypothek.ersteHypothekChf))}`} sub={`Amortisation CHF ${formatChf(Math.round(hypothek.ersteAmortisationChfPerYear))}/Jahr`} />
+          <Metric l="2. Hypothek" v={`CHF ${formatChf(Math.round(hypothek.zweiteHypothekChf))}`} sub={`Amortisation CHF ${formatChf(Math.round(hypothek.zweiteAmortisationChfPerYear))}/Jahr`} />
         </div>
       </Panel>
 

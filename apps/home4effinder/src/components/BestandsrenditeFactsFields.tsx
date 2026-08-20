@@ -1,6 +1,7 @@
 "use client";
 
-import { BESTANDSRENDITE_PARAMETERS, type Vermietungsmodell, type RenovationPosition, type RenovationKategorie, type SteuerlicheAbzugsfaehigkeit } from "@landfinder/financial-engine";
+import { useState } from "react";
+import { BESTANDSRENDITE_PARAMETERS, type Vermietungsmodell, type RenovationPosition, type RenovationKategorie, type SteuerlicheAbzugsfaehigkeit, type AmortisationModus } from "@landfinder/financial-engine";
 import type { BestandsrenditeFacts } from "@/lib/bestandsrendite";
 import { getCantonDefaults } from "@/lib/cantonDefaults";
 
@@ -51,6 +52,8 @@ export function BestandsrenditeFactsFields({
   onRemoveRenovationPosition: (index: number) => void;
 }) {
   const P = BESTANDSRENDITE_PARAMETERS;
+  const [ersteAmortisationModus, setErsteAmortisationModus] = useState<AmortisationModus>(existing?.hypothek.ersteHypothek.amortisation.modus ?? "PROZENT_PRO_JAHR");
+  const [zweiteAmortisationModus, setZweiteAmortisationModus] = useState<AmortisationModus>(existing?.hypothek.zweiteHypothek.amortisation.modus ?? "DAUER_JAHRE");
   const cantonDefaults = getCantonDefaults(canton);
   const defaultHandaenderungssteuerPercent = cantonDefaults?.handaenderungssteuerPercent ?? P.handaenderungssteuerPercent.defaultValue;
   const defaultKalkulatorischerSteuersatzPercent = cantonDefaults?.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent.defaultValue;
@@ -411,18 +414,108 @@ export function BestandsrenditeFactsFields({
       <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
         Finanzierung &amp; Steuer
       </div>
+      <p style={{ color: "var(--ink-soft)", fontSize: ".76rem", margin: "0 0 .6rem" }}>
+        1. und 2. Hypothek getrennt erfasst (übliche Schweizer Struktur) — je mit eigener Amortisation, wahlweise als
+        Prozentsatz vom ursprünglichen Betrag pro Jahr oder als Zieldauer in Jahren (linear bis 0). Die 1. Hypothek
+        bleibt oft unamortisiert, die 2. wird meist über eine feste Dauer getilgt — beide Felder sind aber frei
+        wählbar.
+      </p>
       <div className="fieldgrid">
         <div className="field">
-          <label htmlFor="loanToValuePercent">Belehnung (%)</label>
-          <input id="loanToValuePercent" name="loanToValuePercent" type="number" step="1" required defaultValue={existing?.hypothek.loanToValuePercent ?? 70} />
+          <label htmlFor="ersteHypothekBelehnungPercent">1. Hypothek — Belehnung (%)</label>
+          <input
+            id="ersteHypothekBelehnungPercent"
+            name="ersteHypothekBelehnungPercent"
+            type="number"
+            step="1"
+            required
+            defaultValue={existing?.hypothek.ersteHypothek.belehnungPercent ?? 65}
+          />
         </div>
         <div className="field">
-          <label htmlFor="interestRatePercent">Zinssatz (%)</label>
+          <label htmlFor="ersteHypothekAmortisationModus">1. Hypothek — Amortisation</label>
+          <select
+            id="ersteHypothekAmortisationModus"
+            name="ersteHypothekAmortisationModus"
+            value={ersteAmortisationModus}
+            onChange={(e) => setErsteAmortisationModus(e.target.value as AmortisationModus)}
+          >
+            <option value="PROZENT_PRO_JAHR">Prozentsatz pro Jahr</option>
+            <option value="DAUER_JAHRE">Dauer in Jahren</option>
+          </select>
+        </div>
+        {ersteAmortisationModus === "PROZENT_PRO_JAHR" ? (
+          <div className="field">
+            <label htmlFor="ersteHypothekAmortisationProzentProJahr">1. Hypothek — Amortisation (% p.a.)</label>
+            <input
+              id="ersteHypothekAmortisationProzentProJahr"
+              name="ersteHypothekAmortisationProzentProJahr"
+              type="number"
+              step="0.1"
+              defaultValue={existing?.hypothek.ersteHypothek.amortisation.prozentProJahr ?? 0}
+            />
+          </div>
+        ) : (
+          <div className="field">
+            <label htmlFor="ersteHypothekAmortisationDauerJahre">1. Hypothek — Amortisationsdauer (Jahre)</label>
+            <input
+              id="ersteHypothekAmortisationDauerJahre"
+              name="ersteHypothekAmortisationDauerJahre"
+              type="number"
+              step="1"
+              defaultValue={existing?.hypothek.ersteHypothek.amortisation.dauerJahre ?? 0}
+            />
+          </div>
+        )}
+        <div className="field">
+          <label htmlFor="zweiteHypothekBelehnungPercent">2. Hypothek — Belehnung (%)</label>
+          <input
+            id="zweiteHypothekBelehnungPercent"
+            name="zweiteHypothekBelehnungPercent"
+            type="number"
+            step="1"
+            required
+            defaultValue={existing?.hypothek.zweiteHypothek.belehnungPercent ?? 15}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="zweiteHypothekAmortisationModus">2. Hypothek — Amortisation</label>
+          <select
+            id="zweiteHypothekAmortisationModus"
+            name="zweiteHypothekAmortisationModus"
+            value={zweiteAmortisationModus}
+            onChange={(e) => setZweiteAmortisationModus(e.target.value as AmortisationModus)}
+          >
+            <option value="PROZENT_PRO_JAHR">Prozentsatz pro Jahr</option>
+            <option value="DAUER_JAHRE">Dauer in Jahren</option>
+          </select>
+        </div>
+        {zweiteAmortisationModus === "PROZENT_PRO_JAHR" ? (
+          <div className="field">
+            <label htmlFor="zweiteHypothekAmortisationProzentProJahr">2. Hypothek — Amortisation (% p.a.)</label>
+            <input
+              id="zweiteHypothekAmortisationProzentProJahr"
+              name="zweiteHypothekAmortisationProzentProJahr"
+              type="number"
+              step="0.1"
+              defaultValue={existing?.hypothek.zweiteHypothek.amortisation.prozentProJahr ?? 0}
+            />
+          </div>
+        ) : (
+          <div className="field">
+            <label htmlFor="zweiteHypothekAmortisationDauerJahre">2. Hypothek — Amortisationsdauer (Jahre)</label>
+            <input
+              id="zweiteHypothekAmortisationDauerJahre"
+              name="zweiteHypothekAmortisationDauerJahre"
+              type="number"
+              step="1"
+              defaultValue={existing?.hypothek.zweiteHypothek.amortisation.dauerJahre ?? 15}
+            />
+          </div>
+        )}
+        <div className="field">
+          <label htmlFor="interestRatePercent">Zinssatz (%, für beide Hypotheken)</label>
           <input id="interestRatePercent" name="interestRatePercent" type="number" step="0.1" required defaultValue={existing?.hypothek.interestRatePercent ?? 2} />
-        </div>
-        <div className="field">
-          <label htmlFor="amortisationChfPerYear">Amortisation (CHF/Jahr)</label>
-          <input id="amortisationChfPerYear" name="amortisationChfPerYear" type="number" step="500" required defaultValue={existing?.hypothek.amortisationChfPerYear ?? 0} />
         </div>
         <div className="field">
           <label htmlFor="kalkulatorischerSteuersatzPercent">
