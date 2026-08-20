@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { parseDocumentExtractionResponse, isSupportedDocumentFile, isPdfDocumentFile } from "./dueDiligenceExtraction";
+import { parseDocumentExtractionResponse, isSupportedDocumentFile, isPdfDocumentFile, buildExtractionToolSchema } from "./dueDiligenceExtraction";
+import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
+import { CATEGORY_ORDER } from "./dueDiligenceCategories";
 
 describe("parseDocumentExtractionResponse", () => {
   it("parst eine vollständige, gültige Antwort", () => {
@@ -131,5 +133,36 @@ describe("isSupportedDocumentFile / isPdfDocumentFile", () => {
   it("lehnt andere Dateitypen ab, z.B. Word-Dokumente", () => {
     const file = new File(["x"], "vertrag.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
     expect(isSupportedDocumentFile(file)).toBe(false);
+  });
+});
+
+describe("buildExtractionToolSchema", () => {
+  it("listet exakt die bekannten Dokumenttypen/Kategorien/Severities als enum, damit das Tool-Schema nicht von der übrigen Validierung abweicht", () => {
+    const schema = buildExtractionToolSchema();
+    const properties = schema.properties as Record<string, unknown>;
+
+    expect(properties.detectedDocumentType).toMatchObject({ enum: Object.keys(DOCUMENT_TYPE_CATALOG) });
+
+    const findingsItems = (properties.findings as { items: { properties: Record<string, unknown> } }).items.properties;
+    expect(findingsItems.category).toMatchObject({ enum: CATEGORY_ORDER });
+    expect(findingsItems.severity).toMatchObject({ enum: ["OK", "KLAERUNGSBEDARF", "RISIKO"] });
+  });
+
+  it("verlangt die vier Pflichtfelder auf oberster Ebene, basisdaten bleibt optional", () => {
+    const schema = buildExtractionToolSchema();
+    expect(schema.required).toEqual(["detectedDocumentType", "summary", "facts", "findings"]);
+  });
+
+  it("das simulierte Tool-Ergebnis (Objekt statt Freitext-JSON) lässt sich unverändert über parseDocumentExtractionResponse validieren", () => {
+    const toolInput = {
+      detectedDocumentType: "MIETVERTRAG",
+      summary: "Mietvertrag mit Nachtrag.",
+      facts: { nettomieteChf: 1800 },
+      findings: [{ category: "MIETVERHAELTNIS", severity: "OK", summary: "Standardkonditionen" }],
+    };
+    const result = parseDocumentExtractionResponse(JSON.stringify(toolInput), "MIETVERTRAG");
+    expect(result.detectedDocumentType).toBe("MIETVERTRAG");
+    expect(result.facts).toEqual({ nettomieteChf: 1800 });
+    expect(result.findings).toHaveLength(1);
   });
 });

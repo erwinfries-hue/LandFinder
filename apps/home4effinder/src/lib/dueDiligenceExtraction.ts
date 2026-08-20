@@ -2,7 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { DocumentBasisdaten, DocumentExtractionResult, DueDiligenceDocumentType, DueDiligenceFinding } from "@landfinder/domain";
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
 import { AVAILABLE_CANTONS } from "./cantons";
-import { extractFirstJsonObject } from "./extractJsonObject";
 
 /**
  * Stufe 1 der Dokumenten-KI: Extraktion aus einem einzelnen hochgeladenen Dokument.
@@ -62,35 +61,68 @@ function buildSystemPrompt(documentType: DueDiligenceDocumentType): string {
 
 Aufgabe für diesen Dokumenttyp: ${config.extractionGuidance}
 
-Gib AUSSCHLIESSLICH ein JSON-Objekt zurück, ohne Erklärtext, mit genau dieser Struktur:
-{
-  "detectedDocumentType": string (einer von: ${Object.keys(DOCUMENT_TYPE_CATALOG).join(", ")} — welcher Typ das Dokument nach deiner Einschätzung tatsächlich ist; weicht er vom oben genannten Typ "${documentType}" ab, trotzdem einen Fund mit severity "KLAERUNGSBEDARF" dazu erzeugen),
-  "summary": string (2-4 Sätze, sachliche Zusammenfassung),
-  "facts": object (dokumenttypspezifische Fakten als flaches Objekt, z.B. Beträge, Daten, Namen — nur was im Dokument wirklich steht),
-  "findings": [
-    {
-      "category": string (einer von: GRUNDBUCH_RECHTE, STWEG, ERNEUERUNGSFONDS, GEBAEUDE_SANIERUNGEN, MIETVERHAELTNIS, NEBENKOSTEN, HEIZUNG_ENERGIE, TECHNISCHE_UNTERLAGEN, DOKUMENTENVOLLSTAENDIGKEIT),
-      "severity": string (OK, KLAERUNGSBEDARF, oder RISIKO),
-      "summary": string (kurz, eine Aussage),
-      "detail": string (optional, Begründung),
-      "sourcePage": number (optional, Seitenzahl im Dokument),
-      "sourceQuote": string (optional, wörtliches Zitat aus dem Dokument als Beleg)
-    }
-  ],
-  "basisdaten": object, optional — nur mitgeben, wenn das Dokument Objekt-Basisdaten klar erkennbar enthält (typischerweise bei Exposé/Inserat, manchmal auch Grundriss/Grundbuchauszug):
-  {
-    "adresseText": string (optional, vollständige Adresse inkl. PLZ/Ort),
-    "kantonCode": string (optional, zweistelliges Kürzel, einer von: ${CANTON_CODES.join(", ")}),
-    "kaufpreisChf": number (optional),
-    "wohnflaecheM2": number (optional)
-  }
+Rufe AUSSCHLIESSLICH das Tool "${EXTRACTION_TOOL_NAME}" mit den extrahierten Daten auf, ohne zusätzlichen Erklärtext. Weicht der tatsächliche Dokumenttyp erkennbar vom oben genannten Typ "${documentType}" ab, trotzdem einen Fund mit severity "KLAERUNGSBEDARF" dazu erzeugen.
 
 Wichtige Regeln:
 - Erfinde NIE einen Wert, der nicht im Dokument steht — fehlt eine Information, lasse das Feld weg statt zu schätzen.
 - Auch ein abgelehntes, vertagtes oder nur diskutiertes Vorhaben ist ein möglicher zukünftiger Risikofund, nicht nur bereits beschlossene Massnahmen.
 - Jeder wichtige Fund braucht nach Möglichkeit sourcePage und sourceQuote, damit der Nutzer die Aussage im Original nachvollziehen kann.
+- sourceQuote kurz halten (nur der für den Fund entscheidende Ausschnitt, nicht ganze Absätze/Sätze) — das hält die Antwort handhabbar, gerade bei umfangreichen Dokumenten mit vielen Funden.
 - Bei rein positiven/unauffälligen Punkten ist severity "OK" — nicht alles muss ein Risiko sein.
 - "basisdaten" komplett weglassen, wenn das Dokument keine dieser Angaben enthält.`;
+}
+
+const EXTRACTION_TOOL_NAME = "emit_document_extraction";
+
+/**
+ * JSON-Schema für erzwungenen Tool-Aufruf statt Freitext-JSON-in-Prosa — die Anthropic-API
+ * validiert/parst `input` serverseitig, wodurch die früher beobachtete Fehlerklasse
+ * "SyntaxError: Expected ',' or '}' after property value in JSON" (vermutlich ein nicht
+ * korrekt escapetes Zeichen in einem wörtlichen Zitat) strukturell ausgeschlossen ist,
+ * statt sie nur nachträglich am Text zu reparieren.
+ */
+export function buildExtractionToolSchema(): { type: "object"; properties: Record<string, unknown>; required: string[] } {
+  return {
+    type: "object",
+    properties: {
+      detectedDocumentType: {
+        type: "string",
+        enum: Object.keys(DOCUMENT_TYPE_CATALOG),
+        description: "Welcher Dokumenttyp das Dokument nach deiner Einschätzung tatsächlich ist.",
+      },
+      summary: { type: "string", description: "2-4 Sätze, sachliche Zusammenfassung." },
+      facts: {
+        type: "object",
+        description: "Dokumenttypspezifische Fakten als flaches Objekt, z.B. Beträge, Daten, Namen — nur was im Dokument wirklich steht.",
+      },
+      findings: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            category: { type: "string", enum: [...KNOWN_CATEGORIES] },
+            severity: { type: "string", enum: [...KNOWN_SEVERITIES] },
+            summary: { type: "string", description: "Kurz, eine Aussage." },
+            detail: { type: "string", description: "Optional, Begründung." },
+            sourcePage: { type: "number", description: "Optional, Seitenzahl im Dokument." },
+            sourceQuote: { type: "string", maxLength: 280, description: "Optional, kurzes wörtliches Zitat als Beleg — max. ca. 280 Zeichen." },
+          },
+          required: ["category", "severity", "summary"],
+        },
+      },
+      basisdaten: {
+        type: "object",
+        description: "Nur mitgeben, wenn das Dokument Objekt-Basisdaten klar erkennbar enthält (typischerweise Exposé/Inserat, manchmal Grundriss/Grundbuchauszug).",
+        properties: {
+          adresseText: { type: "string", description: "Vollständige Adresse inkl. PLZ/Ort." },
+          kantonCode: { type: "string", enum: CANTON_CODES, description: "Zweistelliges Kürzel." },
+          kaufpreisChf: { type: "number" },
+          wohnflaecheM2: { type: "number" },
+        },
+      },
+    },
+    required: ["detectedDocumentType", "summary", "facts", "findings"],
+  };
 }
 
 const KNOWN_DOCUMENT_TYPES = new Set(Object.keys(DOCUMENT_TYPE_CATALOG));
@@ -188,29 +220,30 @@ export async function extractDocumentFields(
     // bereits für die Synthese verwendeten Wert (dueDiligenceSynthesis.ts).
     max_tokens: 8192,
     system: buildSystemPrompt(documentType),
+    tools: [{ name: EXTRACTION_TOOL_NAME, description: "Nimmt die Extraktionsdaten für das analysierte Dokument entgegen.", input_schema: buildExtractionToolSchema() }],
+    tool_choice: { type: "tool", name: EXTRACTION_TOOL_NAME },
     messages: [
       {
         role: "user",
-        content: [
-          documentBlock,
-          { type: "text", text: "Analysiere dieses Dokument gemäss den Anweisungen im System-Prompt und gib ausschliesslich das beschriebene JSON zurück." },
-        ],
+        content: [documentBlock, { type: "text", text: "Analysiere dieses Dokument gemäss den Anweisungen im System-Prompt und rufe das Tool mit den extrahierten Daten auf." }],
       },
     ],
   });
 
-  // Explizit prüfen statt nur am Parse-Fehler zu erkennen — liefert im Log sofort die
-  // richtige Diagnose ("Dokument zu umfangreich") statt eines irreführenden
-  // JSON-Parse-Fehlers, der wie ein Format-/Prompt-Problem aussieht.
+  // Explizit prüfen statt nur am fehlenden Tool-Aufruf zu erkennen — liefert im Log sofort
+  // die richtige Diagnose ("Dokument zu umfangreich") statt eines irreführenden generischen
+  // Fehlers, der wie ein Format-/Prompt-Problem aussieht.
   if (response.stop_reason === "max_tokens") {
     throw new Error(`Antwort von Claude wurde bei max_tokens abgeschnitten — "${filename}" ist vermutlich zu umfangreich für eine einzelne Analyse.`);
   }
 
-  const textBlock = response.content.find((block) => block.type === "text");
-  if (!textBlock || textBlock.type !== "text") throw new Error("Keine Text-Antwort von Anthropic erhalten");
+  // Erzwungener Tool-Aufruf statt Freitext-JSON: die Anthropic-API liefert `input` bereits
+  // als geparstes, valides Objekt — kein `extractFirstJsonObject`/JSON.parse auf rohem
+  // Modelltext mehr nötig, und die früher beobachtete Fehlerklasse ungültigen JSONs
+  // (vermutlich nicht korrekt escapete Zeichen in einem wörtlichen Zitat) ist damit
+  // strukturell ausgeschlossen.
+  const toolUseBlock = response.content.find((block) => block.type === "tool_use" && block.name === EXTRACTION_TOOL_NAME);
+  if (!toolUseBlock || toolUseBlock.type !== "tool_use") throw new Error("Keine strukturierte Antwort (Tool-Aufruf) von Anthropic erhalten");
 
-  const json = extractFirstJsonObject(textBlock.text);
-  if (!json) throw new Error("Keine JSON-Struktur in der Anthropic-Antwort gefunden");
-
-  return parseDocumentExtractionResponse(json, documentType);
+  return parseDocumentExtractionResponse(JSON.stringify(toolUseBlock.input), documentType);
 }
