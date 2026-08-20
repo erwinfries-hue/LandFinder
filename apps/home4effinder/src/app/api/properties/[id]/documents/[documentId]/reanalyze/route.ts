@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { DueDiligenceDocumentType } from "@landfinder/domain";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { hasValidSession } from "@/lib/authSession";
-import { extractDocumentFields, AnthropicNotConfiguredError } from "@/lib/dueDiligenceExtraction";
+import { extractDocumentFields, AnthropicNotConfiguredError, type DocumentSourceInput } from "@/lib/dueDiligenceExtraction";
 
 /**
  * Stösst die Stufe-1-Analyse für ein bereits hochgeladenes Dokument erneut an — ohne
@@ -39,9 +39,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   await supabase.from("property_documents").update({ analysis_status: "PENDING", analysis_error: null }).eq("id", documentId);
 
-  const pdfBase64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
+  // Storage-Dateiendung entscheidet über PDF vs. Text — dieselbe Konvention wie beim
+  // ursprünglichen Upload (documents/route.ts, attach/route.ts).
+  const isPdf = doc.storage_path.toLowerCase().endsWith(".pdf");
+  const source: DocumentSourceInput = isPdf
+    ? { kind: "pdf", pdfBase64: Buffer.from(await blob.arrayBuffer()).toString("base64") }
+    : { kind: "text", text: await blob.text() };
   try {
-    const extraction = await extractDocumentFields(pdfBase64, doc.document_type as DueDiligenceDocumentType, doc.original_filename);
+    const extraction = await extractDocumentFields(source, doc.document_type as DueDiligenceDocumentType, doc.original_filename);
     await supabase.from("property_documents").update({ analysis_status: "DONE", extraction, analysis_error: null, analyzed_at: new Date().toISOString() }).eq("id", documentId);
     return NextResponse.json({ analyzed: true, status: "DONE", extraction });
   } catch (err) {

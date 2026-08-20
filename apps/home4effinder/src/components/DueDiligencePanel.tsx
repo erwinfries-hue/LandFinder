@@ -27,6 +27,9 @@ const PRIORITY_LABEL: Record<string, string> = { ZWINGEND: "Zwingend vor Kauf", 
 /** Datei, die ausgewählt aber noch nicht hochgeladen ist — Dokumenttyp aus dem Dateinamen vorgeschlagen, vor dem Hochladen editierbar. */
 type StagedFile = { file: File; documentType: DueDiligenceDocumentType; guessed: boolean };
 
+/** Bewusst dieselbe Grenze wie `MAX_PASTED_TEXT_LENGTH` in dueDiligenceExtraction.ts (nicht von dort importiert, um den Anthropic-SDK-Server-Code nicht ins Client-Bundle zu ziehen). */
+const MAX_PASTED_TEXT_LENGTH = 200_000;
+
 type UploadState = { filename: string; status: "UPLOADING" | "DONE" | "FAILED"; error?: string };
 
 export function DueDiligencePanel({
@@ -43,6 +46,9 @@ export function DueDiligencePanel({
 }) {
   const router = useRouter();
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
+  const [pasteText, setPasteText] = useState("");
+  const [pasteTitle, setPasteTitle] = useState("");
+  const [pasteDocumentType, setPasteDocumentType] = useState<DueDiligenceDocumentType>("SONSTIGES");
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [uploading, setUploading] = useState(false);
   const [synthesizing, setSynthesizing] = useState(false);
@@ -68,6 +74,17 @@ export function DueDiligencePanel({
   }
   function removeStaged(index: number) {
     setStagedFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  /** Eingefügter Text wird als reguläre Text-Datei in den bestehenden Staging-/Upload-Ablauf eingespiesen — kein separater Codepfad nötig. */
+  function handleAddPastedText() {
+    const trimmed = pasteText.trim();
+    if (!trimmed) return;
+    const filename = `${pasteTitle.trim() || "Eingefügter Text"}.txt`;
+    const file = new File([trimmed], filename, { type: "text/plain" });
+    setStagedFiles((prev) => [...prev, { file, documentType: pasteDocumentType, guessed: false }]);
+    setPasteText("");
+    setPasteTitle("");
   }
 
   async function handleUpload() {
@@ -184,9 +201,45 @@ export function DueDiligencePanel({
         Rückfragen.
       </p>
 
-      <div className="field" style={{ marginBottom: stagedFiles.length > 0 ? ".8rem" : "1.2rem" }}>
+      <div className="field" style={{ marginBottom: ".8rem" }}>
         <label htmlFor="files">PDF-Dateien auswählen</label>
         <input id="files" type="file" accept="application/pdf" multiple onChange={handleFilesSelected} />
+      </div>
+
+      <div className="field" style={{ marginBottom: stagedFiles.length > 0 ? ".8rem" : "1.2rem" }}>
+        <label htmlFor="pasteText">…oder Text einfügen (z.B. aus E-Mail oder Inserat kopiert)</label>
+        <textarea
+          id="pasteText"
+          rows={4}
+          maxLength={MAX_PASTED_TEXT_LENGTH}
+          value={pasteText}
+          onChange={(e) => setPasteText(e.target.value)}
+          placeholder="Text hier einfügen…"
+          style={{ width: "100%" }}
+        />
+        <div style={{ display: "flex", gap: ".5rem", marginTop: ".4rem", flexWrap: "wrap", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder="Titel (optional)"
+            value={pasteTitle}
+            onChange={(e) => setPasteTitle(e.target.value)}
+            style={{ flex: "1 1 160px" }}
+          />
+          <select
+            value={pasteDocumentType}
+            onChange={(e) => setPasteDocumentType(e.target.value as DueDiligenceDocumentType)}
+            style={{ fontSize: ".78rem", padding: ".2rem .4rem" }}
+          >
+            {Object.values(DOCUMENT_TYPE_CATALOG).map((c) => (
+              <option key={c.type} value={c.type}>
+                {c.label} ({PRIORITY_LABEL[c.priority]})
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn" style={{ width: "auto" }} disabled={!pasteText.trim()} onClick={handleAddPastedText}>
+            Text hinzufügen
+          </button>
+        </div>
       </div>
 
       {stagedFiles.length > 0 ? (

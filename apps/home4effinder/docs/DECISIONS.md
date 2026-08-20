@@ -609,6 +609,33 @@ hochzuladen (Risiko versehentlicher Duplikate).
   Stage-2-Synthese (`runSynthesisPrefill`) automatisch erneut, damit ein zuvor
   fehlendes Feld doch noch vorausgefüllt werden kann.
 
+## Nachgezogen (2026-08-20): Text einfügen statt PDF-Upload
+
+Auf Wunsch des Auftraggebers, im selben Zug wie das Retry-Feature: "beim Schritt Doku
+hochladen soll auch die Möglichkeit bestehen, Texte einzukopieren" — z.B. Text aus einer
+E-Mail oder einem Online-Inserat, für das keine PDF-Datei vorliegt.
+
+- **Kein separater Codepfad**: eingefügter Text wird client-seitig sofort in eine
+  `File`-Instanz verpackt (`new File([text], titel + ".txt", { type: "text/plain" })`)
+  und ganz normal in denselben `stagedFiles`/Analyse-Ablauf eingespiesen wie eine
+  hochgeladene PDF-Datei — Dokumenttyp-Auswahl, Analyse, Retry, Anhängen ans Objekt
+  funktionieren dadurch identisch, ohne Duplikation.
+- **`dueDiligenceExtraction.ts`**: `extractDocumentFields` nimmt jetzt eine
+  `DocumentSourceInput` (`{kind:"pdf", pdfBase64}` oder `{kind:"text", text}`) statt nur
+  `pdfBase64` entgegen. Beide laufen als Anthropic-"document"-Content-Block, nur mit
+  unterschiedlichem `source.type` (`base64`/`application/pdf` vs. `text`/`text/plain`) —
+  Prompt und Parsing bleiben unverändert. Neue Hilfsfunktionen
+  `isSupportedDocumentFile`/`isPdfDocumentFile` ersetzen die bisherige reine
+  PDF-Prüfung in allen drei betroffenen Routen (`prefill`, `documents`,
+  `documents/attach`) sowie in `reanalyze` (dort anhand der Storage-Dateiendung erkannt).
+- **Storage**: Text-"Dokumente" landen als `.txt`/`text/plain` im selben
+  `property-documents`-Bucket wie PDFs (Storage-Key-Endung `.pdf`/`.txt` je nach Typ) —
+  keine Schemaänderung nötig, die bestehende Lösch-/Reanalyse-Logik funktioniert
+  unverändert für beide Typen.
+- Länge des eingefügten Texts client-seitig auf 200'000 Zeichen begrenzt
+  (`maxLength` auf der Textarea) — grosszügig genug für z.B. ein komplettes
+  Exposé/eine E-Mail, verhindert aber einen versehentlich riesigen Paste.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

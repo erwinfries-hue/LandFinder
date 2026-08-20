@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import type { DueDiligenceDocumentType } from "@landfinder/domain";
 import { hasValidSession } from "@/lib/authSession";
 import { DOCUMENT_TYPE_CATALOG } from "@/lib/documentTypes";
-import { extractDocumentFields, AnthropicNotConfiguredError, MAX_DOCUMENT_SIZE_BYTES } from "@/lib/dueDiligenceExtraction";
+import {
+  extractDocumentFields,
+  AnthropicNotConfiguredError,
+  MAX_DOCUMENT_SIZE_BYTES,
+  isSupportedDocumentFile,
+  isPdfDocumentFile,
+  type DocumentSourceInput,
+} from "@/lib/dueDiligenceExtraction";
 
 /**
  * Zustandslose Vorab-Analyse eines Dokuments (typischerweise Exposé), BEVOR ein Objekt
@@ -36,13 +43,15 @@ export async function POST(request: Request): Promise<Response> {
   if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
     return NextResponse.json({ error: `Datei zu gross (max. ${Math.round(MAX_DOCUMENT_SIZE_BYTES / 1024 / 1024)} MB)` }, { status: 400 });
   }
-  if (file.type && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-    return NextResponse.json({ error: "Nur PDF-Dateien werden unterstützt" }, { status: 400 });
+  if (!isSupportedDocumentFile(file)) {
+    return NextResponse.json({ error: "Nur PDF- oder Text-Dateien werden unterstützt" }, { status: 400 });
   }
 
-  const pdfBase64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+  const source: DocumentSourceInput = isPdfDocumentFile(file)
+    ? { kind: "pdf", pdfBase64: Buffer.from(await file.arrayBuffer()).toString("base64") }
+    : { kind: "text", text: await file.text() };
   try {
-    const extraction = await extractDocumentFields(pdfBase64, documentType, file.name);
+    const extraction = await extractDocumentFields(source, documentType, file.name);
     return NextResponse.json({ analyzed: true, extraction });
   } catch (err) {
     const message = err instanceof AnthropicNotConfiguredError ? err.message : "Analyse fehlgeschlagen";

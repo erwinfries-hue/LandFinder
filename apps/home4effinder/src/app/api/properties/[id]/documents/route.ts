@@ -3,7 +3,14 @@ import type { DueDiligenceDocumentType } from "@landfinder/domain";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { hasValidSession } from "@/lib/authSession";
 import { DOCUMENT_TYPE_CATALOG } from "@/lib/documentTypes";
-import { extractDocumentFields, AnthropicNotConfiguredError, MAX_DOCUMENT_SIZE_BYTES } from "@/lib/dueDiligenceExtraction";
+import {
+  extractDocumentFields,
+  AnthropicNotConfiguredError,
+  MAX_DOCUMENT_SIZE_BYTES,
+  isSupportedDocumentFile,
+  isPdfDocumentFile,
+  type DocumentSourceInput,
+} from "@/lib/dueDiligenceExtraction";
 
 /**
  * Upload + Stufe-1-Analyse eines einzelnen Due-Diligence-Dokuments. Bewusst **ein
@@ -39,9 +46,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
     return NextResponse.json({ error: `Datei zu gross (max. ${Math.round(MAX_DOCUMENT_SIZE_BYTES / 1024 / 1024)} MB)` }, { status: 400 });
   }
-  if (file.type && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-    return NextResponse.json({ error: "Nur PDF-Dateien werden unterstützt" }, { status: 400 });
+  if (!isSupportedDocumentFile(file)) {
+    return NextResponse.json({ error: "Nur PDF- oder Text-Dateien werden unterstützt" }, { status: 400 });
   }
+  const isPdf = isPdfDocumentFile(file);
 
   const supabase = createSupabaseServerClient();
   if (!supabase) return NextResponse.json({ saved: false, configured: false }, { status: 200 });
@@ -58,9 +66,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // `original_filename` gespeichert) — Supabase Storage lehnt manche Zeichen darin
   // (Leerzeichen, Umlaute/Akzente) mit "InvalidKey" ab, in Produktion beobachtet bei
   // z.B. "PDF Exposé.pdf".
-  const storagePath = `${propertyId}/${crypto.randomUUID()}.pdf`;
+  const storagePath = `${propertyId}/${crypto.randomUUID()}.${isPdf ? "pdf" : "txt"}`;
 
-  const { error: uploadError } = await supabase.storage.from("property-documents").upload(storagePath, bytes, { contentType: "application/pdf" });
+  const { error: uploadError } = await supabase.storage
+    .from("property-documents")
+    .upload(storagePath, bytes, { contentType: isPdf ? "application/pdf" : "text/plain" });
   if (uploadError) {
     console.error(`[api/properties/${propertyId}/documents] Upload in Storage fehlgeschlagen`, uploadError);
     return NextResponse.json({ error: "storage upload failed" }, { status: 500 });
@@ -76,9 +86,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "insert failed" }, { status: 500 });
   }
 
-  const pdfBase64 = Buffer.from(bytes).toString("base64");
+  const source: DocumentSourceInput = isPdf
+    ? { kind: "pdf", pdfBase64: Buffer.from(bytes).toString("base64") }
+    : { kind: "text", text: new TextDecoder("utf-8").decode(bytes) };
   try {
-    const extraction = await extractDocumentFields(pdfBase64, documentType, file.name);
+    const extraction = await extractDocumentFields(source, documentType, file.name);
     await supabase
       .from("property_documents")
       .update({ analysis_status: "DONE", extraction, analyzed_at: new Date().toISOString() })
