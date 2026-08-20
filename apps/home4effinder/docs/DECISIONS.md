@@ -584,6 +584,34 @@ Tranchentrennung.
   Die Objekt-/Mehrjahres-Analyseansicht zeigt zusätzlich die aufgeschlüsselten
   Tranchenbeträge und deren Amortisation/Jahr, nicht nur die kombinierte Belehnung.
 
+## Nachgezogen (2026-08-20): Exposé-Extraktion für Zimmerzahl/Baujahr/Parkplatz-Kaufpreis unzuverlässig
+
+Vom Auftraggeber gemeldet (mit Screenshot): nach Upload eines Exposés blieben die
+Felder Zimmerzahl, Baujahr und Parkplatz-Kaufpreis im Bestandsrendite-Formular leer,
+obwohl das Exposé diese Angaben enthielt — trotz "Prüfe die Qualität"-Auftrag.
+
+Ursache gefunden: `EXPOSE_INSERAT.extractionGuidance` (`documentTypes.ts`) verlangte
+diese drei Werte bisher nur als unstrukturierten Fund-Fliesstext ("Erfasse zusätzlich
+als Fund, falls ersichtlich: Zimmerzahl, Baujahr, …"), NICHT als strukturierte
+`facts`-Schlüssel. Der einzige Weg, wie Zimmerzahl/Baujahr/Parkplatz-Kaufpreis
+überhaupt automatisch ins Formular gelangen, ist über die Stufe-2-Synthese
+(`fieldUpdateProposals`, siehe `dueDiligenceSynthesis.ts`) — und die bekommt von jedem
+Dokument nur dessen bereits strukturiertes `facts`-Objekt roh als JSON in den Prompt
+gereicht (`Fakten: ${JSON.stringify(d.facts)}`), nicht die Fund-Fliesstexte im Detail.
+Ohne exakten, vorhersehbaren Schlüsselnamen musste Stufe 2 also selbst aus Prosa
+zurückschliessen, welcher der drei bekannten Feldpfade (`zimmerzahl`, `baujahr`,
+`parkplatzKaufpreisChf` — siehe `bestandsrenditeKnownFields.ts`) gemeint war, was
+unzuverlässig ist.
+
+Fix: `EXPOSE_INSERAT.extractionGuidance` verlangt jetzt explizit diese drei Werte als
+strukturierte `facts`-Schlüssel mit GENAU den Namen `zimmerzahl`/`baujahr`/
+`parkplatzKaufpreisChf` (als Zahl), zusätzlich weiterhin auch als lesbarer Fund im
+Fliesstext. Dadurch sieht Stufe 2 direkt `facts.zimmerzahl` etc. und kann das 1:1 auf
+den identisch benannten bekannten Feldpfad abbilden, statt es aus Prosa zu erraten.
+Bewusst nur an `EXPOSE_INSERAT` geändert (der gemeldete Fall), nicht an allen
+Dokumenttypen, die diese Felder am Rande erwähnen könnten — kein Anlass, den Prompt
+über den gemeldeten Fall hinaus aufzublähen.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
