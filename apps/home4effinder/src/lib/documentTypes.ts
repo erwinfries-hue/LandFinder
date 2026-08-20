@@ -182,7 +182,7 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     defaultCategory: "DOKUMENTENVOLLSTAENDIGKEIT",
     description: "Verkaufsexposé bzw. ausgedrucktes Online-Inserat des Objekts.",
     extractionGuidance:
-      "Erfasse als Basisdaten (siehe basisdaten-Feld): vollständige Adresse, Kanton, Kaufpreis, Wohnfläche. Erfasse zusätzlich als Fund, falls ersichtlich: Zimmerzahl, Baujahr, Stockwerk, beschriebener Zustand/Ausbaustandard, erwähnte Sonderrechte (Parkplatz, Keller, Balkon). Vergleiche die genannte Wohnfläche explizit mit anderen bereits vorliegenden Dokumenten (z.B. Grundriss) — jede Abweichung ist ein zu meldender Widerspruch.",
+      'Erfasse als Basisdaten (siehe basisdaten-Feld): vollständige Adresse, Kanton, Kaufpreis, Wohnfläche. Erfasse zusätzlich als strukturierte Fakten im facts-Feld — mit GENAU diesen Schlüsseln, falls im Dokument ersichtlich: "zimmerzahl" (Zahl, z.B. 3.5), "baujahr" (Zahl, z.B. 1998), "parkplatzKaufpreisChf" (Zahl, NUR falls ein separater Kaufpreis für einen Parkplatz/eine Garage genannt wird, nicht der Gesamtkaufpreis). Diese exakten Schlüsselnamen sind wichtig, damit die Werte automatisch als Vorschlag ins Erfassungsformular übernommen werden können. Erfasse zusätzlich als Fund, falls ersichtlich: Stockwerk, beschriebener Zustand/Ausbaustandard, erwähnte Sonderrechte (Parkplatz, Keller, Balkon) — auch die oben als Fakten erfassten Werte hier nochmals im Fliesstext nennen. Vergleiche die genannte Wohnfläche explizit mit anderen bereits vorliegenden Dokumenten (z.B. Grundriss) — jede Abweichung ist ein zu meldender Widerspruch.',
   },
 
   // --- Auffangkategorie ---
