@@ -6,6 +6,7 @@ import {
   calculateJahresertrag,
   calculateBetriebskosten,
   resolveReserveChf,
+  resolveAmortisationChfPerYear,
   calculateCashflowWasserfall,
   calculateInvestmentCase,
   breakEvenMieteChfPerMonth,
@@ -100,6 +101,25 @@ describe("resolveReserveChf", () => {
 
   it("berechnet aus Prozentsatz vom Kaufpreis, wenn kein CHF-Betrag gesetzt ist", () => {
     expect(resolveReserveChf({ percentOfKaufpreis: 0.3, kaufpreisChf: 900_000 })).toBeCloseTo(2_700, 5);
+  });
+});
+
+describe("resolveAmortisationChfPerYear", () => {
+  it("berechnet aus einem Prozentsatz vom ursprünglichen Tranchenbetrag pro Jahr", () => {
+    expect(resolveAmortisationChfPerYear(200_000, { modus: "PROZENT_PRO_JAHR", prozentProJahr: 1 })).toBeCloseTo(2_000, 5);
+  });
+
+  it("berechnet aus einer Zieldauer in Jahren (linear)", () => {
+    expect(resolveAmortisationChfPerYear(150_000, { modus: "DAUER_JAHRE", dauerJahre: 15 })).toBeCloseTo(10_000, 5);
+  });
+
+  it("liefert 0 bei fehlendem Prozentsatz im Modus PROZENT_PRO_JAHR, statt zu werfen", () => {
+    expect(resolveAmortisationChfPerYear(200_000, { modus: "PROZENT_PRO_JAHR" })).toBe(0);
+  });
+
+  it("liefert 0 bei fehlender oder nicht-positiver Dauer im Modus DAUER_JAHRE, statt durch 0 zu teilen", () => {
+    expect(resolveAmortisationChfPerYear(150_000, { modus: "DAUER_JAHRE" })).toBe(0);
+    expect(resolveAmortisationChfPerYear(150_000, { modus: "DAUER_JAHRE", dauerJahre: 0 })).toBe(0);
   });
 });
 

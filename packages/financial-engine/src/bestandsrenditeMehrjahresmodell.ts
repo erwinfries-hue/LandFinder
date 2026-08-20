@@ -1,5 +1,13 @@
 import { internalRateOfReturn } from "./numeric";
-import { calculateJahresertrag, calculateBetriebskosten, calculateCashflowWasserfall, type JahresertragInput, type BetriebskostenInput } from "./bestandsrendite";
+import {
+  calculateJahresertrag,
+  calculateBetriebskosten,
+  calculateCashflowWasserfall,
+  resolveAmortisationChfPerYear,
+  type JahresertragInput,
+  type BetriebskostenInput,
+  type AmortisationSpec,
+} from "./bestandsrendite";
 import { moeblierungErsatzCashflowChf, type MoeblierungLebenszyklusInput } from "./bestandsrenditeValueAdd";
 
 /**
@@ -16,11 +24,24 @@ function escalate(base: number, ratePercent: number, years: number): number {
   return base * Math.pow(1 + ratePercent / 100, years);
 }
 
-export interface HypothekInput {
+/** Eine einzelne Hypothekartranche (1. oder 2. Hypothek) über die Haltedauer — eigene Restschuld, eigener (aus `amortisation` hergeleiteter) Tilgungsbetrag pro Jahr. */
+export interface HypothekTrancheInput {
   initialLoanChf: number;
+  amortisation: AmortisationSpec;
+}
+
+/**
+ * 1. und 2. Hypothek werden unabhängig voneinander amortisiert (übliche
+ * Schweizer Struktur: die 2. Hypothek wird typischerweise über eine feste Dauer
+ * getilgt, die 1. oft gar nicht oder nur mit einem kleinen Prozentsatz) — deshalb zwei
+ * getrennte Restschulden über die Haltedauer, nicht ein gemeinsamer Topf. Der Zinssatz
+ * bleibt bewusst EIN gemeinsamer Wert für beide Tranchen (kein separat abgestimmter
+ * Bedarf für unterschiedliche Zinssätze je Tranche).
+ */
+export interface HypothekInput {
+  ersteHypothek: HypothekTrancheInput;
+  zweiteHypothek: HypothekTrancheInput;
   interestRatePercent: number;
-  /** Fixer CHF-Betrag pro Jahr (lineare Amortisation) — dasselbe Modell wie `calculateFinanzierung` in `ertragFinanzierung.ts`. */
-  amortisationChfPerYear: number;
 }
 
 export interface ExitInput {
@@ -95,7 +116,13 @@ export interface MehrjahresmodellResult {
 
 export function runMehrjahresmodell(input: MehrjahresmodellInput): MehrjahresmodellResult {
   const years: MehrjahresmodellJahrResult[] = [];
-  let restschuldChf = input.hypothek.initialLoanChf;
+  let restschuld1Chf = input.hypothek.ersteHypothek.initialLoanChf;
+  let restschuld2Chf = input.hypothek.zweiteHypothek.initialLoanChf;
+  // Auf Basis des ursprünglichen Tranchenbetrags einmalig hergeleitet, nicht pro Jahr
+  // neu — sonst würde eine sinkende Restschuld bei "Prozent pro Jahr" den Tilgungsbetrag
+  // selbst immer kleiner werden lassen (nicht die übliche lineare Amortisation).
+  const amortisation1ChfPerYear = resolveAmortisationChfPerYear(input.hypothek.ersteHypothek.initialLoanChf, input.hypothek.ersteHypothek.amortisation);
+  const amortisation2ChfPerYear = resolveAmortisationChfPerYear(input.hypothek.zweiteHypothek.initialLoanChf, input.hypothek.zweiteHypothek.amortisation);
   let kumulierterCashflowChf = 0;
 
   // Mindestens 1 Jahr, damit `years` nie leer bleibt (sonst würde `lastYear` unten
@@ -121,9 +148,14 @@ export function runMehrjahresmodell(input: MehrjahresmodellInput): Mehrjahresmod
       reinigungServiceChfPerYear: escalate(input.betriebskostenJahr1.reinigungServiceChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
     });
 
-    // Zins auf die Restschuld zu Jahresbeginn, Amortisation linear fix (nie mehr als die verbleibende Restschuld).
-    const zinsChf = restschuldChf * (input.hypothek.interestRatePercent / 100);
-    const amortisationChf = Math.min(input.hypothek.amortisationChfPerYear, restschuldChf);
+    // Zins auf die gemeinsame Restschuld zu Jahresbeginn (ein Zinssatz für beide
+    // Tranchen), Amortisation je Tranche linear fix und nie mehr als deren eigene
+    // verbleibende Restschuld — eine bereits getilgte Tranche bleibt bei 0, während die
+    // andere ggf. noch weiterläuft.
+    const zinsChf = (restschuld1Chf + restschuld2Chf) * (input.hypothek.interestRatePercent / 100);
+    const amortisation1Chf = Math.min(amortisation1ChfPerYear, restschuld1Chf);
+    const amortisation2Chf = Math.min(amortisation2ChfPerYear, restschuld2Chf);
+    const amortisationChf = amortisation1Chf + amortisation2Chf;
 
     const reparaturreserveChf = escalate(input.reparaturreserveJahr1Chf, input.kosteninflationPercentPerYear, wachstumsjahre);
     const leerstandsreserveChf = escalate(input.leerstandsreserveJahr1Chf, input.kosteninflationPercentPerYear, wachstumsjahre);
@@ -144,7 +176,9 @@ export function runMehrjahresmodell(input: MehrjahresmodellInput): Mehrjahresmod
     const moeblierungsErsatzChf = input.moeblierung ? moeblierungErsatzCashflowChf(input.moeblierung, jahr) : 0;
     const nachhaltigerCashflowChf = wasserfall.nachhaltigerCashflowChf - moeblierungsErsatzChf;
 
-    restschuldChf = restschuldChf - amortisationChf;
+    restschuld1Chf = restschuld1Chf - amortisation1Chf;
+    restschuld2Chf = restschuld2Chf - amortisation2Chf;
+    const restschuldChf = restschuld1Chf + restschuld2Chf;
     kumulierterCashflowChf += nachhaltigerCashflowChf;
 
     const immobilienwertChf = escalate(input.kaufpreisChf + input.wertvermehrendeRenovationChf, input.wertsteigerungPercentPerYear, jahr);

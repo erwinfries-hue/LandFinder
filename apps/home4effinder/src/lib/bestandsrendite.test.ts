@@ -3,7 +3,11 @@ import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts, applyFieldUp
 
 const minimalValidInput = {
   miete: { wohnungsMieteChfPerMonth: 1450, vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT" },
-  hypothek: { loanToValuePercent: 70, interestRatePercent: 2, amortisationChfPerYear: 5000 },
+  hypothek: {
+    ersteHypothek: { belehnungPercent: 65, amortisationModus: "PROZENT_PRO_JAHR", amortisationProzentProJahr: 0 },
+    zweiteHypothek: { belehnungPercent: 5, amortisationModus: "DAUER_JAHRE", amortisationDauerJahre: 15 },
+    interestRatePercent: 2,
+  },
 };
 
 describe("parseBestandsrenditeFacts", () => {
@@ -22,8 +26,8 @@ describe("parseBestandsrenditeFacts", () => {
     expect("error" in result).toBe(true);
   });
 
-  it("verlangt die drei Hypothek-Felder", () => {
-    const result = parseBestandsrenditeFacts({ ...minimalValidInput, hypothek: { loanToValuePercent: 70 } });
+  it("verlangt erste/zweite Hypothek inkl. Amortisationsmodus", () => {
+    const result = parseBestandsrenditeFacts({ ...minimalValidInput, hypothek: { interestRatePercent: 2 } });
     expect("error" in result).toBe(true);
   });
 
@@ -71,7 +75,11 @@ const fullFacts: BestandsrenditeFacts = {
   miete: { wohnungsMieteChfPerMonth: 1_450, parkplatzMieteChfPerMonth: 150, sonstigeEinnahmenChfPerYear: 0, vermietungsmodell: "MITTELFRISTIG_MOEBLIERT" },
   betriebskosten: { stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0 },
   reserven: {},
-  hypothek: { loanToValuePercent: 70, interestRatePercent: 2, amortisationChfPerYear: 5_000 },
+  hypothek: {
+    ersteHypothek: { belehnungPercent: 65, amortisation: { modus: "PROZENT_PRO_JAHR", prozentProJahr: 0 } },
+    zweiteHypothek: { belehnungPercent: 5, amortisation: { modus: "DAUER_JAHRE", dauerJahre: 15 } },
+    interestRatePercent: 2,
+  },
   mehrjahresmodell: {},
 };
 

@@ -177,6 +177,35 @@ export function resolveReserveChf(input: ReserveInput): number {
   return input.kaufpreisChf * ((input.percentOfKaufpreis ?? 0) / 100);
 }
 
+/**
+ * Eine Hypothekartranche (1. oder 2. Hypothek) wird linear amortisiert, wahlweise über
+ * einen Prozentsatz des ursprünglichen Tranchenbetrags pro Jahr ODER über eine
+ * Zieldauer in Jahren, nach der die Tranche vollständig getilgt ist (Rückmeldung: "die
+ * 1. und 2. [Hypothek je] einen Prozentsatz oder Dauer in Jahren als Variable
+ * einbauen"). Beide Varianten sind ineinander umrechenbar (`prozentProJahr = 100 /
+ * dauerJahre`), aber je nach Tranche ist die eine oder andere Formulierung der
+ * natürlichere Ausgangspunkt (1. Hypothek oft "1% p.a.", 2. Hypothek oft "linear über
+ * 15 Jahre") — deshalb beide als Eingabemodus statt eine Umrechnung zu erzwingen.
+ */
+export type AmortisationModus = "PROZENT_PRO_JAHR" | "DAUER_JAHRE";
+
+export interface AmortisationSpec {
+  modus: AmortisationModus;
+  /** Nur bei modus "PROZENT_PRO_JAHR" massgeblich. */
+  prozentProJahr?: number;
+  /** Nur bei modus "DAUER_JAHRE" massgeblich. */
+  dauerJahre?: number;
+}
+
+/** Fixer jährlicher Amortisationsbetrag einer Tranche, hergeleitet aus deren ursprünglichem Betrag und ihrem Amortisationsmodus. */
+export function resolveAmortisationChfPerYear(trancheChf: number, spec: AmortisationSpec): number {
+  if (spec.modus === "DAUER_JAHRE") {
+    const dauerJahre = spec.dauerJahre ?? 0;
+    return dauerJahre > 0 ? trancheChf / dauerJahre : 0;
+  }
+  return trancheChf * ((spec.prozentProJahr ?? 0) / 100);
+}
+
 export interface CashflowWasserfallInput {
   effektiverJahresertragChf: number;
   betriebskostenChfPerYear: number;

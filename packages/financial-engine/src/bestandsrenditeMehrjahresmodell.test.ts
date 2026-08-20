@@ -22,7 +22,13 @@ const baseInput: MehrjahresmodellInput = {
   kosteninflationPercentPerYear: 1.5,
   wertsteigerungPercentPerYear: 1,
   wertvermehrendeRenovationChf: 0,
-  hypothek: { initialLoanChf: 630_000, interestRatePercent: 2, amortisationChfPerYear: 5_000 },
+  hypothek: {
+    // 1. Hypothek: übliche Schweizer Praxis, keine Pflichtamortisation.
+    ersteHypothek: { initialLoanChf: 480_000, amortisation: { modus: "PROZENT_PRO_JAHR", prozentProJahr: 0 } },
+    // 2. Hypothek: linear über 15 Jahre auf 0 (150'000 / 15 = 10'000 CHF/Jahr).
+    zweiteHypothek: { initialLoanChf: 150_000, amortisation: { modus: "DAUER_JAHRE", dauerJahre: 15 } },
+    interestRatePercent: 2,
+  },
   kalkulatorischerSteuersatzPercent: 25,
   exit: { sellingCostPercent: 3 },
 };
@@ -39,7 +45,7 @@ describe("runMehrjahresmodell", () => {
     const jahr1 = result.years[0];
     expect(jahr1.effektiverJahresertragChf).toBeCloseTo((1_450 + 150) * 12 * 0.98, 5);
     expect(jahr1.zinsChf).toBeCloseTo(630_000 * 0.02, 5);
-    expect(jahr1.restschuldChf).toBeCloseTo(630_000 - 5_000, 5);
+    expect(jahr1.restschuldChf).toBeCloseTo(630_000 - 10_000, 5);
   });
 
   it("Miete/Kosten eskalieren Jahr für Jahr mit den jeweiligen Raten", () => {
@@ -51,15 +57,41 @@ describe("runMehrjahresmodell", () => {
   });
 
   it("Restschuld sinkt monoton und wird nie negativ (Amortisation nie grösser als Restschuld)", () => {
-    const result = runMehrjahresmodell({ ...baseInput, holdingPeriodYears: 30, hypothek: { ...baseInput.hypothek, amortisationChfPerYear: 50_000 } });
+    const result = runMehrjahresmodell({
+      ...baseInput,
+      holdingPeriodYears: 30,
+      hypothek: {
+        ersteHypothek: { initialLoanChf: baseInput.hypothek.ersteHypothek.initialLoanChf, amortisation: { modus: "DAUER_JAHRE", dauerJahre: 10 } },
+        zweiteHypothek: { initialLoanChf: baseInput.hypothek.zweiteHypothek.initialLoanChf, amortisation: { modus: "DAUER_JAHRE", dauerJahre: 10 } },
+        interestRatePercent: baseInput.hypothek.interestRatePercent,
+      },
+    });
     let prev = Infinity;
     for (const y of result.years) {
       expect(y.restschuldChf).toBeLessThanOrEqual(prev);
       expect(y.restschuldChf).toBeGreaterThanOrEqual(0);
       prev = y.restschuldChf;
     }
-    // Bei sehr hoher Amortisation ist die Hypothek irgendwann vollständig getilgt.
+    // Bei sehr hoher Amortisation sind beide Tranchen irgendwann vollständig getilgt.
     expect(result.years[result.years.length - 1].restschuldChf).toBe(0);
+  });
+
+  it("1. und 2. Hypothek amortisieren unabhängig voneinander — eine ohne Amortisation bleibt konstant, während die andere planmässig sinkt", () => {
+    const result = runMehrjahresmodell(baseInput);
+    // 1. Hypothek hat 0% Amortisation -> alleine würde die Restschuld konstant bei 480'000 bleiben.
+    // 2. Hypothek amortisiert 150'000 über 15 Jahre linear -> nach Jahr 10 sind 100'000 getilgt, Restschuld 2. Hypothek = 50'000.
+    const jahr10 = result.years[9];
+    expect(jahr10.restschuldChf).toBeCloseTo(480_000 + (150_000 - 10 * 10_000), 5);
+  });
+
+  it("sobald eine Tranche vollständig amortisiert ist, sinkt die jährliche Gesamtamortisation entsprechend, statt negativ zu werden", () => {
+    // 2. Hypothek ist nach 15 Jahren bei 0 — ab Jahr 16 amortisiert nur noch (nichts, da 1. Hypothek 0% Amortisation hat).
+    const result = runMehrjahresmodell({ ...baseInput, holdingPeriodYears: 20 });
+    const jahr15 = result.years[14];
+    const jahr16 = result.years[15];
+    expect(jahr15.restschuldChf).toBeCloseTo(480_000, 5); // 2. Hypothek exakt getilgt
+    expect(jahr16.amortisationChf).toBe(0); // 2. Hypothek bei 0 gedeckelt, 1. Hypothek amortisiert nicht
+    expect(jahr16.restschuldChf).toBeCloseTo(480_000, 5); // bleibt konstant, keine negative Restschuld
   });
 
   it("kumulierter Cashflow ist die laufende Summe der jährlichen nachhaltigen Cashflows", () => {
