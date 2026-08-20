@@ -584,6 +584,31 @@ Tranchentrennung.
   Die Objekt-/Mehrjahres-Analyseansicht zeigt zusätzlich die aufgeschlüsselten
   Tranchenbeträge und deren Amortisation/Jahr, nicht nur die kombinierte Belehnung.
 
+## Nachgezogen (2026-08-20): Fehlgeschlagene Dokumentenanalyse einzeln erneut anstossen
+
+Auslöser: nach dem `max_tokens`-Fix traten weiterhin vereinzelte "Netzwerkfehler" beim
+Hochladen auf (transiente Fetch-Fehler, keine Dauerursache) — bisher gab es keinen Weg,
+nur das eine fehlgeschlagene Dokument erneut zu analysieren, ausser die ganze Datei neu
+hochzuladen (Risiko versehentlicher Duplikate).
+
+- **Neue erwarteter Objekte bereits gespeicherte Dokumente**: `POST
+  /api/properties/[id]/documents/[documentId]/reanalyze` lädt die Datei erneut aus dem
+  Supabase-Storage-Bucket herunter (`.download()`, erstmalige Verwendung dieser Methode
+  im Projekt — bisher nur `.upload()`/`.remove()`) statt einen neuen Upload zu verlangen,
+  und stösst Stage-1-Extraktion erneut an. `analysis_status` wird dabei kurz auf
+  `PENDING` gesetzt und danach auf `DONE`/`FAILED` aktualisiert, `analysis_error` bei
+  Erfolg geleert.
+- **`DueDiligencePanel.tsx`**: neuer Button "Erneut analysieren", nur sichtbar bei
+  `analysis_status === "FAILED"`, ruft die neue Route auf und aktualisiert die Ansicht
+  per `router.refresh()`.
+- **Neuanlage-Flow (`PropertyCreateForm.tsx`)**: die Analyse-Logik pro Datei wurde in
+  eine wiederverwendbare `analyzeEntry(entry)`-Funktion ausgelagert (vom
+  Batch-Analyse-Loop UND vom neuen Einzel-Retry `retryAnalyze(entry)` genutzt) — hier
+  gibt es noch kein persistiertes Dokument, die bereits im Browser vorliegende Datei
+  wird einfach erneut ans Extraktions-Endpoint geschickt. Nach dem Retry läuft die
+  Stage-2-Synthese (`runSynthesisPrefill`) automatisch erneut, damit ein zuvor
+  fehlendes Feld doch noch vorausgefüllt werden kann.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

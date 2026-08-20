@@ -49,6 +49,7 @@ export function DueDiligencePanel({
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [applying, setApplying] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [reanalyzing, setReanalyzing] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
 
   function handleFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
@@ -142,6 +143,22 @@ export function DueDiligencePanel({
       window.alert("Löschen fehlgeschlagen (Netzwerkfehler).");
     } finally {
       setDeleting(null);
+    }
+  }
+
+  async function handleReanalyzeDocument(documentId: string) {
+    setReanalyzing(documentId);
+    try {
+      const res = await fetch(`/api/properties/${propertyId}/documents/${documentId}/reanalyze`, { method: "POST" });
+      const body = (await res.json().catch(() => ({}))) as { analyzed?: boolean; error?: string };
+      if (!res.ok || !body.analyzed) {
+        window.alert(body.error ?? "Analyse fehlgeschlagen.");
+      }
+      router.refresh();
+    } catch {
+      window.alert("Analyse fehlgeschlagen (Netzwerkfehler).");
+    } finally {
+      setReanalyzing(null);
     }
   }
 
@@ -256,10 +273,28 @@ export function DueDiligencePanel({
                         <span style={{ color: "var(--ink-faint)" }}>{d.original_filename}</span>
                         <span style={{ color: "var(--ink-faint)" }}>{formatDateTime(d.uploaded_at)}</span>
                         {d.analysis_error ? <span style={{ color: "var(--bad)" }}>— {d.analysis_error}</span> : null}
+                        {d.analysis_status === "FAILED" ? (
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
+                            disabled={reanalyzing === d.id}
+                            onClick={() => handleReanalyzeDocument(d.id)}
+                          >
+                            {reanalyzing === d.id ? (
+                              <>
+                                <span className="spinner" aria-hidden="true" />
+                                Analysiert…
+                              </>
+                            ) : (
+                              "Erneut analysieren"
+                            )}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className="btn"
-                          style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
+                          style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: d.analysis_status === "FAILED" ? 0 : "auto" }}
                           disabled={deleting === d.id}
                           onClick={() => handleDeleteDocument(d.id, d.original_filename)}
                         >
