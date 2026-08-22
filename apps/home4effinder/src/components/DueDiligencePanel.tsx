@@ -9,6 +9,7 @@ import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/dueDiligenceCategories";
 import { guessDocumentType } from "@/lib/documentTypeGuess";
 import { formatDateTime } from "@/lib/properties";
 import { buildSellerQuestionsEmailDraft, buildMailtoUrl } from "@/lib/sellerQuestionsEmail";
+import { fetchJsonWithRetry } from "@/lib/fetchJsonWithRetry";
 
 export interface DueDiligenceDocumentRow {
   id: string;
@@ -101,8 +102,7 @@ export function DueDiligencePanel({
         const formData = new FormData();
         formData.append("file", file);
         formData.append("documentType", documentType);
-        const res = await fetch(`/api/properties/${propertyId}/documents`, { method: "POST", body: formData });
-        const body = (await res.json()) as { status?: string; error?: string };
+        const body = await fetchJsonWithRetry<{ status?: string; error?: string }>(`/api/properties/${propertyId}/documents`, { method: "POST", body: formData });
         setUploads((prev) => prev.map((u, idx) => (idx === i ? { ...u, status: body.status === "DONE" ? "DONE" : "FAILED", error: body.error } : u)));
       } catch {
         setUploads((prev) => prev.map((u, idx) => (idx === i ? { ...u, status: "FAILED", error: "Netzwerkfehler" } : u)));
@@ -117,9 +117,8 @@ export function DueDiligencePanel({
     setSynthesizing(true);
     setSynthesisError(null);
     try {
-      const res = await fetch(`/api/properties/${propertyId}/due-diligence`, { method: "POST" });
-      const body = (await res.json()) as { saved?: boolean; error?: string };
-      if (!res.ok || !body.saved) {
+      const body = await fetchJsonWithRetry<{ saved?: boolean; error?: string }>(`/api/properties/${propertyId}/due-diligence`, { method: "POST" });
+      if (!body.saved) {
         setSynthesisError(body.error ?? "Analyse fehlgeschlagen.");
         return;
       }
@@ -166,9 +165,8 @@ export function DueDiligencePanel({
   async function handleReanalyzeDocument(documentId: string) {
     setReanalyzing(documentId);
     try {
-      const res = await fetch(`/api/properties/${propertyId}/documents/${documentId}/reanalyze`, { method: "POST" });
-      const body = (await res.json().catch(() => ({}))) as { analyzed?: boolean; error?: string };
-      if (!res.ok || !body.analyzed) {
+      const body = await fetchJsonWithRetry<{ analyzed?: boolean; error?: string }>(`/api/properties/${propertyId}/documents/${documentId}/reanalyze`, { method: "POST" });
+      if (!body.analyzed) {
         window.alert(body.error ?? "Analyse fehlgeschlagen.");
       }
       router.refresh();
@@ -193,9 +191,9 @@ export function DueDiligencePanel({
   const result = initialDueDiligence?.result ?? null;
 
   return (
-    <Panel style={{ padding: "1.4rem 1.6rem", marginTop: "1.6rem" }}>
+    <Panel style={{ padding: "1rem 1.2rem", marginTop: "1.1rem" }}>
       <div className="eyebrow">Dokumentenprüfung / Due Diligence</div>
-      <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: "0.4rem 0 1.1rem" }}>
+      <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: "0.3rem 0 0.8rem" }}>
         PDFs hochladen (auch gescannt) — jedes Dokument wird einzeln analysiert. Danach &quot;Due-Diligence
         aktualisieren&quot; für den kategorisierten Gesamtbefund inkl. Widersprüchen, fehlenden Unterlagen und
         Rückfragen.
@@ -206,7 +204,7 @@ export function DueDiligencePanel({
         <input id="files" type="file" accept="application/pdf" multiple onChange={handleFilesSelected} />
       </div>
 
-      <div className="field" style={{ marginBottom: stagedFiles.length > 0 ? ".8rem" : "1.2rem" }}>
+      <div className="field" style={{ marginBottom: stagedFiles.length > 0 ? ".6rem" : "0.9rem" }}>
         <label htmlFor="pasteText">…oder Text einfügen (z.B. aus E-Mail oder Inserat kopiert)</label>
         <textarea
           id="pasteText"
@@ -243,7 +241,7 @@ export function DueDiligencePanel({
       </div>
 
       {stagedFiles.length > 0 ? (
-        <div style={{ marginBottom: "1.2rem" }}>
+        <div style={{ marginBottom: "0.9rem" }}>
           <p style={{ color: "var(--ink-soft)", fontSize: ".78rem", margin: "0 0 .5rem" }}>
             Dokumenttyp aus dem Dateinamen vorgeschlagen, wo erkennbar — bei Bedarf korrigieren, dann hochladen.
           </p>
@@ -279,7 +277,7 @@ export function DueDiligencePanel({
       ) : null}
 
       {uploads.length > 0 ? (
-        <ul style={{ listStyle: "none", margin: "0 0 1.2rem", padding: 0, display: "flex", flexDirection: "column", gap: ".3rem" }}>
+        <ul style={{ listStyle: "none", margin: "0 0 0.9rem", padding: 0, display: "flex", flexDirection: "column", gap: ".3rem" }}>
           {uploads.map((u) => (
             <li key={u.filename} style={{ fontSize: ".8125rem", display: "flex", gap: ".5rem", alignItems: "center" }}>
               <Chip tone={u.status === "DONE" ? "good" : u.status === "FAILED" ? "bad" : "neutral"}>
@@ -308,7 +306,7 @@ export function DueDiligencePanel({
       {initialDocuments.length === 0 ? (
         <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Noch keine Dokumente hochgeladen.</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: ".9rem", marginBottom: "1.4rem" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: ".6rem", marginBottom: "1rem" }}>
           {CATEGORY_ORDER.map((category) => {
             const inCategory = initialDocuments.filter((d) => (DOCUMENT_TYPE_CATALOG[d.document_type as DueDiligenceDocumentType]?.defaultCategory ?? "DOKUMENTENVOLLSTAENDIGKEIT") === category);
             if (inCategory.length === 0) return null;
@@ -368,7 +366,7 @@ export function DueDiligencePanel({
         </div>
       )}
 
-      <div className="wizard-actions" style={{ marginBottom: result ? "1.4rem" : 0 }}>
+      <div className="wizard-actions" style={{ marginBottom: result ? "1rem" : 0 }}>
         <button type="button" className="btn" style={{ width: "auto" }} disabled={synthesizing || initialDocuments.length === 0} onClick={handleSynthesize}>
           {synthesizing ? (
             <>
@@ -394,11 +392,11 @@ export function DueDiligencePanel({
             <Chip tone={SEVERITY_TONE[result.overallStatus]}>{SEVERITY_LABEL[result.overallStatus]}</Chip>
             <strong style={{ fontSize: ".875rem" }}>Gesamtstatus</strong>
           </div>
-          {result.overallSummary ? <p className="lede" style={{ fontSize: "1rem", marginBottom: "1.2rem" }}>{result.overallSummary}</p> : null}
+          {result.overallSummary ? <p className="lede" style={{ fontSize: "1rem", marginBottom: "0.9rem" }}>{result.overallSummary}</p> : null}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: ".8rem", marginBottom: "1.4rem" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: ".6rem", marginBottom: "1rem" }}>
             {result.categories.map((c) => (
-              <div key={c.category} style={{ border: "1px solid var(--line)", borderRadius: "6px", padding: ".8rem 1rem" }}>
+              <div key={c.category} style={{ border: "1px solid var(--line)", borderRadius: "6px", padding: ".6rem .85rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: ".6rem", marginBottom: c.findings.length > 0 ? ".5rem" : 0 }}>
                   <Chip tone={SEVERITY_TONE[c.status]}>{SEVERITY_LABEL[c.status]}</Chip>
                   <strong style={{ fontSize: ".8125rem" }}>{CATEGORY_LABEL[c.category] ?? c.category}</strong>
@@ -426,7 +424,7 @@ export function DueDiligencePanel({
           {result.missingDocuments.length === 0 ? (
             <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Keine — alle bekannten Dokumenttypen sind erfasst.</p>
           ) : (
-            <ul style={{ margin: "0 0 1.4rem", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: ".3rem" }}>
+            <ul style={{ margin: "0 0 1rem", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: ".3rem" }}>
               {result.missingDocuments.map((m) => (
                 <li key={m.documentType} style={{ fontSize: ".8125rem", display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
                   <Chip tone={m.priority === "ZWINGEND" ? "bad" : m.priority === "EMPFOHLEN" ? "warn" : "neutral"}>{PRIORITY_LABEL[m.priority]}</Chip>
@@ -458,7 +456,7 @@ export function DueDiligencePanel({
                 const draft = buildSellerQuestionsEmailDraft(result.sellerQuestions, objectLabel);
                 const fullText = `Betreff: ${draft.subject}\n\n${draft.body}`;
                 return (
-                  <div style={{ marginBottom: "1.4rem" }}>
+                  <div style={{ marginBottom: "1rem" }}>
                     <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", marginBottom: ".5rem" }}>
                       <a href={buildMailtoUrl(draft)} className="btn" style={{ width: "auto", padding: ".3rem .7rem", fontSize: ".78rem" }}>
                         In E-Mail-Programm öffnen

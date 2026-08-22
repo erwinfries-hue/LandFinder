@@ -12,6 +12,7 @@ import { guessDocumentType } from "@/lib/documentTypeGuess";
 import { BestandsrenditeFactsFields, emptyRenovationPosition } from "./BestandsrenditeFactsFields";
 import { buildBestandsrenditeFactsFromFormData } from "@/lib/bestandsrenditeFormParsing";
 import { BESTANDSRENDITE_KNOWN_FIELD_LABELS } from "@/lib/bestandsrenditeKnownFields";
+import { fetchJsonWithRetry } from "@/lib/fetchJsonWithRetry";
 
 /** Datei, die ausgewählt aber noch nicht analysiert ist — Dokumenttyp aus dem Dateinamen vorgeschlagen (`documentTypeGuess.ts`), vor dem Hochladen editierbar. */
 type StagedFile = { file: File; documentType: DueDiligenceDocumentType; guessed: boolean };
@@ -112,12 +113,11 @@ export function PropertyCreateForm() {
       if (wohnflaecheM2) knownFacts.push({ label: "Wohnfläche (m², laut Erfassung)", value: Number(wohnflaecheM2) });
       const knownFields = BESTANDSRENDITE_KNOWN_FIELD_LABELS.map(({ field, label }) => ({ field, label }));
 
-      const res = await fetch("/api/properties/prefill-synthesis", {
+      const body = await fetchJsonWithRetry<{ synthesized?: boolean; result?: DueDiligenceResult; error?: string }>("/api/properties/prefill-synthesis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documents, knownFacts, knownFields }),
       });
-      const body = (await res.json()) as { synthesized?: boolean; result?: DueDiligenceResult; error?: string };
       if (!body.synthesized || !body.result) {
         setSynthesisError(body.error ?? "Vorschläge aus den Dokumenten konnten nicht ermittelt werden.");
         return;
@@ -171,8 +171,10 @@ export function PropertyCreateForm() {
       const formData = new FormData();
       formData.append("file", entry.file);
       formData.append("documentType", entry.documentType);
-      const res = await fetch("/api/properties/prefill", { method: "POST", body: formData });
-      const body = (await res.json()) as { analyzed?: boolean; extraction?: DocumentExtractionResult; error?: string };
+      const body = await fetchJsonWithRetry<{ analyzed?: boolean; extraction?: DocumentExtractionResult; error?: string }>("/api/properties/prefill", {
+        method: "POST",
+        body: formData,
+      });
       const updated: PrefillFile = { ...entry, status: body.analyzed ? "DONE" : "FAILED", extraction: body.extraction, error: body.error };
 
       if (body.analyzed && body.extraction?.basisdaten) {

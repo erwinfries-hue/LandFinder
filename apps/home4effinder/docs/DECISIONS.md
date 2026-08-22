@@ -704,6 +704,72 @@ Fix (in `dueDiligenceExtraction.ts` UND `dueDiligenceSynthesis.ts`, dasselbe Mus
   bzw. den übergebenen bekannten Feldpfaden übereinstimmen, damit Schema und übrige
   Validierung nicht auseinanderlaufen können.
 
+## Nachgezogen (2026-08-20): Synthese-Latenz, weitere Baujahr/Zimmerzahl-Fakten, automatisches Retry
+
+Anhand vom Auftraggeber bereitgestellter echter Objekt-Unterlagen (Exposé, Grundbuchauszug,
+AGV-Police, Grundriss, u.a.) konkret nachvollzogen: das Expose selbst enthielt Zimmerzahl (4)
+und Baujahr (1967) sauber strukturiert (Tabelle "Eigenschaften") und Stufe 1 hatte es
+korrekt analysiert ("ANALYSIERT") — trotzdem blieben die Formularfelder leer, weil direkt
+darüber "Vorschläge aus den Dokumenten konnten nicht ermittelt werden (Netzwerkfehler)"
+stand: Stufe 2 (Synthese) war fehlgeschlagen, wodurch GAR KEINE Feldvorschläge zustande
+kamen — unabhängig davon, wie gut Stufe 1 extrahiert hatte. Zusätzlich beim Durchsehen der
+mitgelieferten Dokumente zwei weitere reale Lücken gefunden: der Grundbuchauszug nennt die
+Zimmerzahl oft direkt im Text ("4-Zimmerwohnung im 1. Obergeschoss"), die AGV-Gebäudeversicherung
+nennt "Baujahr" als eigenes Feld — beides bisher nicht als strukturierter Fakt angefordert.
+
+- **`documentTypes.ts`**: `GRUNDBUCHAUSZUG` fragt jetzt zusätzlich nach `facts.zimmerzahl`
+  (aus der "Mit Sonderrecht an"-Angabe), `GEBAEUDEVERSICHERUNG` nach `facts.baujahr`,
+  `GRUNDRISS` bekam eine explizite Anleitung, die Zimmerzahl durch Zählen der beschrifteten
+  Räume (Wohnzimmer + Zimmer, ohne Küche/Bad/Gang) herzuleiten, wenn keine Zahl explizit auf
+  dem Plan steht — Grundrisse nennen die Zimmerzahl fast nie als Zahl, nur als Raumliste.
+- **`dueDiligenceSynthesis.ts` — Synthese-Antwortlänge reduziert**: der Prompt verlangte
+  bisher zwingend einen Eintrag für JEDE der neun Kategorien, auch ganz ohne Bezug zu den
+  hochgeladenen Dokumenten (reine Boilerplate-Funde) — das bläht die Antwort gerade bei
+  wenigen Dokumenten (wie im gemeldeten Fall: nur ein Exposé) unnötig auf und erhöht das
+  Risiko, die 60-Sekunden-Obergrenze der Vercel-Hobby-Funktion zu reissen. Das LLM nennt
+  jetzt nur noch Kategorien, zu denen es tatsächlich etwas beizutragen hat;
+  `parseSynthesisResponse` füllt die restlichen Kategorien deterministisch mit einem
+  neutralen Platzhalter auf — unterscheidet dabei ehrlich zwischen "kein Dokument für diese
+  Kategorie hochgeladen" (aus den Dokumenttypen ableitbar) und "Dokumente vorhanden, aber
+  kein gesonderter Befund" (kein automatisches "unproblematisch", nur weil das LLM
+  geschwiegen hat). `investmentScore.ts`s Annahme von exakt 9 Kategorien bleibt dadurch
+  unverändert korrekt, jetzt aber strukturell statt nur durch Prompt-Befolgung garantiert.
+- **`fetchJsonWithRetry.ts`** (neu, `src/lib`): ein einzelner automatischer
+  Wiederholungsversuch für alle Dokumenten-KI-Endpunkte (Einzeldokument-Analyse, Upload,
+  Reanalyse, Synthese) — retryt NUR, wenn `fetch()` wirft oder die Antwort kein valides JSON
+  ist (typisch für eine Vercel-Timeout-Fehlerseite), NICHT bei einer erfolgreich geparsten
+  inhaltlichen Fehlermeldung (das wäre kein transienter Fehler). Ein zweiter Versuch hat oft
+  schlicht Glück mit der Anthropic-API-Latenz — kein Ersatz für die strukturellen Fixes oben,
+  aber ein zusätzliches, günstiges Sicherheitsnetz gegen den weiterhin bestehenden
+  60-Sekunden-Hobby-Plan-Ceiling, den wir serverseitig nicht weiter senken können.
+
+## Nachgezogen (2026-08-20): Objekt-Detailseite kompakter dargestellt
+
+Auf Wunsch des Auftraggebers: "die Seite der Daten sollte bedeutend komprimierter
+dargestellt werden, ohne dass die Lesbarkeit verschlechtert wird" — die Objekt-Detailseite
+(`/objekte/[id]`, kombiniert aus Kopfbereich, `BestandsrenditeAnalysisView` und
+`DueDiligencePanel`) reiht viele Panels/Metric-Grids/Tabellen mit grosszügigem Weissraum
+untereinander, was bei einem datenreichen Objekt viel Scrollen erfordert.
+
+Bewusst NUR Innenabstände/Aussenabstände (Padding, Margin, Gap) reduziert — **keine**
+Schriftgrössen, Zeilenhöhen oder Farben angefasst, damit die Lesbarkeit unverändert bleibt:
+
+- `globals.css`: `.metric`-Zellen (`1rem 1.2rem` → `0.6rem 0.85rem`), `.metricgrid`
+  margin-top, `.sectionhead` margin-bottom, `.dethead`-Padding, Tabellenzellen (`td`/`th`)
+  sowie `.stresstable` (die Cashflow-/Exit-Tabellen) — alle spürbar enger, betrifft
+  ausschliesslich die vier Dateien, die diese Klassen tatsächlich verwenden (`page.tsx`,
+  `BestandsrenditeAnalysisView.tsx`, `DueDiligencePanel.tsx`, `MetricPrimitives.tsx`) —
+  keine Nebenwirkung auf Login/Wizard/Vergleichsseite, die diese Klassen nicht nutzen.
+- `BestandsrenditeAnalysisView.tsx`/`DueDiligencePanel.tsx`/`page.tsx`: die wiederkehrenden
+  Panel-Abstände zwischen den ~8 gestapelten Panels (Schnellcheck, Investment Case,
+  Value-Add-Blöcke, Mehrjahresmodell, STWEG-Fakten, Due-Diligence-Panel) von `1.4rem/1.6rem`
+  auf `1rem/1.1rem` reduziert, ebenso interne Listen-/Kategorie-Box-Abstände.
+- Verifiziert per statischem HTML-Mock (echtes `globals.css` + dieselben CSS-Klassen,
+  realistische Beispielwerte) und Screenshot via Headless-Chromium, da diese Session ohne
+  Supabase-Zugangsdaten läuft und die echte Seite daher nicht mit echten Objektdaten
+  gerendert werden konnte — bittet um kurze Rückmeldung nach dem Deploy, ob die
+  Live-Ansicht mit echten (teils längeren) Textinhalten ebenfalls stimmt.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

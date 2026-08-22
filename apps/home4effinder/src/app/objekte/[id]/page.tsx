@@ -107,13 +107,13 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
           ) : null}
         </Panel>
 
-        <details style={{ marginTop: "1.2rem" }}>
+        <details style={{ marginTop: "0.9rem" }}>
           <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>Objekt-Basisdaten bearbeiten</summary>
           <PropertyEditForm property={property} />
         </details>
 
         {analysis ? <BestandsrenditeAnalysisView result={analysis} /> : null}
-        <details style={{ marginTop: "1.2rem" }} open={!facts}>
+        <details style={{ marginTop: "0.9rem" }} open={!facts}>
           <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>
             Bestandsrendite-Fakten {facts ? "bearbeiten" : "erfassen"}
           </summary>
@@ -127,7 +127,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
           initialDueDiligence={dueDiligence}
         />
 
-        <p style={{ marginTop: "1.2rem" }}>
+        <p style={{ marginTop: "0.9rem" }}>
           <Link href="/" className="maplink">
             ← Zurück zur Übersicht
           </Link>
