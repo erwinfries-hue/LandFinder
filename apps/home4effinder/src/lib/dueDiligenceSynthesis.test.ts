@@ -73,8 +73,9 @@ describe("parseSynthesisResponse", () => {
     const result = parseSynthesisResponse(json, documents, knownFields);
 
     expect(result.overallStatus).toBe("RISIKO");
-    expect(result.categories).toHaveLength(1);
-    expect(result.categories[0].findings[0]).toMatchObject({ sourceDocumentId: "doc-1", sourceDocumentName: "stweg-protokoll-2024.pdf" });
+    expect(result.categories).toHaveLength(CATEGORY_ORDER.length); // die 8 nicht genannten Kategorien werden deterministisch aufgefüllt
+    const stweg = result.categories.find((c) => c.category === "STWEG")!;
+    expect(stweg.findings[0]).toMatchObject({ sourceDocumentId: "doc-1", sourceDocumentName: "stweg-protokoll-2024.pdf" });
     expect(result.sellerQuestions).toHaveLength(1);
     expect(result.fieldUpdateProposals).toHaveLength(1);
     expect(result.fieldUpdateProposals[0]).toMatchObject({ field: "miete.wohnungsMieteChfPerMonth", newValue: 1220, currentValue: 1200, sourceDocumentName: "grundbuch.pdf" });
@@ -109,10 +110,11 @@ describe("parseSynthesisResponse", () => {
       fieldUpdateProposals: [],
     });
     const result = parseSynthesisResponse(json, documents, knownFields);
-    expect(result.categories[0].findings[0].sourceDocumentId).toBeUndefined();
+    const stweg = result.categories.find((c) => c.category === "STWEG")!;
+    expect(stweg.findings[0].sourceDocumentId).toBeUndefined();
   });
 
-  it("überspringt eine Kategorie mit unbekanntem category- oder status-Wert", () => {
+  it("überspringt eine Kategorie mit unbekanntem category- oder status-Wert, füllt sie aber deterministisch nach", () => {
     const json = JSON.stringify({
       categories: [
         { category: "ERFUNDENE_KATEGORIE", status: "OK", findings: [] },
@@ -123,8 +125,39 @@ describe("parseSynthesisResponse", () => {
       fieldUpdateProposals: [],
     });
     const result = parseSynthesisResponse(json, documents, knownFields);
-    expect(result.categories).toHaveLength(1);
-    expect(result.categories[0].category).toBe("MIETVERHAELTNIS");
+    expect(result.categories).toHaveLength(CATEGORY_ORDER.length);
+    expect(result.categories.find((c) => c.category === "MIETVERHAELTNIS")).toMatchObject({ status: "OK" });
+    // STWEG wurde wegen ungültigem status verworfen, aber deterministisch nachgefüllt (Dokument dieser Kategorie liegt vor)
+    const stweg = result.categories.find((c) => c.category === "STWEG")!;
+    expect(stweg.status).toBe("KLAERUNGSBEDARF");
+    expect(stweg.findings[0].summary).toContain("keinen gesonderten Befund");
+  });
+});
+
+describe("parseSynthesisResponse — deterministisches Auffüllen nicht genannter Kategorien", () => {
+  it("füllt eine vom LLM ausgelassene Kategorie mit einem 'kein Dokument'-Platzhalter, wenn dafür wirklich nichts hochgeladen wurde", () => {
+    const json = JSON.stringify({ categories: [], sellerQuestions: [], fieldUpdateProposals: [] });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    // documents enthält weder MIETVERTRAG noch NEBENKOSTENABRECHNUNG → MIETVERHAELTNIS-Kategorie ohne Dokument
+    const miete = result.categories.find((c) => c.category === "MIETVERHAELTNIS")!;
+    expect(miete.status).toBe("KLAERUNGSBEDARF");
+    expect(miete.findings[0].summary).toBe("Für diese Kategorie liegt noch kein Dokument vor.");
+  });
+
+  it("verwendet einen anderen Platzhalter, wenn zwar ein Dokument der Kategorie vorliegt, das LLM sie aber ausgelassen hat", () => {
+    const json = JSON.stringify({ categories: [], sellerQuestions: [], fieldUpdateProposals: [] });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    // documents enthält ein GRUNDBUCHAUSZUG-Dokument → GRUNDBUCH_RECHTE-Kategorie hat ein Dokument, aber keinen Befund vom LLM
+    const grundbuch = result.categories.find((c) => c.category === "GRUNDBUCH_RECHTE")!;
+    expect(grundbuch.status).toBe("KLAERUNGSBEDARF");
+    expect(grundbuch.findings[0].summary).toContain("keinen gesonderten Befund");
+  });
+
+  it("füllt alle neun Kategorien auf, wenn das LLM gar keine zurückgibt", () => {
+    const json = JSON.stringify({ categories: [], sellerQuestions: [], fieldUpdateProposals: [] });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    expect(result.categories).toHaveLength(CATEGORY_ORDER.length);
+    expect(new Set(result.categories.map((c) => c.category))).toEqual(new Set(CATEGORY_ORDER));
   });
 });
 

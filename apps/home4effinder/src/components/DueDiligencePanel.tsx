@@ -9,6 +9,7 @@ import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/dueDiligenceCategories";
 import { guessDocumentType } from "@/lib/documentTypeGuess";
 import { formatDateTime } from "@/lib/properties";
 import { buildSellerQuestionsEmailDraft, buildMailtoUrl } from "@/lib/sellerQuestionsEmail";
+import { fetchJsonWithRetry } from "@/lib/fetchJsonWithRetry";
 
 export interface DueDiligenceDocumentRow {
   id: string;
@@ -101,8 +102,7 @@ export function DueDiligencePanel({
         const formData = new FormData();
         formData.append("file", file);
         formData.append("documentType", documentType);
-        const res = await fetch(`/api/properties/${propertyId}/documents`, { method: "POST", body: formData });
-        const body = (await res.json()) as { status?: string; error?: string };
+        const body = await fetchJsonWithRetry<{ status?: string; error?: string }>(`/api/properties/${propertyId}/documents`, { method: "POST", body: formData });
         setUploads((prev) => prev.map((u, idx) => (idx === i ? { ...u, status: body.status === "DONE" ? "DONE" : "FAILED", error: body.error } : u)));
       } catch {
         setUploads((prev) => prev.map((u, idx) => (idx === i ? { ...u, status: "FAILED", error: "Netzwerkfehler" } : u)));
@@ -117,9 +117,8 @@ export function DueDiligencePanel({
     setSynthesizing(true);
     setSynthesisError(null);
     try {
-      const res = await fetch(`/api/properties/${propertyId}/due-diligence`, { method: "POST" });
-      const body = (await res.json()) as { saved?: boolean; error?: string };
-      if (!res.ok || !body.saved) {
+      const body = await fetchJsonWithRetry<{ saved?: boolean; error?: string }>(`/api/properties/${propertyId}/due-diligence`, { method: "POST" });
+      if (!body.saved) {
         setSynthesisError(body.error ?? "Analyse fehlgeschlagen.");
         return;
       }
@@ -166,9 +165,8 @@ export function DueDiligencePanel({
   async function handleReanalyzeDocument(documentId: string) {
     setReanalyzing(documentId);
     try {
-      const res = await fetch(`/api/properties/${propertyId}/documents/${documentId}/reanalyze`, { method: "POST" });
-      const body = (await res.json().catch(() => ({}))) as { analyzed?: boolean; error?: string };
-      if (!res.ok || !body.analyzed) {
+      const body = await fetchJsonWithRetry<{ analyzed?: boolean; error?: string }>(`/api/properties/${propertyId}/documents/${documentId}/reanalyze`, { method: "POST" });
+      if (!body.analyzed) {
         window.alert(body.error ?? "Analyse fehlgeschlagen.");
       }
       router.refresh();

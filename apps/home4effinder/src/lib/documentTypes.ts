@@ -77,7 +77,7 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     defaultCategory: "GRUNDBUCH_RECHTE",
     description: "Aktueller Grundbuchauszug der Wohnung (und ggf. separat der Garage/des Parkplatzes).",
     extractionGuidance:
-      "Erfasse: Eigentümer; genaue Stockwerkeinheit; Wertquote; Miteigentumsanteile Garage; Sonder-/Nutzungsrechte; Dienstbarkeiten; Grundlasten; Baurecht (falls vorhanden — bei dieser Objektart ein Dealbreaker, klar als Risiko markieren); Weg-/Parkplatzrechte; ungewöhnliche Belastungen; Widersprüche zum Inserat bzw. zum vermeintlichen Kaufgegenstand (z.B. ein im Inserat erwähnter Parkplatz, der grundbuchlich nicht oder anders zugeordnet ist).",
+      'Erfasse: Eigentümer; genaue Stockwerkeinheit; Wertquote; Miteigentumsanteile Garage; Sonder-/Nutzungsrechte; Dienstbarkeiten; Grundlasten; Baurecht (falls vorhanden — bei dieser Objektart ein Dealbreaker, klar als Risiko markieren); Weg-/Parkplatzrechte; ungewöhnliche Belastungen; Widersprüche zum Inserat bzw. zum vermeintlichen Kaufgegenstand (z.B. ein im Inserat erwähnter Parkplatz, der grundbuchlich nicht oder anders zugeordnet ist). Die Sonderrecht-Angabe nennt oft die Zimmerzahl direkt im Text (z.B. "4-Zimmerwohnung im 1. Obergeschoss") — falls so ersichtlich, zusätzlich als strukturierten Fakt im facts-Feld mit GENAU dem Schlüssel "zimmerzahl" (Zahl, z.B. 4) erfassen.',
   },
   MIETVERTRAG: {
     type: "MIETVERTRAG",
@@ -104,7 +104,7 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     defaultCategory: "TECHNISCHE_UNTERLAGEN",
     description: "Grundrissplan bzw. Flächenberechnung der Wohnung.",
     extractionGuidance:
-      "Erfasse: Wohnfläche laut Plan, Zimmerzahl, Raumaufteilung, ob ein Reduit/Keller/Balkon separat ausgewiesen ist. Vergleiche die Fläche explizit mit der im Inserat genannten Fläche — jede Abweichung ist ein zu meldender Widerspruch.",
+      'Erfasse: Wohnfläche laut Plan, Zimmerzahl, Raumaufteilung, ob ein Reduit/Keller/Balkon separat ausgewiesen ist. Die Zimmerzahl steht auf einem Grundriss oft NICHT als Zahl da, sondern muss aus den beschrifteten Räumen abgeleitet werden — zähle dafür Wohnzimmer und alle als "Zimmer"/Schlafzimmer beschrifteten Räume zusammen (Küche, Bad, Gang/Korridor NICHT mitzählen) und erfasse das Ergebnis als strukturierten Fakt im facts-Feld mit GENAU dem Schlüssel "zimmerzahl" (Zahl). Vergleiche die Fläche explizit mit der im Inserat genannten Fläche — jede Abweichung ist ein zu meldender Widerspruch.',
   },
 
   // --- Priorität B — empfohlen ---
@@ -114,7 +114,8 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     priority: "EMPFOHLEN",
     defaultCategory: "GEBAEUDE_SANIERUNGEN",
     description: "Police der Gebäude- bzw. Sachversicherung.",
-    extractionGuidance: "Erfasse: Versicherungssumme, Deckungsumfang, Selbstbehalt, Hinweise auf bereits gemeldete Schäden.",
+    extractionGuidance:
+      'Erfasse: Versicherungssumme, Deckungsumfang, Selbstbehalt, Hinweise auf bereits gemeldete Schäden. Gebäudeversicherungspolicen (z.B. kantonale Gebäudeversicherung) nennen häufig ein "Baujahr" als eigenes Feld — falls so ersichtlich, zusätzlich als strukturierten Fakt im facts-Feld mit GENAU dem Schlüssel "baujahr" (Zahl, z.B. 1964) erfassen.',
   },
   HEIZUNG_SERVICE: {
     type: "HEIZUNG_SERVICE",

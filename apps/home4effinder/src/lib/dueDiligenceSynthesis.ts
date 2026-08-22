@@ -98,7 +98,7 @@ Bevor du eine zahlenmässige Abweichung zwischen zwei Dokumenten als ungeklärte
 
 Rufe AUSSCHLIESSLICH das Tool "${SYNTHESIS_TOOL_NAME}" mit dem Ergebnis auf, ohne zusätzlichen Erklärtext.
 
-Für "categories": erzeuge für JEDE der neun Kategorien einen Eintrag, auch wenn dazu (noch) keine Dokumente vorliegen (dann status "KLAERUNGSBEDARF" mit einem Fund, der die fehlende Grundlage nennt, oder "OK" wenn diese Kategorie hier ersichtlich unproblematisch ist).
+Für "categories": nenne NUR Kategorien, zu denen die hochgeladenen Dokumente tatsächlich etwas ergeben (ein Fund oder eine klare Einschätzung "unproblematisch"). Kategorien ohne jeglichen Bezug zu den vorliegenden Dokumenten weglassen — die App ergänzt sie automatisch mit einem neutralen Platzhalter, das muss nicht Teil deiner Antwort sein. Das hält die Antwort kurz und auf das Wesentliche fokussiert.
 
 Für "fieldUpdateProposals": nur Werte vorschlagen, die eindeutig aus einem Dokument hervorgehen UND einem der folgenden bekannten Felder entsprechen — erfinde nie einen neuen Feldnamen:
 ${fieldsBlock}
@@ -190,6 +190,22 @@ function parseFinding(
   };
 }
 
+/**
+ * Kategorien, zu denen das LLM nichts zurückgegeben hat (siehe Prompt — bewusst NICHT
+ * mehr verlangt, um die Antwortlänge/-latenz gerade bei wenigen hochgeladenen
+ * Dokumenten klein zu halten), werden deterministisch mit einem neutralen Platzhalter
+ * aufgefüllt statt einfach zu fehlen — unterscheidet dabei ehrlich zwischen "für diese
+ * Kategorie liegt gar kein Dokument vor" (aus den hochgeladenen Dokumenttypen ableitbar)
+ * und "Dokumente vorhanden, aber kein gesonderter Befund" (die Kategorie ist nicht
+ * automatisch als unproblematisch anzunehmen, nur weil das LLM sie ausgelassen hat).
+ */
+function buildDefaultCategoryResult(category: DueDiligenceCategory, hasUploadedDocumentForCategory: boolean): DueDiligenceCategoryResult {
+  const summary = hasUploadedDocumentForCategory
+    ? "Die automatische Auswertung der hochgeladenen Dokumente ergab keinen gesonderten Befund für diese Kategorie."
+    : "Für diese Kategorie liegt noch kein Dokument vor.";
+  return { category, status: "KLAERUNGSBEDARF", findings: [{ category, severity: "KLAERUNGSBEDARF", summary }] };
+}
+
 /** Defensiv geparst wie `parseDocumentExtractionResponse` — unbekannte/fehlerhafte Einträge werden übersprungen statt das ganze Ergebnis zu verwerfen. */
 export function parseSynthesisResponse(jsonText: string, documents: SynthesisDocumentInput[], knownFields: SynthesisKnownField[]): DueDiligenceResult {
   const parsed = JSON.parse(jsonText) as Record<string, unknown>;
@@ -212,6 +228,13 @@ export function parseSynthesisResponse(jsonText: string, documents: SynthesisDoc
       if (parsedFinding) findings.push(parsedFinding);
     }
     categories.push({ category: c.category as DueDiligenceCategory, status: c.status as DueDiligenceSeverity, findings });
+  }
+
+  const returnedCategories = new Set(categories.map((c) => c.category));
+  const uploadedCategories = new Set(documents.map((d) => DOCUMENT_TYPE_CATALOG[d.documentType].defaultCategory));
+  for (const category of CATEGORY_ORDER) {
+    if (returnedCategories.has(category)) continue;
+    categories.push(buildDefaultCategoryResult(category, uploadedCategories.has(category)));
   }
 
   const sellerQuestions: DueDiligenceSellerQuestion[] = [];
