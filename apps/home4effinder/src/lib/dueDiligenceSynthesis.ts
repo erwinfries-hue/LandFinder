@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import type {
   DueDiligenceCategory,
   DueDiligenceCategoryResult,
+  DueDiligenceContradiction,
+  DueDiligenceContradictionOption,
   DueDiligenceDocumentType,
   DueDiligenceFieldUpdateProposal,
   DueDiligenceFinding,
@@ -96,6 +98,8 @@ Beispiele für Widersprüche, auf die du besonders achten sollst: abweichende Fl
 
 Bevor du eine zahlenmässige Abweichung zwischen zwei Dokumenten als ungeklärten Widerspruch meldest: prüfe zuerst, ob sich die Differenz rechnerisch erklären lässt — z.B. weil ein Dokument die Summe mehrerer Konten/Positionen nennt, die ein anderes Dokument einzeln ausweist, oder weil ein späterer Kontostand sich aus einem früheren plus bekannten, regelmässigen Beiträgen ergibt (Fondssaldo + jährliche Einlage laut Budget). Findest du eine schlüssige Erklärung, ist das ein gelöster Punkt (severity "OK"), nicht mehr Klärungsbedarf — nenne die Rechnung im "detail"-Feld, damit sie nachvollziehbar bleibt. Nur eine tatsächlich unerklärliche Differenz bleibt ein Widerspruch mit "isContradiction": true.
 
+Für JEDEN so markierten Widerspruch (isContradiction: true) zusätzlich einen Eintrag in "contradictions" erstellen — ein kurzes "topic" (z.B. "Zimmerzahl", "Baujahr", "Wohnfläche"), die betroffene "category", und "options" mit JEDEM konkurrierenden Wert (mindestens 2), jeweils mit dem exakten Wert, "sourceDocumentId" aus der Dokumentenliste oben sowie optional sourcePage/sourceQuote als Beleg. Der Nutzer soll daraus im UI auswählen können, welcher Wert stimmt. Entspricht der Sachverhalt einem der bekannten Felder unten, zusätzlich "field" mit dessen exaktem Feldnamen setzen — sonst "field" weglassen.
+
 Rufe AUSSCHLIESSLICH das Tool "${SYNTHESIS_TOOL_NAME}" mit dem Ergebnis auf, ohne zusätzlichen Erklärtext.
 
 Für "categories": nenne NUR Kategorien, zu denen die hochgeladenen Dokumente tatsächlich etwas ergeben (ein Fund oder eine klare Einschätzung "unproblematisch"). Kategorien ohne jeglichen Bezug zu den vorliegenden Dokumenten weglassen — die App ergänzt sie automatisch mit einem neutralen Platzhalter, das muss nicht Teil deiner Antwort sein. Das hält die Antwort kurz und auf das Wesentliche fokussiert.
@@ -159,8 +163,34 @@ export function buildSynthesisToolSchema(knownFields: SynthesisKnownField[]): { 
           required: ["field", "newValue", "sourceDocumentId"],
         },
       },
+      contradictions: {
+        type: "array",
+        description: "Strukturierte Widersprüche (siehe Systemprompt) — für JEDEN als isContradiction markierten Fund ein Eintrag, damit der Nutzer im UI zwischen den konkurrierenden Werten wählen kann.",
+        items: {
+          type: "object",
+          properties: {
+            topic: { type: "string", description: "Kurzer Sachverhalt, z.B. 'Zimmerzahl'." },
+            category: { type: "string", enum: [...CATEGORY_ORDER] },
+            field: { type: "string", enum: knownFields.map((f) => f.field), description: "Nur setzen, wenn der Sachverhalt einem bekannten Übernahme-Feld entspricht." },
+            options: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  value: { type: ["string", "number"] },
+                  sourceDocumentId: { type: "string" },
+                  sourcePage: { type: "number" },
+                  sourceQuote: { type: "string", maxLength: 280 },
+                },
+                required: ["value", "sourceDocumentId"],
+              },
+            },
+          },
+          required: ["topic", "category", "options"],
+        },
+      },
     },
-    required: ["overallSummary", "categories", "sellerQuestions", "fieldUpdateProposals"],
+    required: ["overallSummary", "categories", "sellerQuestions", "fieldUpdateProposals", "contradictions"],
   };
 }
 
@@ -264,7 +294,44 @@ export function parseSynthesisResponse(jsonText: string, documents: SynthesisDoc
     });
   }
 
-  return { overallStatus: computeOverallStatus(categories), overallSummary, categories, missingDocuments: computeMissingDocuments(documents.map((d) => d.documentType)), sellerQuestions, fieldUpdateProposals };
+  const contradictions: DueDiligenceContradiction[] = [];
+  for (const raw of Array.isArray(parsed.contradictions) ? parsed.contradictions : []) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const c = raw as Record<string, unknown>;
+    if (typeof c.topic !== "string" || !c.topic) continue;
+    if (typeof c.category !== "string" || !KNOWN_CATEGORIES.has(c.category as DueDiligenceCategory)) continue;
+    const field = typeof c.field === "string" && knownFieldPaths.has(c.field) ? c.field : undefined;
+
+    const options: DueDiligenceContradictionOption[] = [];
+    for (const rawOption of Array.isArray(c.options) ? c.options : []) {
+      if (typeof rawOption !== "object" || rawOption === null) continue;
+      const o = rawOption as Record<string, unknown>;
+      if (typeof o.value !== "string" && typeof o.value !== "number") continue;
+      const sourceDocumentId = typeof o.sourceDocumentId === "string" && knownDocumentIds.has(o.sourceDocumentId) ? o.sourceDocumentId : undefined;
+      options.push({
+        value: o.value,
+        sourceDocumentId,
+        sourceDocumentName: sourceDocumentId ? (documentNameById.get(sourceDocumentId) ?? "") : "",
+        sourcePage: typeof o.sourcePage === "number" ? o.sourcePage : undefined,
+        sourceQuote: typeof o.sourceQuote === "string" ? o.sourceQuote : undefined,
+      });
+    }
+    // Ein "Widerspruch" mit weniger als zwei Optionen ist keiner — dann lieber
+    // weglassen statt eine irreführende Ein-Options-"Auswahl" anzuzeigen.
+    if (options.length < 2) continue;
+
+    contradictions.push({ topic: c.topic, category: c.category as DueDiligenceCategory, field, options });
+  }
+
+  return {
+    overallStatus: computeOverallStatus(categories),
+    overallSummary,
+    categories,
+    missingDocuments: computeMissingDocuments(documents.map((d) => d.documentType)),
+    sellerQuestions,
+    fieldUpdateProposals,
+    contradictions,
+  };
 }
 
 export async function synthesizeDueDiligence(
@@ -276,7 +343,7 @@ export async function synthesizeDueDiligence(
   if (!apiKey) throw new AnthropicNotConfiguredError();
 
   if (documents.length === 0) {
-    return { overallStatus: "KLAERUNGSBEDARF", overallSummary: "", categories: [], missingDocuments: computeMissingDocuments([]), sellerQuestions: [], fieldUpdateProposals: [] };
+    return { overallStatus: "KLAERUNGSBEDARF", overallSummary: "", categories: [], missingDocuments: computeMissingDocuments([]), sellerQuestions: [], fieldUpdateProposals: [], contradictions: [] };
   }
 
   const client = new Anthropic({ apiKey });
