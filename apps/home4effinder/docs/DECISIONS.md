@@ -1026,6 +1026,29 @@ fehlgeschlagen" (Eingaben bleiben erhalten, einfach nochmals versuchen) und "Obj
 existiert bereits, nur ein Folgeschritt scheiterte" (ausdrücklicher Hinweis: kein zweites
 Objekt wird angelegt).
 
+## Nachgezogen (2026-08-22): Abbrechen einzelner lange drehender Dokumente auch im Neu-Erfassen-Flow
+
+Der "Abbrechen"-Button für einzelne, sehr lange analysierende Dokumente existierte bisher
+nur auf der Objektseite (`DueDiligencePanel`, siehe früherer Eintrag) — im kombinierten
+Neu-Erfassen-Flow (`/neu`, `PropertyCreateForm.tsx`) fehlte er. Dort ist die Lücke sogar
+gravierender: `handleAnalyze` analysiert alle ausgewählten Dokumente SEQUENZIELL in einer
+Schleife — ein einzelnes hängendes Dokument blockierte bisher nicht nur sich selbst,
+sondern auch alle NACHFOLGENDEN Dokumente in der Warteschlange, die erst gar nicht zu
+laufen begannen.
+
+`PrefillFile` bekommt denselben `AbortController`/"CANCELLED"-Status wie `UploadState` in
+`DueDiligencePanel`. Da `/api/properties/prefill` zustandslos ist (kein `property_id`,
+also keine DB-Zeile/kein Storage-Objekt — das Objekt existiert zu diesem Zeitpunkt noch gar
+nicht), ist der clientseitige Abbruch hier vollständig sauber: kein verwaister
+Server-Zustand aufzuräumen, anders als beim Dokumenten-Upload auf der Objektseite.
+
+Ausdrücklich klargestellt (auch per Hinweistext im UI): das Formular liess sich technisch
+schon vorher jederzeit speichern, während noch analysiert wurde (`handleSubmit` hängt nur
+von `saving` ab, nicht von `analyzing`; nur `status === "DONE"`-Dokumente werden ans neue
+Objekt angehängt) — der Abbruch-Button macht das nur unmissverständlich und lässt die
+übrigen Dokumente in der Warteschlange weiterlaufen, statt dass der Nutzer rätseln muss, ob
+er warten oder einfach speichern soll.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

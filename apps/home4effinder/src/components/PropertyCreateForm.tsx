@@ -23,9 +23,11 @@ const MAX_PASTED_TEXT_LENGTH = 200_000;
 type PrefillFile = {
   file: File;
   documentType: DueDiligenceDocumentType;
-  status: "ANALYZING" | "DONE" | "FAILED";
+  status: "ANALYZING" | "DONE" | "FAILED" | "CANCELLED";
   extraction?: DocumentExtractionResult;
   error?: string;
+  /** Nur gesetzt während status "ANALYZING" — erlaubt den "Abbrechen"-Button, wenn ein einzelnes Dokument sehr lange dreht (z.B. grosses gescanntes PDF). */
+  controller?: AbortController;
 };
 
 /** Für die stateless Synthese/das spätere Speichern gebraucht — dieselbe Form wie `SynthesisDocumentInput` in dueDiligenceSynthesis.ts. */
@@ -194,8 +196,9 @@ export function PropertyCreateForm() {
       const body = await fetchJsonWithRetry<{ analyzed?: boolean; extraction?: DocumentExtractionResult; error?: string }>("/api/properties/prefill", {
         method: "POST",
         body: formData,
+        signal: entry.controller?.signal,
       });
-      const updated: PrefillFile = { ...entry, status: body.analyzed ? "DONE" : "FAILED", extraction: body.extraction, error: body.error };
+      const updated: PrefillFile = { ...entry, status: body.analyzed ? "DONE" : "FAILED", extraction: body.extraction, error: body.error, controller: undefined };
 
       if (body.analyzed && body.extraction?.basisdaten) {
         const b = body.extraction.basisdaten;
@@ -205,16 +208,31 @@ export function PropertyCreateForm() {
         if (b.wohnflaecheM2) setWohnflaecheM2(String(b.wohnflaecheM2));
       }
       return updated;
-    } catch {
-      return { ...entry, status: "FAILED", error: "Netzwerkfehler" };
+    } catch (err) {
+      const aborted = err instanceof Error && err.name === "AbortError";
+      return { ...entry, status: aborted ? "CANCELLED" : "FAILED", error: aborted ? undefined : "Netzwerkfehler", controller: undefined };
     }
+  }
+
+  /**
+   * Bricht die Wartezeit auf ein einzelnes, sehr lange drehendes Dokument ab (z.B. grosses
+   * gescanntes PDF) — der Server-Request läuft im Hintergrund zu Ende (stateless, siehe
+   * `/api/properties/prefill/route.ts`, kein DB-Zustand zum Aufräumen), aber der Nutzer muss
+   * nicht mehr darauf warten. Wichtig: `handleAnalyze` analysiert alle Dateien SEQUENZIELL —
+   * ohne Abbruch würde ein hängendes Dokument auch alle nachfolgenden blockieren, mit Abbruch
+   * geht die Schleife sofort zum nächsten Dokument über. Speichern ("Bestandsrendite
+   * speichern") war schon vorher technisch möglich, während ein Dokument noch lief (nur
+   * fertig analysierte Dokumente werden angehängt) — der Abbruch macht das nur unmissverständlich.
+   */
+  function handleCancelAnalysis(entry: PrefillFile) {
+    entry.controller?.abort();
   }
 
   async function handleAnalyze() {
     if (stagedFiles.length === 0) return;
 
     setAnalyzing(true);
-    const newEntries: PrefillFile[] = stagedFiles.map((s) => ({ file: s.file, documentType: s.documentType, status: "ANALYZING" as const }));
+    const newEntries: PrefillFile[] = stagedFiles.map((s) => ({ file: s.file, documentType: s.documentType, status: "ANALYZING" as const, controller: new AbortController() }));
     setStagedFiles([]);
     // Lokaler Snapshot statt React-State, damit wir am Ende der Schleife garantiert den
     // vollständigen, aktuellen Stand haben (State-Updates in der Schleife sind async).
@@ -232,10 +250,10 @@ export function PropertyCreateForm() {
     await runSynthesisPrefill(allFiles);
   }
 
-  /** Stösst die Analyse für genau eine bereits fehlgeschlagene Datei erneut an, ohne alle anderen neu zu analysieren — schliesst danach mit einer neuen Synthese ab, falls diese Datei jetzt erfolgreich war. */
+  /** Stösst die Analyse für genau eine bereits fehlgeschlagene/abgebrochene Datei erneut an, ohne alle anderen neu zu analysieren — schliesst danach mit einer neuen Synthese ab, falls diese Datei jetzt erfolgreich war. */
   async function retryAnalyze(entry: PrefillFile) {
-    if (entry.status !== "FAILED") return;
-    const analyzing: PrefillFile = { ...entry, status: "ANALYZING", error: undefined };
+    if (entry.status !== "FAILED" && entry.status !== "CANCELLED") return;
+    const analyzing: PrefillFile = { ...entry, status: "ANALYZING", error: undefined, controller: new AbortController() };
     let allFiles = prefillFiles.map((p) => (p === entry ? analyzing : p));
     setPrefillFiles(allFiles);
 
@@ -444,6 +462,12 @@ export function PropertyCreateForm() {
           </div>
         ) : null}
 
+        {prefillFiles.some((p) => p.status === "ANALYZING") ? (
+          <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .6rem" }}>
+            Dreht ein Dokument sehr lange, kann es oben abgebrochen werden — das Formular unten
+            lässt sich trotzdem jederzeit speichern, auch während noch analysiert wird.
+          </p>
+        ) : null}
         {prefillFiles.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: ".8rem" }}>
             {CATEGORY_ORDER.map((category) => {
@@ -465,6 +489,8 @@ export function PropertyCreateForm() {
                             </>
                           ) : p.status === "DONE" ? (
                             "Analysiert"
+                          ) : p.status === "CANCELLED" ? (
+                            "Abgebrochen"
                           ) : (
                             "Fehler"
                           )}
@@ -475,7 +501,17 @@ export function PropertyCreateForm() {
                           <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>kann bis zu einer Minute dauern…</span>
                         ) : null}
                         {p.error ? <span style={{ color: "var(--bad)" }}>— {p.error}</span> : null}
-                        {p.status === "FAILED" ? (
+                        {p.status === "ANALYZING" ? (
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
+                            onClick={() => handleCancelAnalysis(p)}
+                          >
+                            Abbrechen
+                          </button>
+                        ) : null}
+                        {p.status === "FAILED" || p.status === "CANCELLED" ? (
                           <button
                             type="button"
                             className="btn"
