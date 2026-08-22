@@ -98,7 +98,7 @@ export function PropertyCreateForm() {
     setSynthesizing(true);
     setSynthesisError(null);
     try {
-      const documents: SynthesisDoc[] = analyzed.map((p, i) => ({
+      const allDocuments: SynthesisDoc[] = analyzed.map((p, i) => ({
         id: String(i),
         filename: p.file.name,
         documentType: p.documentType,
@@ -106,6 +106,16 @@ export function PropertyCreateForm() {
         facts: p.extraction!.facts,
         findings: p.extraction!.findings,
       }));
+      // SONSTIGES-Dokumente (keiner bekannten Due-Diligence-Kategorie zugeordnet, z.B.
+      // Kaufangebot/Finanzierungsbestätigung/Antrag/Katasterplan) tragen praktisch nie zu
+      // den bekannten Bestandsrendite-Feldern bei, blähen den Synthese-Prompt bei vielen
+      // hochgeladenen Dokumenten aber spürbar auf — wiederholt Ursache dafür, dass die
+      // Prefill-Synthese Vercels 60-Sekunden-Zeitlimit überschritt ("Netzwerkfehler").
+      // Deshalb hier weggelassen, sofern mindestens ein anderes Dokument übrig bleibt —
+      // sie werden trotzdem unverändert ans Objekt angehängt (siehe handleSubmit) und
+      // bleiben einzeln analysiert sichtbar, nur nicht Teil dieser Cross-Dokument-Synthese.
+      const relevantDocuments = allDocuments.filter((d) => d.documentType !== "SONSTIGES");
+      const documents = relevantDocuments.length > 0 ? relevantDocuments : allDocuments;
       const knownFacts: { label: string; value: string | number }[] = [];
       if (addressText.trim()) knownFacts.push({ label: "Adresse (laut Erfassung)", value: addressText.trim() });
       if (canton) knownFacts.push({ label: "Kanton", value: canton });

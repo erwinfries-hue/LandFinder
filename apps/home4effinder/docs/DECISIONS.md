@@ -921,6 +921,39 @@ Auswahl vorgelegt werden — mit Quelle je Option, damit er entscheiden kann, wa
   einer neuen Route — dieselbe geschlossene Feld-Allowlist, dieselbe explizite
   Bestätigung, kein neuer Codepfad nötig.
 
+## Nachgezogen (2026-08-22): "Netzwerkfehler" bei der Prefill-Synthese im Neu-Erfassen-Flow
+
+Konkreter Fehlerfall gemeldet: beim Anlegen eines neuen Objekts mit ~9 hochgeladenen
+Dokumenten (Exposé, zwei Kaufangebote, Katasterplan, Finanzierungsbestätigung, Antrag,
+Grundriss, Betriebskostenabrechnungen) schlug die anschliessende Vorausfüll-Synthese
+(`/api/properties/prefill-synthesis`) mit "Vorschläge aus den Dokumenten konnten nicht
+ermittelt werden (Netzwerkfehler)." fehl — die einzelnen Dokumente waren zuvor alle
+erfolgreich analysiert ("ANALYSIERT"), nur der zusammenfassende Stufe-2-Aufruf scheiterte.
+
+Root Cause: derselbe bekannte Vercel-Hobby-Plan-60-Sekunden-Zeitlimit wie in früheren
+Einträgen — bei so vielen Dokumenten in einem Zug überschreitet der Synthese-Prompt
+(Zusammenfassung + Fakten + Einzelfunde JE Dokument) die verfügbare Zeit, Vercel liefert
+eine Timeout-Fehlerseite statt JSON, `fetchJsonWithRetry` wiederholt einmal automatisch —
+erfolglos, weil derselbe zu grosse Payload beim zweiten Versuch identisch lange dauert.
+
+Gezielte Abhilfe statt allgemeiner Kürzung: von den 6 SONSTIGES-typisierten Dokumenten in
+diesem Fall (Kaufangebote/Finanzierungsbestätigung/Antrag/Katasterplan — administrative/
+transaktionsbezogene Unterlagen, keiner Due-Diligence-Kategorie zugeordnet) tragen praktisch
+keine zu den bekannten Bestandsrendite-Feldern (Zimmerzahl/Miete/STWEG-Werte/…) bei, blähen
+den Prompt aber erheblich auf. `PropertyCreateForm.tsx::runSynthesisPrefill` lässt sie jetzt
+aus der Prefill-Synthese weg (sofern mindestens ein anderes Dokument übrig bleibt — bei
+ausschliesslich SONSTIGES-Dokumenten wird weiterhin mit allen synthetisiert, damit nicht der
+Sonderfall "keine Dokumente" entsteht). Die SONSTIGES-Dokumente werden trotzdem unverändert
+ans neue Objekt angehängt und bleiben einzeln analysiert auf der Objektseite sichtbar — nur
+nicht Teil dieser einen Cross-Dokument-Synthese.
+
+Bewusst NICHT auf die reguläre, objektgebundene Synthese (`/api/properties/[id]/due-diligence`,
+"Due-Diligence aktualisieren"-Button) übertragen — dort steht dem Nutzer bereits der
+kürzlich gebaute manuelle Ausschluss-Toggle pro Dokument zur Verfügung (siehe Eintrag
+"Abbrechen/Ausschliessen" oben), der flexibler ist als eine automatische Regel. Sollte
+derselbe Timeout dort ebenfalls wiederholt auftreten, ist dieselbe SONSTIGES-Vorfilterung
+ein naheliegender nächster Schritt.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
