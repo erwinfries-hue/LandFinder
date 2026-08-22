@@ -4,10 +4,14 @@ import {
   computeOverallStatus,
   parseSynthesisResponse,
   buildSynthesisToolSchema,
+  compactFindingsForPrompt,
+  selectSynthesisPromptDocuments,
+  MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT,
   type SynthesisDocumentInput,
   type SynthesisKnownField,
 } from "./dueDiligenceSynthesis";
 import { CATEGORY_ORDER } from "./dueDiligenceCategories";
+import type { DueDiligenceFinding } from "@landfinder/domain";
 
 describe("computeMissingDocuments", () => {
   it("listet alle 18 Prio-A/B-Typen als fehlend, wenn nichts hochgeladen ist", () => {
@@ -264,5 +268,66 @@ describe("buildSynthesisToolSchema", () => {
     const contradictionItems = (properties.contradictions as { items: { properties: Record<string, unknown> } }).items.properties;
     expect(contradictionItems.field).toMatchObject({ enum: ["zimmerzahl"] });
     expect(contradictionItems.category).toMatchObject({ enum: CATEGORY_ORDER });
+  });
+});
+
+describe("selectSynthesisPromptDocuments", () => {
+  it("filtert SONSTIGES-Dokumente heraus, wenn andere Dokumente übrig bleiben", () => {
+    const docs: SynthesisDocumentInput[] = [
+      { id: "1", filename: "stweg.pdf", documentType: "STWEG_PROTOKOLL", summary: "x", facts: {}, findings: [] },
+      { id: "2", filename: "kaufangebot.pdf", documentType: "SONSTIGES", summary: "x", facts: {}, findings: [] },
+    ];
+    const result = selectSynthesisPromptDocuments(docs);
+    expect(result).toHaveLength(1);
+    expect(result[0].documentType).toBe("STWEG_PROTOKOLL");
+  });
+
+  it("behält alle Dokumente, wenn ausschliesslich SONSTIGES hochgeladen wurde (kein leerer Prompt)", () => {
+    const docs: SynthesisDocumentInput[] = [
+      { id: "1", filename: "a.pdf", documentType: "SONSTIGES", summary: "x", facts: {}, findings: [] },
+      { id: "2", filename: "b.pdf", documentType: "SONSTIGES", summary: "x", facts: {}, findings: [] },
+    ];
+    const result = selectSynthesisPromptDocuments(docs);
+    expect(result).toHaveLength(2);
+  });
+
+  it("lässt eine Liste ohne SONSTIGES-Dokumente unverändert", () => {
+    const docs: SynthesisDocumentInput[] = [{ id: "1", filename: "a.pdf", documentType: "GRUNDBUCHAUSZUG", summary: "x", facts: {}, findings: [] }];
+    expect(selectSynthesisPromptDocuments(docs)).toEqual(docs);
+  });
+});
+
+describe("compactFindingsForPrompt", () => {
+  const baseFinding: DueDiligenceFinding = { category: "STWEG", severity: "OK", summary: "Basis" };
+
+  it("entfernt detail/sourceQuote, behält category/severity/summary/sourcePage/isContradiction", () => {
+    const findings: DueDiligenceFinding[] = [
+      { ...baseFinding, detail: "Lange Begründung…", sourceQuote: "wörtliches Zitat", sourcePage: 3, isContradiction: true },
+    ];
+    const compact = compactFindingsForPrompt(findings) as Record<string, unknown>[];
+    expect(compact[0]).toEqual({ category: "STWEG", severity: "OK", summary: "Basis", sourcePage: 3, isContradiction: true });
+  });
+
+  it("sortiert nach Schwere: RISIKO vor KLAERUNGSBEDARF vor OK", () => {
+    const findings: DueDiligenceFinding[] = [
+      { ...baseFinding, severity: "OK", summary: "ok" },
+      { ...baseFinding, severity: "RISIKO", summary: "risiko" },
+      { ...baseFinding, severity: "KLAERUNGSBEDARF", summary: "klaerung" },
+    ];
+    const compact = compactFindingsForPrompt(findings) as { summary: string }[];
+    expect(compact.map((f) => f.summary)).toEqual(["risiko", "klaerung", "ok"]);
+  });
+
+  it(`deckelt auf die wichtigsten ${MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT} Funde, wenn mehr vorhanden sind`, () => {
+    const findings: DueDiligenceFinding[] = Array.from({ length: MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT + 5 }, (_, i) => ({
+      ...baseFinding,
+      severity: i < 3 ? "RISIKO" : "OK",
+      summary: `finding-${i}`,
+    }));
+    const compact = compactFindingsForPrompt(findings);
+    expect(compact).toHaveLength(MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT);
+    // die drei RISIKO-Funde müssen trotz Deckelung enthalten sein (nach Schwere sortiert)
+    const summaries = (compact as { summary: string }[]).map((f) => f.summary);
+    expect(summaries.slice(0, 3)).toEqual(["finding-0", "finding-1", "finding-2"]);
   });
 });

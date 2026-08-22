@@ -954,6 +954,51 @@ kürzlich gebaute manuelle Ausschluss-Toggle pro Dokument zur Verfügung (siehe 
 derselbe Timeout dort ebenfalls wiederholt auftreten, ist dieselbe SONSTIGES-Vorfilterung
 ein naheliegender nächster Schritt.
 
+## Nachgezogen (2026-08-22): "Netzwerkfehler" bei der Synthese trotz SONSTIGES-Filterung persistiert — Prompt zusätzlich kompaktiert
+
+Rückmeldung mit Screenshot: derselbe "Vorschläge aus den Dokumenten konnten nicht
+ermittelt werden (Netzwerkfehler)."-Fehler trat weiterhin auf — diesmal beim erneuten
+Analysieren eines einzelnen zuvor fehlgeschlagenen Dokuments (löst laut
+`PropertyCreateForm.tsx::retryAnalyze` eine neue Prefill-Synthese über ALLE Dokumente
+aus), obwohl die vorherige, bereits erfolgreiche Synthese bereits eine ausführliche
+Gesamteinschätzung geliefert hatte (sichtbar im Screenshot, weil `synthesisResult` bei
+einem fehlgeschlagenen neuen Versuch nicht gelöscht wird — beide Zustände also
+gleichzeitig sichtbar sind, kein Bug, nur verwirrend beim Lesen).
+
+Die SONSTIGES-Filterung aus dem vorigen Eintrag griff (weniger Dokumente im Prompt),
+reichte aber bei diesem realen Dokumentenset (u.a. mehrere STWEG-Protokolle über
+mehrere Jahre, mehrere Heizkosten-Abrechnungen) offenbar nicht aus — die verbleibenden,
+tatsächlich relevanten Dokumente allein sind bereits umfangreich genug, insbesondere
+wegen der VOLLSTÄNDIGEN Stufe-1-Funde (inkl. `detail` und bis zu 280 Zeichen langem
+`sourceQuote` JE Fund), die bisher 1:1 in den Stufe-2-Prompt kopiert wurden.
+
+Zwei weitere, diesmal zentrale (statt nur aufruferseitige) Massnahmen in
+`dueDiligenceSynthesis.ts`:
+
+- **SONSTIGES-Filterung zentralisiert** (`selectSynthesisPromptDocuments`): bisher nur
+  in `PropertyCreateForm.tsx` für die Prefill-Synthese angewendet — jetzt direkt in
+  `synthesizeDueDiligence`, wirkt damit automatisch auch für "Due-Diligence
+  aktualisieren" auf der Objektseite, die bisher ungeschützt war.
+- **Kompaktere Stufe-1-Funde im Stufe-2-Prompt** (`compactFindingsForPrompt`): pro Fund
+  werden nur noch `category`/`severity`/`summary`/`sourcePage`/`isContradiction` an
+  Stufe 2 weitergereicht, NICHT mehr `detail` (oft die längste Freitext-Begründung) und
+  `sourceQuote` (bis 280 Zeichen) — Stufe 2 generiert ihre eigenen Funde/Zitate ohnehin
+  frisch mit eigenem `sourceDocumentId`/`sourcePage`, braucht das wörtliche Stufe-1-Zitat
+  für die Quervergleichs-Logik nicht. Zusätzlich pro Dokument auf die (nach Schwere
+  sortiert) wichtigsten 10 Funde gedeckelt, damit ein einzelnes findingsreiches Dokument
+  (z.B. ein STWEG-Protokoll mit vielen vertagten Traktanden über mehrere Jahre) den
+  Prompt nicht unverhältnismässig aufbläht. Die vollständigen Stufe-1-Funde bleiben
+  unverändert pro Dokument gespeichert und in der UI sichtbar — nur der an Stufe 2
+  weitergereichte Ausschnitt ist kompakter.
+
+Weiterhin unverändert: die harte 60-Sekunden-Grenze selbst (Vercel-Hobby-Plan) lässt
+sich im Code nicht anheben — diese beiden Massnahmen reduzieren das Risiko, beseitigen
+es aber nicht für beliebig grosse Dokumentenmengen. Bei einem erneuten Auftreten trotz
+dieser Änderungen wäre der nächste sinnvolle Schritt eine echte Batch-/Hintergrund-
+Synthese statt eines einzelnen Aufrufs über alle Dokumente — bewusst nicht vorgezogen,
+da architektonisch deutlich aufwendiger und ohne Live-Zugriff hier nicht token-genau
+verifizierbar.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
