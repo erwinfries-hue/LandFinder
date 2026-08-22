@@ -59,7 +59,7 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     defaultCategory: "ERNEUERUNGSFONDS",
     description: "Nachweis über Saldo und jährliche Beiträge des STWEG-Erneuerungsfonds.",
     extractionGuidance:
-      'Erfasse: aktueller Saldo; historische Entwicklung, falls mehrere Perioden ersichtlich; jährlicher Beitrag; Anteil/Wertquote der geprüften Wohnung; ausserordentliche Entnahmen; eine Einschätzung, ob der Fonds im Verhältnis zum Gebäudealter und zu bekannten/geplanten Investitionen (aus STWEG-Protokollen) ausreichend erscheint — als Einschätzung kennzeichnen, nicht als Fakt. WICHTIG: Kapital-/Zinsausweise nennen häufig ZWEI Beträge — den GESAMTSaldo des Erneuerungsfonds der ganzen STWEG (z.B. "Bank Erneuerungsfonds ... Kapital per ...") UND separat den nach Wertquote anteiligen Betrag NUR der geprüften Wohnung ("Total Ihrer Objekte", oft deutlich kleiner). Als strukturierten Fakt "erneuerungsfondsSaldoChf" im facts-Feld IMMER den GESAMTSaldo der ganzen STWEG erfassen, NICHT den anteiligen Betrag der einzelnen Wohnung — sonst wird der Fonds fälschlich als viel kleiner eingeschätzt, als er ist. Die Wertquote separat als "wertquotePromille" (Zahl, z.B. 50 für 50‰) erfassen, falls ersichtlich.',
+      'Erfasse: aktueller Saldo; historische Entwicklung, falls mehrere Perioden ersichtlich; jährlicher Beitrag; Anteil/Wertquote der geprüften Wohnung; ausserordentliche Entnahmen; eine Einschätzung, ob der Fonds im Verhältnis zum Gebäudealter und zu bekannten/geplanten Investitionen (aus STWEG-Protokollen) ausreichend erscheint — als Einschätzung kennzeichnen, nicht als Fakt. WICHTIG: Kapital-/Zinsausweise nennen häufig ZWEI Beträge — den GESAMTSaldo des Erneuerungsfonds der ganzen STWEG (z.B. "Bank Erneuerungsfonds ... Kapital per ...") UND separat den nach Wertquote anteiligen Betrag NUR der geprüften Wohnung ("Total Ihrer Objekte", oft deutlich kleiner). Als strukturierten Fakt "erneuerungsfondsSaldoChf" im facts-Feld IMMER den GESAMTSaldo der ganzen STWEG erfassen, NICHT den anteiligen Betrag der einzelnen Wohnung — sonst wird der Fonds fälschlich als viel kleiner eingeschätzt, als er ist. Die Wertquote separat als "wertquotePromille" (Zahl, z.B. 50 für 50‰) erfassen, falls ersichtlich. Nennt das Dokument oder ein zugehöriges Reglement einen ausdrücklichen Ziel-/Sollwert für den Fonds (z.B. "Zielgrösse", "angestrebter Mindestbestand"), diesen zusätzlich als "erneuerungsfondsZielwertChf" (Zahl) erfassen — NICHT mit einer eigenen Einschätzung der Angemessenheit verwechseln, nur ein im Dokument tatsächlich genannter Zielwert zählt.',
   },
   STWEG_REGLEMENT: {
     type: "STWEG_REGLEMENT",
@@ -86,7 +86,7 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     defaultCategory: "MIETVERHAELTNIS",
     description: "Aktueller Mietvertrag der Wohnung inkl. allfälliger Nachträge.",
     extractionGuidance:
-      "Erfasse: Nettomiete Wohnung; Miete Garage/Parkplatz; Nebenkosten (pauschal oder Akonto — welches von beiden); Mietbeginn; Kündigungsfrist/-termine; Kaution; besondere Vereinbarungen; mitvermietete Einrichtungen; Referenzzinssatz, sofern genannt; erkennbares Mietsteigerungspotenzial (z.B. Miete deutlich unter dem, was im Inserat/anderen Dokumenten als markttypisch erscheint).",
+      'Erfasse: Nettomiete Wohnung; Miete Garage/Parkplatz; Nebenkosten (pauschal oder Akonto — welches von beiden); Mietbeginn; Kündigungsfrist/-termine; Kaution; besondere Vereinbarungen; mitvermietete Einrichtungen; Referenzzinssatz, sofern genannt; erkennbares Mietsteigerungspotenzial (z.B. Miete deutlich unter dem, was im Inserat/anderen Dokumenten als markttypisch erscheint). Erfasse Nettomiete Wohnung UND Miete Garage/Parkplatz zusätzlich als strukturierte Fakten im facts-Feld mit GENAU den Schlüsseln "wohnungsMieteChfPerMonth" bzw. "parkplatzMieteChfPerMonth" (jeweils Zahl, CHF/Monat) — diese exakten Schlüsselnamen sind wichtig, damit die Werte automatisch als Vorschlag ins Erfassungsformular übernommen werden können.',
   },
   NEBENKOSTENABRECHNUNG: {
     type: "NEBENKOSTENABRECHNUNG",
@@ -156,7 +156,8 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     priority: "EMPFOHLEN",
     defaultCategory: "TECHNISCHE_UNTERLAGEN",
     description: "Ursprünglicher Baubeschrieb der Liegenschaft/Wohnung.",
-    extractionGuidance: "Erfasse: Baujahr, Bauweise, ursprünglicher Ausbaustandard, verwendete Materialien/Systeme, soweit relevant für den heutigen Zustand.",
+    extractionGuidance:
+      'Erfasse: Baujahr, Bauweise, ursprünglicher Ausbaustandard, verwendete Materialien/Systeme, soweit relevant für den heutigen Zustand. Das Baujahr zusätzlich als strukturierten Fakt im facts-Feld mit GENAU dem Schlüssel "baujahr" (Zahl, z.B. 1964) erfassen.',
   },
   PARKPLATZ_UNTERLAGEN: {
     type: "PARKPLATZ_UNTERLAGEN",
@@ -164,7 +165,8 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     priority: "EMPFOHLEN",
     defaultCategory: "GRUNDBUCH_RECHTE",
     description: "Unterlagen zu Einstellhallen-/Aussenparkplatz (separat vom Grundbuchauszug, falls vorhanden).",
-    extractionGuidance: "Erfasse: Parkplatznummer/-bezeichnung, ob Eigentum oder nur Nutzungsrecht, Zuordnung zur Wohnung. Prüfe explizit gegen Grundbuchauszug und Inserat auf Übereinstimmung.",
+    extractionGuidance:
+      'Erfasse: Parkplatznummer/-bezeichnung, ob Eigentum oder nur Nutzungsrecht, Zuordnung zur Wohnung. Prüfe explizit gegen Grundbuchauszug und Inserat auf Übereinstimmung. Wird ein separater Kaufpreis für den Parkplatz/die Garage genannt (z.B. in einer Kaufabrechnung), diesen zusätzlich als strukturierten Fakt im facts-Feld mit GENAU dem Schlüssel "parkplatzKaufpreisChf" (Zahl) erfassen.',
   },
   STWEG_BEGRUENDUNG: {
     type: "STWEG_BEGRUENDUNG",
@@ -172,7 +174,8 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     priority: "EMPFOHLEN",
     defaultCategory: "GRUNDBUCH_RECHTE",
     description: "Begründungsakt des Stockwerkeigentums mit Wertquoten aller Einheiten.",
-    extractionGuidance: "Erfasse: Wertquote der Wohnung, Anzahl und Art aller Einheiten in der STWEG, Sonderrechte/-nutzungen laut Begründungsakt.",
+    extractionGuidance:
+      'Erfasse: Wertquote der Wohnung, Anzahl und Art aller Einheiten in der STWEG, Sonderrechte/-nutzungen laut Begründungsakt. Die Wertquote zusätzlich als strukturierten Fakt im facts-Feld mit GENAU dem Schlüssel "wertquotePromille" (Zahl, z.B. 50 für 50‰) erfassen.',
   },
 
   // --- Objekt-Basisdaten ---
