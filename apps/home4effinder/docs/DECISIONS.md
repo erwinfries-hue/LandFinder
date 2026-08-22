@@ -743,6 +743,33 @@ nennt "Baujahr" als eigenes Feld — beides bisher nicht als strukturierter Fakt
   aber ein zusätzliches, günstiges Sicherheitsnetz gegen den weiterhin bestehenden
   60-Sekunden-Hobby-Plan-Ceiling, den wir serverseitig nicht weiter senken können.
 
+## Nachgezogen (2026-08-20): Objekt-Detailseite kompakter dargestellt
+
+Auf Wunsch des Auftraggebers: "die Seite der Daten sollte bedeutend komprimierter
+dargestellt werden, ohne dass die Lesbarkeit verschlechtert wird" — die Objekt-Detailseite
+(`/objekte/[id]`, kombiniert aus Kopfbereich, `BestandsrenditeAnalysisView` und
+`DueDiligencePanel`) reiht viele Panels/Metric-Grids/Tabellen mit grosszügigem Weissraum
+untereinander, was bei einem datenreichen Objekt viel Scrollen erfordert.
+
+Bewusst NUR Innenabstände/Aussenabstände (Padding, Margin, Gap) reduziert — **keine**
+Schriftgrössen, Zeilenhöhen oder Farben angefasst, damit die Lesbarkeit unverändert bleibt:
+
+- `globals.css`: `.metric`-Zellen (`1rem 1.2rem` → `0.6rem 0.85rem`), `.metricgrid`
+  margin-top, `.sectionhead` margin-bottom, `.dethead`-Padding, Tabellenzellen (`td`/`th`)
+  sowie `.stresstable` (die Cashflow-/Exit-Tabellen) — alle spürbar enger, betrifft
+  ausschliesslich die vier Dateien, die diese Klassen tatsächlich verwenden (`page.tsx`,
+  `BestandsrenditeAnalysisView.tsx`, `DueDiligencePanel.tsx`, `MetricPrimitives.tsx`) —
+  keine Nebenwirkung auf Login/Wizard/Vergleichsseite, die diese Klassen nicht nutzen.
+- `BestandsrenditeAnalysisView.tsx`/`DueDiligencePanel.tsx`/`page.tsx`: die wiederkehrenden
+  Panel-Abstände zwischen den ~8 gestapelten Panels (Schnellcheck, Investment Case,
+  Value-Add-Blöcke, Mehrjahresmodell, STWEG-Fakten, Due-Diligence-Panel) von `1.4rem/1.6rem`
+  auf `1rem/1.1rem` reduziert, ebenso interne Listen-/Kategorie-Box-Abstände.
+- Verifiziert per statischem HTML-Mock (echtes `globals.css` + dieselben CSS-Klassen,
+  realistische Beispielwerte) und Screenshot via Headless-Chromium, da diese Session ohne
+  Supabase-Zugangsdaten läuft und die echte Seite daher nicht mit echten Objektdaten
+  gerendert werden konnte — bittet um kurze Rückmeldung nach dem Deploy, ob die
+  Live-Ansicht mit echten (teils längeren) Textinhalten ebenfalls stimmt.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

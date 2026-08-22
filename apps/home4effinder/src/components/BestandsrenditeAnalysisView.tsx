@@ -15,7 +15,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
 
   return (
     <>
-      <Panel style={{ padding: "1.2rem 1.3rem", marginTop: "1.4rem" }}>
+      <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
         <div className="sectionhead">
           <h2>Ebene A — Schnellcheck</h2>
         </div>
@@ -33,7 +33,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           />
         </div>
 
-        <div className="sectionhead" style={{ marginTop: "1.2rem" }}>
+        <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
           <h2 style={{ fontSize: ".85rem" }}>1./2. Hypothek</h2>
         </div>
         <div className="metricgrid">
@@ -42,7 +42,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
         </div>
       </Panel>
 
-      <Panel style={{ padding: "1.2rem 1.3rem", marginTop: "1.4rem" }}>
+      <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
         <div className="sectionhead">
           <h2>Ebene B — Investment Case</h2>
         </div>
@@ -55,7 +55,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           <Metric l="Eigenkapital" v={`CHF ${formatChf(Math.round(result.eigenkapitalChf))}`} />
         </div>
 
-        <div className="sectionhead" style={{ marginTop: "1.2rem" }}>
+        <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
           <h2 style={{ fontSize: ".85rem" }}>Cashflow-Wasserfall (Jahr 1)</h2>
         </div>
         <table className="stresstable">
@@ -87,7 +87,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           </tbody>
         </table>
 
-        <div className="sectionhead" style={{ marginTop: "1.2rem" }}>
+        <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
           <h2 style={{ fontSize: ".85rem" }}>Break-even</h2>
         </div>
         <div className="metricgrid">
@@ -98,7 +98,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
       </Panel>
 
       {furnitureRoi ? (
-        <Panel style={{ padding: "1.2rem 1.3rem", marginTop: "1.4rem" }}>
+        <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
           <div className="sectionhead">
             <h2>Value-Add — Möblierung</h2>
           </div>
@@ -118,7 +118,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
       ) : null}
 
       {renovationRoi || renovationSummary.totalChf > 0 ? (
-        <Panel style={{ padding: "1.2rem 1.3rem", marginTop: "1.4rem" }}>
+        <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
           <div className="sectionhead">
             <h2>Value-Add — Renovation</h2>
           </div>
@@ -143,7 +143,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
         </Panel>
       ) : null}
 
-      <Panel style={{ padding: "1.2rem 1.3rem", marginTop: "1.4rem" }}>
+      <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
         <div className="sectionhead">
           <h2>
             Ebene C — {mehrjahresmodell.years.length}-Jahres-Modell <InfoHint text="Default 15 Jahre, 5–30 wählbar über die Bestandsrendite-Fakten." />
@@ -158,7 +158,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           <Metric l="Kumulierter Cashflow" v={`CHF ${formatChf(Math.round(lastYear.kumulierterCashflowChf))}`} />
         </div>
 
-        <div className="sectionhead" style={{ marginTop: "1.2rem" }}>
+        <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
           <h2 style={{ fontSize: ".85rem" }}>Exit-Berechnung (Jahr {mehrjahresmodell.years.length})</h2>
         </div>
         <table className="stresstable">
@@ -194,7 +194,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           </tbody>
         </table>
 
-        <details style={{ marginTop: "1.2rem" }}>
+        <details style={{ marginTop: "0.8rem" }}>
           <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>Jahr-für-Jahr-Details anzeigen</summary>
           <div style={{ overflowX: "auto", marginTop: ".6rem" }}>
             <table className="stresstable">
@@ -233,7 +233,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           </div>
         </details>
 
-        <div className="sectionhead" style={{ marginTop: "1.2rem" }}>
+        <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
           <h2 style={{ fontSize: ".85rem" }}>Investment-Treiber — Wo entsteht die Rendite?</h2>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: ".5rem" }}>
@@ -251,7 +251,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
       </Panel>
 
       {Object.values(stweg).some((v) => v !== undefined) ? (
-        <Panel style={{ padding: "1.2rem 1.3rem", marginTop: "1.4rem" }}>
+        <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
           <div className="sectionhead">
             <h2>
               STWEG-Fakten <InfoHint text="Reine Datenhaltung ohne Bewertung — was als „gut“/„riskant“ gilt, ist noch nicht festgelegt." />
@@ -287,8 +287,8 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
         </Panel>
       ) : null}
 
-      <Panel style={{ padding: "1rem 1.3rem", marginTop: "1.4rem" }}>
-        <div className="eyebrow" style={{ marginBottom: ".5rem" }}>
+      <Panel style={{ padding: "0.8rem 1.1rem", marginTop: "1rem" }}>
+        <div className="eyebrow" style={{ marginBottom: ".4rem" }}>
           Verwendete Annahmen
         </div>
         <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: ".8125rem", color: "var(--ink-soft)", display: "flex", flexDirection: "column", gap: ".3rem" }}>
