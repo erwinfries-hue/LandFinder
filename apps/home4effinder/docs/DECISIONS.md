@@ -1009,6 +1009,23 @@ als beim Dokumenten-Upload und der Synthese verwendeten genau diese beiden Aufru
 einfaches `fetch` statt `fetchJsonWithRetry` — Inkonsistenz behoben, beide nutzen jetzt
 denselben einen automatischen Wiederholungsversuch wie der Rest der App.
 
+**Wichtige Anforderung dazu nachgereicht:** nach einem gescheiterten Speichern-Versuch darf
+der Nutzer NIE gezwungen sein, Dateien erneut hochzuladen oder Daten erneut einzutippen.
+Bereits vorher der Fall für Dokumenten-Upload/-Analyse (Zustand bleibt im Client-State
+erhalten, `retryAnalyze` wiederholt gezielt nur das eine gescheiterte Dokument) — beim
+finalen Submit selbst gab es aber eine reale Lücke: schlug ein SPÄTERER Schritt fehl,
+nachdem `POST /api/properties` bereits erfolgreich ein Objekt angelegt hatte (z.B. weil
+danach die Bestandsrendite-Fakten nicht gespeichert werden konnten), hätte ein erneuter
+Klick auf "speichern" ein ZWEITES, dupliziertes Objekt angelegt (die Objekt-ID wurde
+bislang nur in einer lokalen Variablen innerhalb des einen `handleSubmit`-Aufrufs
+gehalten, nicht in State). Behoben mit neuem State `createdPropertyId`: einmal gesetzt,
+überspringt ein erneuter "speichern"-Klick das erneute Anlegen und setzt direkt bei den
+Folgeschritten (Fakten/Dokumente/Synthese) fort — kein Duplikat, keine erneute Eingabe
+nötig. Die Fehlermeldung unterscheidet jetzt explizit zwischen "Anlegen selbst
+fehlgeschlagen" (Eingaben bleiben erhalten, einfach nochmals versuchen) und "Objekt
+existiert bereits, nur ein Folgeschritt scheiterte" (ausdrücklicher Hinweis: kein zweites
+Objekt wird angelegt).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

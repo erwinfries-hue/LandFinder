@@ -60,6 +60,16 @@ export function PropertyCreateForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /**
+   * Sobald das Objekt einmal erfolgreich angelegt wurde, merkt sich der Flow dessen ID —
+   * schlägt danach ein Folgeschritt (Bestandsrendite/Dokumente/Synthese) fehl, legt ein
+   * erneuter Klick auf "speichern" NICHT nochmals ein Objekt an (sonst Duplikate), sondern
+   * setzt beim bestehenden fort. Wichtig, weil der ganze bis dahin erfasste Zustand (alle
+   * hochgeladenen/analysierten Dokumente, alle Formularwerte) ohnehin im Client-State
+   * erhalten bleibt — der Nutzer soll nach einem Netzwerkfehler nie von vorne beginnen
+   * (weder Dateien erneut hochladen noch Daten erneut eintippen) müssen.
+   */
+  const [createdPropertyId, setCreatedPropertyId] = useState<string | null>(null);
 
   const [addressText, setAddressText] = useState("");
   const [canton, setCanton] = useState("");
@@ -242,28 +252,35 @@ export function PropertyCreateForm() {
     setSaving(true);
 
     try {
-      // fetchJsonWithRetry statt einfachem fetch — derselbe eine automatische
-      // Wiederholungsversuch wie beim Dokumenten-Upload/der Synthese, hier gegen
-      // vereinzelte mobile Netzwerkaussetzer beim Abschluss-Klick (die eigentlichen
-      // Schreibzugriffe selbst sind einfache, schnelle DB-Inserts/-Updates ohne
-      // LLM-Aufruf — anders als bei der Synthese ist ein echter Server-Timeout hier
-      // unwahrscheinlich, ein kurzer Verbindungsabbruch aber nicht).
-      const body = await fetchJsonWithRetry<{ saved?: boolean; id?: string; error?: string }>("/api/properties", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          addressText: addressText.trim(),
-          canton,
-          askingPriceChf: Number(askingPriceChf),
-          wohnflaecheM2: Number(wohnflaecheM2),
-          listingUrl: listingUrl.trim(),
-        }),
-      });
-      if (!body.saved || !body.id) {
-        setError(body.error ?? "Anlegen fehlgeschlagen.");
-        return;
+      // Bereits einmal erfolgreich angelegt (vorheriger Versuch scheiterte erst bei einem
+      // Folgeschritt)? Dann NICHT nochmals per POST /api/properties anlegen — sonst
+      // entstünde bei jedem erneuten "speichern"-Klick ein weiteres, dupliziertes Objekt.
+      let propertyId = createdPropertyId;
+      if (!propertyId) {
+        // fetchJsonWithRetry statt einfachem fetch — derselbe eine automatische
+        // Wiederholungsversuch wie beim Dokumenten-Upload/der Synthese, hier gegen
+        // vereinzelte mobile Netzwerkaussetzer beim Abschluss-Klick (die eigentlichen
+        // Schreibzugriffe selbst sind einfache, schnelle DB-Inserts/-Updates ohne
+        // LLM-Aufruf — anders als bei der Synthese ist ein echter Server-Timeout hier
+        // unwahrscheinlich, ein kurzer Verbindungsabbruch aber nicht).
+        const body = await fetchJsonWithRetry<{ saved?: boolean; id?: string; error?: string }>("/api/properties", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            addressText: addressText.trim(),
+            canton,
+            askingPriceChf: Number(askingPriceChf),
+            wohnflaecheM2: Number(wohnflaecheM2),
+            listingUrl: listingUrl.trim(),
+          }),
+        });
+        if (!body.saved || !body.id) {
+          setError(body.error ?? "Anlegen fehlgeschlagen. Deine Eingaben bleiben erhalten — bitte nochmals versuchen.");
+          return;
+        }
+        propertyId = body.id;
+        setCreatedPropertyId(propertyId);
       }
-      const propertyId = body.id;
 
       const formData = new FormData(event.currentTarget);
       const facts = buildBestandsrenditeFactsFromFormData(formData, vermietungsmodell, renovationPositionen);
@@ -307,7 +324,14 @@ export function PropertyCreateForm() {
 
       router.push(`/objekte/${propertyId}`);
     } catch {
-      setError("Anlegen fehlgeschlagen (Netzwerkfehler).");
+      // War das Objekt zu diesem Zeitpunkt schon angelegt (createdPropertyId gesetzt),
+      // ist nur ein Folgeschritt gescheitert — ausdrücklich beruhigen, dass ein erneuter
+      // Klick fortsetzt statt ein zweites Objekt anzulegen, und nichts neu erfasst werden muss.
+      setError(
+        createdPropertyId
+          ? "Objekt wurde bereits angelegt, ein Folgeschritt ist aber fehlgeschlagen (Netzwerkfehler). Bitte nochmals auf „Bestandsrendite speichern“ klicken — es wird kein zweites Objekt angelegt, nichts muss neu erfasst werden."
+          : "Anlegen fehlgeschlagen (Netzwerkfehler). Deine Eingaben und hochgeladenen Dokumente bleiben erhalten — bitte nochmals versuchen.",
+      );
     } finally {
       setSaving(false);
     }
