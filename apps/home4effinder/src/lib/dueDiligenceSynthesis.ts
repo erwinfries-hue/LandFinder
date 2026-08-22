@@ -65,6 +65,25 @@ export function computeMissingDocuments(uploadedTypes: DueDiligenceDocumentType[
   return missing;
 }
 
+/**
+ * Wählt die Dokumente aus, die dem LLM für die Synthese tatsächlich vorgelegt werden.
+ * SONSTIGES-Dokumente (keiner bekannten Due-Diligence-Kategorie zugeordnet, z.B.
+ * Kaufangebot/Finanzierungsbestätigung/Antrag/Katasterplan) tragen praktisch nie zu den
+ * bekannten Bestandsrendite-Feldern oder Kategorien bei, blähen den Prompt bei vielen
+ * hochgeladenen Dokumenten aber spürbar auf — wiederholt Ursache dafür, dass die Synthese
+ * Vercels 60-Sekunden-Zeitlimit überschritt (siehe docs/DECISIONS.md). Zentral hier statt
+ * nur beim Aufrufer gefiltert, damit sowohl die Prefill-Synthese im Neu-Erfassen-Flow als
+ * auch "Due-Diligence aktualisieren" auf der Objektseite profitieren. Nur wirksam, wenn
+ * mindestens ein anderes Dokument übrig bleibt — sonst lieber mit allen synthetisieren als
+ * mit einer leeren Liste zu scheitern. Der AUFRUFER von `synthesizeDueDiligence` übergibt
+ * weiterhin die volle Liste an `parseSynthesisResponse` (sourceDocumentId-Auflösung/
+ * computeMissingDocuments) — nur dieser gefilterte Ausschnitt geht in den Prompt.
+ */
+export function selectSynthesisPromptDocuments(documents: SynthesisDocumentInput[]): SynthesisDocumentInput[] {
+  const relevant = documents.filter((d) => d.documentType !== "SONSTIGES");
+  return relevant.length > 0 ? relevant : documents;
+}
+
 export function computeOverallStatus(categories: DueDiligenceCategoryResult[]): DueDiligenceSeverity {
   if (categories.length === 0) return "KLAERUNGSBEDARF";
   if (categories.some((c) => c.status === "RISIKO")) return "RISIKO";
@@ -75,11 +94,34 @@ export function computeOverallStatus(categories: DueDiligenceCategoryResult[]): 
 const KNOWN_CATEGORIES = new Set(CATEGORY_ORDER);
 const KNOWN_SEVERITIES = new Set<DueDiligenceSeverity>(["OK", "KLAERUNGSBEDARF", "RISIKO"]);
 
+const SEVERITY_SORT_WEIGHT: Record<DueDiligenceSeverity, number> = { RISIKO: 0, KLAERUNGSBEDARF: 1, OK: 2 };
+/** Deckelt die pro Dokument in den Stufe-2-Prompt übernommenen Stufe-1-Funde — wichtig bei findingsreichen Dokumenten (z.B. mehrjährige STWEG-Protokolle), siehe compactFindingsForPrompt. */
+export const MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT = 10;
+
+/**
+ * Der grösste Prompt-Kostentreiber bei findingsreichen Dokumenten waren die vollständigen
+ * `detail`/`sourceQuote`-Felder JEDES Stufe-1-Funds im Stufe-2-Prompt — Stufe 2 generiert
+ * ihre eigenen Funde/Zitate ohnehin frisch (mit eigenem sourceDocumentId/sourcePage) und
+ * braucht das wörtliche Stufe-1-Zitat für die Quervergleichs-Logik nicht, nur Kategorie/
+ * Schwere/Kurzfassung/Seite. Zusätzlich pro Dokument auf die (nach Schwere sortiert)
+ * wichtigsten `MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT` Funde gedeckelt. Beides zusammen wirkt
+ * gezielt gegen das wiederholt beobachtete Überschreiten von Vercels 60-Sekunden-Limit bei
+ * vielen bzw. findingsreichen Dokumenten (siehe docs/DECISIONS.md) — die vollständigen
+ * Stufe-1-Funde bleiben unverändert pro Dokument gespeichert/sichtbar, nur der an Stufe 2
+ * weitergereichte Ausschnitt ist kompakter.
+ */
+export function compactFindingsForPrompt(findings: DueDiligenceFinding[]): unknown[] {
+  return [...findings]
+    .sort((a, b) => SEVERITY_SORT_WEIGHT[a.severity] - SEVERITY_SORT_WEIGHT[b.severity])
+    .slice(0, MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT)
+    .map((f) => ({ category: f.category, severity: f.severity, summary: f.summary, sourcePage: f.sourcePage, isContradiction: f.isContradiction }));
+}
+
 function buildSynthesisPrompt(documents: SynthesisDocumentInput[], knownFacts: SynthesisKnownFact[], knownFields: SynthesisKnownField[]): string {
   const documentsBlock = documents
     .map(
       (d, i) =>
-        `Dokument ${i + 1} (documentId="${d.id}", Dateiname="${d.filename}", Typ=${DOCUMENT_TYPE_CATALOG[d.documentType].label}):\nZusammenfassung: ${d.summary}\nFakten: ${JSON.stringify(d.facts)}\nBereits erkannte Einzelfunde: ${JSON.stringify(d.findings)}`,
+        `Dokument ${i + 1} (documentId="${d.id}", Dateiname="${d.filename}", Typ=${DOCUMENT_TYPE_CATALOG[d.documentType].label}):\nZusammenfassung: ${d.summary}\nFakten: ${JSON.stringify(d.facts)}\nBereits erkannte Einzelfunde: ${JSON.stringify(compactFindingsForPrompt(d.findings))}`,
     )
     .join("\n\n");
 
@@ -346,11 +388,13 @@ export async function synthesizeDueDiligence(
     return { overallStatus: "KLAERUNGSBEDARF", overallSummary: "", categories: [], missingDocuments: computeMissingDocuments([]), sellerQuestions: [], fieldUpdateProposals: [], contradictions: [] };
   }
 
+  const promptDocuments = selectSynthesisPromptDocuments(documents);
+
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 8192,
-    system: buildSynthesisPrompt(documents, knownFacts, knownFields),
+    system: buildSynthesisPrompt(promptDocuments, knownFacts, knownFields),
     tools: [{ name: SYNTHESIS_TOOL_NAME, description: "Nimmt das Due-Diligence-Syntheseergebnis entgegen.", input_schema: buildSynthesisToolSchema(knownFields) }],
     tool_choice: { type: "tool", name: SYNTHESIS_TOOL_NAME },
     messages: [{ role: "user", content: "Erstelle die Due-Diligence-Synthese gemäss den Anweisungen im System-Prompt und rufe das Tool mit dem Ergebnis auf." }],

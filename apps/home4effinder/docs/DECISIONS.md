@@ -954,6 +954,78 @@ kürzlich gebaute manuelle Ausschluss-Toggle pro Dokument zur Verfügung (siehe 
 derselbe Timeout dort ebenfalls wiederholt auftreten, ist dieselbe SONSTIGES-Vorfilterung
 ein naheliegender nächster Schritt.
 
+## Nachgezogen (2026-08-22): "Netzwerkfehler" bei der Synthese trotz SONSTIGES-Filterung persistiert — Prompt zusätzlich kompaktiert
+
+Rückmeldung mit Screenshot: derselbe "Vorschläge aus den Dokumenten konnten nicht
+ermittelt werden (Netzwerkfehler)."-Fehler trat weiterhin auf — diesmal beim erneuten
+Analysieren eines einzelnen zuvor fehlgeschlagenen Dokuments (löst laut
+`PropertyCreateForm.tsx::retryAnalyze` eine neue Prefill-Synthese über ALLE Dokumente
+aus), obwohl die vorherige, bereits erfolgreiche Synthese bereits eine ausführliche
+Gesamteinschätzung geliefert hatte (sichtbar im Screenshot, weil `synthesisResult` bei
+einem fehlgeschlagenen neuen Versuch nicht gelöscht wird — beide Zustände also
+gleichzeitig sichtbar sind, kein Bug, nur verwirrend beim Lesen).
+
+Die SONSTIGES-Filterung aus dem vorigen Eintrag griff (weniger Dokumente im Prompt),
+reichte aber bei diesem realen Dokumentenset (u.a. mehrere STWEG-Protokolle über
+mehrere Jahre, mehrere Heizkosten-Abrechnungen) offenbar nicht aus — die verbleibenden,
+tatsächlich relevanten Dokumente allein sind bereits umfangreich genug, insbesondere
+wegen der VOLLSTÄNDIGEN Stufe-1-Funde (inkl. `detail` und bis zu 280 Zeichen langem
+`sourceQuote` JE Fund), die bisher 1:1 in den Stufe-2-Prompt kopiert wurden.
+
+Zwei weitere, diesmal zentrale (statt nur aufruferseitige) Massnahmen in
+`dueDiligenceSynthesis.ts`:
+
+- **SONSTIGES-Filterung zentralisiert** (`selectSynthesisPromptDocuments`): bisher nur
+  in `PropertyCreateForm.tsx` für die Prefill-Synthese angewendet — jetzt direkt in
+  `synthesizeDueDiligence`, wirkt damit automatisch auch für "Due-Diligence
+  aktualisieren" auf der Objektseite, die bisher ungeschützt war.
+- **Kompaktere Stufe-1-Funde im Stufe-2-Prompt** (`compactFindingsForPrompt`): pro Fund
+  werden nur noch `category`/`severity`/`summary`/`sourcePage`/`isContradiction` an
+  Stufe 2 weitergereicht, NICHT mehr `detail` (oft die längste Freitext-Begründung) und
+  `sourceQuote` (bis 280 Zeichen) — Stufe 2 generiert ihre eigenen Funde/Zitate ohnehin
+  frisch mit eigenem `sourceDocumentId`/`sourcePage`, braucht das wörtliche Stufe-1-Zitat
+  für die Quervergleichs-Logik nicht. Zusätzlich pro Dokument auf die (nach Schwere
+  sortiert) wichtigsten 10 Funde gedeckelt, damit ein einzelnes findingsreiches Dokument
+  (z.B. ein STWEG-Protokoll mit vielen vertagten Traktanden über mehrere Jahre) den
+  Prompt nicht unverhältnismässig aufbläht. Die vollständigen Stufe-1-Funde bleiben
+  unverändert pro Dokument gespeichert und in der UI sichtbar — nur der an Stufe 2
+  weitergereichte Ausschnitt ist kompakter.
+
+Weiterhin unverändert: die harte 60-Sekunden-Grenze selbst (Vercel-Hobby-Plan) lässt
+sich im Code nicht anheben — diese beiden Massnahmen reduzieren das Risiko, beseitigen
+es aber nicht für beliebig grosse Dokumentenmengen. Bei einem erneuten Auftreten trotz
+dieser Änderungen wäre der nächste sinnvolle Schritt eine echte Batch-/Hintergrund-
+Synthese statt eines einzelnen Aufrufs über alle Dokumente — bewusst nicht vorgezogen,
+da architektonisch deutlich aufwendiger und ohne Live-Zugriff hier nicht token-genau
+verifizierbar.
+
+Zusätzlich ein zweiter, unabhängiger "Netzwerkfehler" im selben Testlauf gemeldet — diesmal
+beim finalen Klick auf "Bestandsrendite speichern" (`PropertyCreateForm.tsx::handleSubmit`,
+"Anlegen fehlgeschlagen (Netzwerkfehler)."). Geprüft: sowohl `POST /api/properties` als auch
+`POST /api/properties/[id]/bestandsrendite` sind einfache, schnelle DB-Inserts/-Updates ohne
+LLM-Aufruf — ein echter 60-Sekunden-Server-Timeout ist hier praktisch ausgeschlossen, ein
+kurzer mobiler Verbindungsabbruch beim Abschluss-Klick dagegen plausibel. Auffällig: anders
+als beim Dokumenten-Upload und der Synthese verwendeten genau diese beiden Aufrufe noch
+einfaches `fetch` statt `fetchJsonWithRetry` — Inkonsistenz behoben, beide nutzen jetzt
+denselben einen automatischen Wiederholungsversuch wie der Rest der App.
+
+**Wichtige Anforderung dazu nachgereicht:** nach einem gescheiterten Speichern-Versuch darf
+der Nutzer NIE gezwungen sein, Dateien erneut hochzuladen oder Daten erneut einzutippen.
+Bereits vorher der Fall für Dokumenten-Upload/-Analyse (Zustand bleibt im Client-State
+erhalten, `retryAnalyze` wiederholt gezielt nur das eine gescheiterte Dokument) — beim
+finalen Submit selbst gab es aber eine reale Lücke: schlug ein SPÄTERER Schritt fehl,
+nachdem `POST /api/properties` bereits erfolgreich ein Objekt angelegt hatte (z.B. weil
+danach die Bestandsrendite-Fakten nicht gespeichert werden konnten), hätte ein erneuter
+Klick auf "speichern" ein ZWEITES, dupliziertes Objekt angelegt (die Objekt-ID wurde
+bislang nur in einer lokalen Variablen innerhalb des einen `handleSubmit`-Aufrufs
+gehalten, nicht in State). Behoben mit neuem State `createdPropertyId`: einmal gesetzt,
+überspringt ein erneuter "speichern"-Klick das erneute Anlegen und setzt direkt bei den
+Folgeschritten (Fakten/Dokumente/Synthese) fort — kein Duplikat, keine erneute Eingabe
+nötig. Die Fehlermeldung unterscheidet jetzt explizit zwischen "Anlegen selbst
+fehlgeschlagen" (Eingaben bleiben erhalten, einfach nochmals versuchen) und "Objekt
+existiert bereits, nur ein Folgeschritt scheiterte" (ausdrücklicher Hinweis: kein zweites
+Objekt wird angelegt).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
