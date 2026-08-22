@@ -113,7 +113,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { data, error } = await supabase
     .from("property_documents")
-    .select("id, document_type, original_filename, uploaded_at, analysis_status, analysis_error, extraction, analyzed_at")
+    .select("id, document_type, original_filename, uploaded_at, analysis_status, analysis_error, extraction, analyzed_at, excluded_from_synthesis")
     .eq("property_id", propertyId)
     .order("uploaded_at", { ascending: false });
   if (error) {

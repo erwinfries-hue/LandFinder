@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Panel } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
+import { DeletePropertyButton } from "@/components/DeletePropertyButton";
 import { getProperties, formatDateTime } from "@/lib/properties";
 import { formatChf } from "@/lib/format";
 
@@ -52,6 +53,7 @@ export default async function HomePage() {
                   <th className="num">Wohnfläche</th>
                   <th>Erfasst</th>
                   <th>Bestandsrendite</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -67,6 +69,9 @@ export default async function HomePage() {
                     <td className="num mono">{formatChf(p.wohnflaeche_m2)} m²</td>
                     <td>{formatDateTime(p.created_at)}</td>
                     <td>{p.bestandsrendite_updated_at ? `erfasst (${formatDateTime(p.bestandsrendite_updated_at)})` : "—"}</td>
+                    <td>
+                      <DeletePropertyButton propertyId={p.id} label={p.title || p.address_text} />
+                    </td>
                   </tr>
                 ))}
               </tbody>

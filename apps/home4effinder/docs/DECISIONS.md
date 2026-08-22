@@ -840,6 +840,55 @@ bitte melden.
   vorhanden — ausdrücklich nur ein im Dokument genannter Wert, keine eigene
   Einschätzung.
 
+## Nachgezogen (2026-08-22): Objekt löschen (Liste), Wertvorschläge, Parkplatz-Doppelzählung, Abbrechen/Ausschliessen, Mietschätzung
+
+Auf Rückmeldung nach dem ersten Live-Test mit echten Dokumenten ("füllt jetzt viel
+besser aus") fünf UX-Optimierungen umgesetzt:
+
+- **Objekt löschen von der Objektliste aus.** `DELETE /api/properties/[id]` existierte
+  bereits (per Objektseite erreichbar), aber nicht von `/` (Objektliste) aus — dort gab
+  es gar keinen Löschweg. Neue Client-Komponente `DeletePropertyButton` pro Zeile, nutzt
+  die bestehende Route unverändert.
+- **Dropdown/Wertvorschläge für Felder mit fixen Wertsprüngen.** Bewusst als HTML
+  `<datalist>` umgesetzt statt eines echten `<select>` — das Feld bleibt frei editierbar
+  (Zahl exakt eingebbar), die Vorschläge erscheinen nur als Dropdown-Hilfe. Betrifft
+  Zimmerzahl (0.5-Schritte), Hypothekar-Zinssatz (0.25%-Schritte), 1./2. Hypothek-
+  Belehnung, Leerstand/Auslastung, 2. Hypothek-Amortisationsdauer (gesetzlich max. 15
+  Jahre), Haltedauer. Kein Zwang, keine Erfindung — nur schnellere Eingabe üblicher
+  Werte.
+- **Parkplatz-Kaufpreis: manuell steuerbar, ob er bereits im Kaufpreis enthalten ist.**
+  Bug-artige Lücke gefunden: `kaufpreisChf = property.kaufpreisChf +
+  facts.parkplatzKaufpreisChf` addierte den Parkplatzpreis IMMER zusätzlich — auch wenn
+  ein Inserat "Kaufpreis inkl. Einstellhallenplatz CHF X" bereits den Gesamtpreis nennt,
+  was zu einer stillen Doppelzählung in Investitionssumme/Schnellcheck geführt hätte.
+  Neue Checkbox `parkplatzImKaufpreisEnthalten` (Default: aus/nicht enthalten, wie
+  bisheriges Verhalten) — wenn gesetzt, wird `parkplatzKaufpreisChf` weiterhin informativ
+  erfasst, aber nicht mehr zusätzlich addiert.
+- **Abbrechen während des Hochladens + dauerhafter Synthese-Ausschluss.** Zwei separate
+  Mechanismen für "manche Dokumente dauern sehr lange": (1) ein "Abbrechen"-Button pro
+  gerade hochladender Datei (AbortController) — bricht nur das Warten auf dem Client ab,
+  der Server-Request läuft im Hintergrund zu Ende (kein Job-Abbruch, bewusst beibehaltene
+  synchrone Ein-Dokument-pro-Request-Architektur, siehe oben); `fetchJsonWithRetry`
+  wiederholt einen absichtlichen Abbruch NICHT (sonst würde "Abbrechen" den zweiten
+  Versuch auslösen). (2) ein dauerhafter Ausschluss-Toggle
+  (`excluded_from_synthesis`, Migration 0004) pro bereits hochgeladenem Dokument — für
+  Dokumente, die die Stufe-2-Synthese wiederholt zum Timeout bringen: bleibt erhalten und
+  analysiert, fliesst aber nicht mehr in die Synthese ein, bis wieder eingeschlossen.
+- **Mietschätzung als klar markierte Annahme, wenn kein Dokument einen Wert liefert.**
+  Bewusste Abweichung vom wörtlichen Wunsch ("mittels Recherche"): umgesetzt als
+  Claude-Schätzung aus allgemeinem Marktwissen (Kanton + Zimmerzahl), OHNE Live-
+  Websuche-Tool — in dieser Sandbox liess sich weder verifizieren, ob das Anthropic-
+  Konto des Auftraggebers Zugriff auf das Websuche-Tool hat, noch das Verhalten gegen
+  echte Daten testen (kein Internetzugriff/keine Produktions-Credentials hier). Eine an
+  jeder Stelle mit echten Ergebnissen ungetestete Websuche-Integration in Produktion zu
+  schicken schien riskanter als eine bewusst als grob gekennzeichnete Schätzung.
+  Deshalb: Button "Marktschätzung vorschlagen" nur sichtbar, wenn kein Dokument-/
+  Bestandswert vorliegt; das Ergebnis füllt das Feld UND zeigt dauerhaft eine
+  hervorgehobene Zeile "Annahme (KI-Schätzung, keine Live-Marktdaten) — bitte prüfen"
+  mit der von Claude selbst formulierten Einschränkung. Bei Bedarf lässt sich das später
+  auf eine echte Websuche (Anthropic Web-Search-Tool) upgraden, ohne den Aufrufer
+  (`/api/market-rent-estimate`) zu ändern.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

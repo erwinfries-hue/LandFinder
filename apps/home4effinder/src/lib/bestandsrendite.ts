@@ -43,6 +43,8 @@ export interface BestandsrenditeFacts {
   zimmerzahl?: number;
   baujahr?: number;
   parkplatzKaufpreisChf: number;
+  /** Manuell gesetzt: Inserats-/Kaufpreis (Objekt-Basisdaten) enthält den Parkplatz bereits — dann wird `parkplatzKaufpreisChf` NICHT zusätzlich addiert (verhindert Doppelzählung), bleibt aber informativ erfasst. */
+  parkplatzImKaufpreisEnthalten: boolean;
 
   stweg: StwegFacts;
 
@@ -170,7 +172,11 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   const notariatGrundbuchPercent = facts.nebenkosten.notariatGrundbuchPercent ?? P.notariatGrundbuchPercent.defaultValue;
   const maklerprovisionPercent = facts.nebenkosten.maklerprovisionPercent ?? P.maklerprovisionPercent.defaultValue;
 
-  const kaufpreisChf = property.kaufpreisChf + facts.parkplatzKaufpreisChf;
+  // Ist der Parkplatz laut Nutzer bereits im erfassten Kaufpreis (Objekt-Basisdaten)
+  // enthalten, wird `parkplatzKaufpreisChf` NICHT nochmals addiert — sonst würde der
+  // Parkplatzwert doppelt in die Investitionssumme/den Schnellcheck einfliessen.
+  const parkplatzKaufpreisZusatzChf = facts.parkplatzImKaufpreisEnthalten ? 0 : facts.parkplatzKaufpreisChf;
+  const kaufpreisChf = property.kaufpreisChf + parkplatzKaufpreisZusatzChf;
   const nebenkosten = calculateNebenkosten({ kaufpreisChf, handaenderungssteuerPercent, notariatGrundbuchPercent, maklerprovisionPercent });
 
   const renovationSummary = summarizeRenovationPositionen(facts.renovation.positionen);
@@ -199,7 +205,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   const kaufnebenkostenPercent = handaenderungssteuerPercent + notariatGrundbuchPercent + maklerprovisionPercent;
   const schnellcheck = calculateSchnellcheck({
     wohnungskaufpreisChf: property.kaufpreisChf,
-    parkplatzkaufpreisChf: facts.parkplatzKaufpreisChf,
+    parkplatzkaufpreisChf: parkplatzKaufpreisZusatzChf,
     wohnflaecheM2: property.wohnflaecheM2,
     wohnungsMieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth,
     parkplatzMieteChfPerMonth: facts.miete.parkplatzMieteChfPerMonth,
@@ -377,6 +383,7 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
       zimmerzahl: num(body.zimmerzahl),
       baujahr: num(body.baujahr),
       parkplatzKaufpreisChf: num(body.parkplatzKaufpreisChf) ?? 0,
+      parkplatzImKaufpreisEnthalten: body.parkplatzImKaufpreisEnthalten === true,
       stweg,
       nebenkosten: {
         handaenderungssteuerPercent: num(nebenkosten.handaenderungssteuerPercent),
