@@ -41,7 +41,7 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     defaultCategory: "STWEG",
     description: "Jahresrechnung bzw. Betriebskostenabrechnung der STWEG.",
     extractionGuidance:
-      "Erfasse: Gesamtbetriebskosten der Liegenschaft und deren Zusammensetzung (Verwaltung, Versicherung, Unterhalt, Hauswart, Energie); Anteil/Wertquote der geprüften Wohnung an diesen Kosten, falls ersichtlich; Auffälligkeiten wie stark schwankende oder ungewöhnlich hohe Einzelpositionen; Vergleich zur vorherigen Periode, falls mehrere Jahresrechnungen vorliegen.",
+      'Erfasse: Gesamtbetriebskosten der Liegenschaft und deren Zusammensetzung (Verwaltung, Versicherung, Unterhalt, Hauswart, Energie); Anteil/Wertquote der geprüften Wohnung an diesen Kosten, falls ersichtlich; Auffälligkeiten wie stark schwankende oder ungewöhnlich hohe Einzelpositionen; Vergleich zur vorherigen Periode, falls mehrere Jahresrechnungen vorliegen. Enthält das Dokument einen "Kostenverteiler nach Eigentümer" o.ä. mit dem effektiven Jahresbeitrag der geprüften Wohnung, diesen Betrag zusätzlich als strukturierten Fakt im facts-Feld mit GENAU dem Schlüssel "stwegAkontobeitragChfPerYear" (Zahl, CHF/Jahr) erfassen — sowie, falls dort ebenfalls ersichtlich, die Wertquote als "wertquotePromille" (Zahl, z.B. 50 für 50‰).',
   },
   BUDGET_STWEG: {
     type: "BUDGET_STWEG",
@@ -50,7 +50,7 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     defaultCategory: "STWEG",
     description: "Budgetplanung der STWEG für die laufende/kommende Periode.",
     extractionGuidance:
-      "Erfasse: budgetierte Kosten je Kategorie, geplante grössere Ausgaben, geplante Beitragsänderungen (Akontobeiträge/Erneuerungsfonds), Abweichungen zur letzten Jahresrechnung, falls beide vorliegen.",
+      'Erfasse: budgetierte Kosten je Kategorie, geplante grössere Ausgaben, geplante Beitragsänderungen (Akontobeiträge/Erneuerungsfonds), Abweichungen zur letzten Jahresrechnung, falls beide vorliegen. Enthält das Dokument eine "Budgetverteilung nach Eigentümer" o.ä. mit dem budgetierten Jahresbeitrag der geprüften Wohnung, diesen Betrag zusätzlich als strukturierten Fakt im facts-Feld mit GENAU dem Schlüssel "stwegAkontobeitragChfPerYear" (Zahl, CHF/Jahr) erfassen — sowie, falls dort ebenfalls ersichtlich, die Wertquote als "wertquotePromille" (Zahl, z.B. 50 für 50‰).',
   },
   ERNEUERUNGSFONDS: {
     type: "ERNEUERUNGSFONDS",
@@ -59,7 +59,7 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     defaultCategory: "ERNEUERUNGSFONDS",
     description: "Nachweis über Saldo und jährliche Beiträge des STWEG-Erneuerungsfonds.",
     extractionGuidance:
-      "Erfasse: aktueller Saldo; historische Entwicklung, falls mehrere Perioden ersichtlich; jährlicher Beitrag; Anteil/Wertquote der geprüften Wohnung; ausserordentliche Entnahmen; eine Einschätzung, ob der Fonds im Verhältnis zum Gebäudealter und zu bekannten/geplanten Investitionen (aus STWEG-Protokollen) ausreichend erscheint — als Einschätzung kennzeichnen, nicht als Fakt.",
+      'Erfasse: aktueller Saldo; historische Entwicklung, falls mehrere Perioden ersichtlich; jährlicher Beitrag; Anteil/Wertquote der geprüften Wohnung; ausserordentliche Entnahmen; eine Einschätzung, ob der Fonds im Verhältnis zum Gebäudealter und zu bekannten/geplanten Investitionen (aus STWEG-Protokollen) ausreichend erscheint — als Einschätzung kennzeichnen, nicht als Fakt. WICHTIG: Kapital-/Zinsausweise nennen häufig ZWEI Beträge — den GESAMTSaldo des Erneuerungsfonds der ganzen STWEG (z.B. "Bank Erneuerungsfonds ... Kapital per ...") UND separat den nach Wertquote anteiligen Betrag NUR der geprüften Wohnung ("Total Ihrer Objekte", oft deutlich kleiner). Als strukturierten Fakt "erneuerungsfondsSaldoChf" im facts-Feld IMMER den GESAMTSaldo der ganzen STWEG erfassen, NICHT den anteiligen Betrag der einzelnen Wohnung — sonst wird der Fonds fälschlich als viel kleiner eingeschätzt, als er ist. Die Wertquote separat als "wertquotePromille" (Zahl, z.B. 50 für 50‰) erfassen, falls ersichtlich.',
   },
   STWEG_REGLEMENT: {
     type: "STWEG_REGLEMENT",
@@ -93,9 +93,9 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     label: "Nebenkostenabrechnung der Wohnung",
     priority: "ZWINGEND",
     defaultCategory: "NEBENKOSTEN",
-    description: "Nebenkostenabrechnung der konkreten Wohnung (nicht der ganzen Liegenschaft).",
+    description: "Nebenkostenabrechnung der konkreten Wohnung (nicht der ganzen Liegenschaft) — entweder an einen Mieter (Nachzahlung/Guthaben-Abrechnung) oder von der STWEG-Verwaltung an den Eigentümer (Kostenanteil der Wohnung).",
     extractionGuidance:
-      "Erfasse: effektive Nebenkosten der Wohnung, Vergleich zu den im Mietvertrag akontierten Beträgen (Nachzahlung/Guthaben als Signal), Zusammensetzung der Kosten.",
+      'Zwei unterschiedliche, aber ähnlich benannte Varianten möglich — am Inhalt erkennbar, nicht am Dateinamen: (1) Mieter-Abrechnung: enthält einen Vergleich zu den im Mietvertrag akontierten Beträgen (Nachzahlung/Guthaben) — hier effektive Nebenkosten der Wohnung, den Vergleich und die Zusammensetzung der Kosten erfassen. (2) Eigentümer-Kostenanteil (von der STWEG-Verwaltung, z.B. "Betriebskostenabrechnung"): zeigt den Anteil der Wohnung an Heizkosten/allgemeinen Nebenkosten/Erneuerungsfonds nach Wertquote, KEIN Bezug zu einem Mietvertrag — hier den "Total Kosten"/"Ihr Anteil"-Betrag zusätzlich als strukturierten Fakt im facts-Feld mit GENAU dem Schlüssel "stwegAkontobeitragChfPerYear" (Zahl, CHF/Jahr) erfassen, sowie die Wertquote als "wertquotePromille" (Zahl, z.B. 50 für 50‰), falls ersichtlich. Bei Variante (2) NICHT nach einem Mietvertrags-Akonto-Vergleich suchen — der existiert dort nicht.',
   },
   GRUNDRISS: {
     type: "GRUNDRISS",
