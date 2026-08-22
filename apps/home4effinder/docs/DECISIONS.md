@@ -807,6 +807,39 @@ Betriebskostenabrechnungen, Jahresrechnung, Budget) gegen die jeweilige
   beide Varianten am Inhalt (nicht am Dateinamen) und fragt bei der Eigentümer-Variante
   ebenfalls nach `facts.stwegAkontobeitragChfPerYear`/`facts.wertquotePromille`.
 
+## Nachgezogen (2026-08-22): Miete/Parkplatzpreis/Baujahr/Wertquote als Fakten in weiteren Dokumenttypen
+
+Auf Rückfrage die restlichen Dokumenttypen systematisch gegen die bekannten
+Übernahme-Felder (`bestandsrenditeKnownFields.ts`) geprüft — **anders als die
+vorangehenden Einträge diesmal OHNE reale Beispieldokumente**, rein aus dem Abgleich
+Dokumenttyp-Beschreibung ⟷ bekannte Felder, nach demselben Muster wie zuvor real
+bestätigt. Sollte sich beim nächsten Live-Test etwas davon als unpassend erweisen,
+bitte melden.
+
+- **`MIETVERTRAG`** — die wichtigste Lücke: Nettomiete und Parkplatzmiete wurden bisher
+  nur als Fliesstext verlangt ("Erfasse: Nettomiete Wohnung; Miete Garage/Parkplatz;
+  ..."), obwohl `miete.wohnungsMieteChfPerMonth`/`miete.parkplatzMieteChfPerMonth`
+  bekannte Übernahme-Felder sind, die direkt in die Renditeberechnung einfliessen —
+  vermutlich der folgenreichste blinde Fleck von allen bisher gefundenen. Jetzt
+  zusätzlich als `facts.wohnungsMieteChfPerMonth`/`facts.parkplatzMieteChfPerMonth`
+  verlangt.
+- **`PARKPLATZ_UNTERLAGEN`** — falls ein separater Parkplatz-Kaufpreis genannt wird
+  (z.B. in einer Kaufabrechnung), jetzt zusätzlich als `facts.parkplatzKaufpreisChf`
+  verlangt (bisher nur `EXPOSE_INSERAT` fragte danach, siehe Eintrag oben).
+- **`BAUBESCHRIEB`** — nennt "Baujahr" schon in der Fliesstext-Anleitung, jetzt
+  zusätzlich als `facts.baujahr` verlangt (dieselbe Lücke wie zuvor bei
+  `GEBAEUDEVERSICHERUNG` gefunden). Bewusst NICHT bei `HEIZUNG_SERVICE` ergänzt, obwohl
+  dort ebenfalls "Baujahr/Alter" erwähnt wird — das bezieht sich dort auf das Alter der
+  Heizungsanlage, nicht des Gebäudes, ein `facts.baujahr` von dort wäre eine falsche
+  Quelle.
+- **`STWEG_BEGRUENDUNG`** — nennt "Wertquote der Wohnung" bereits in der
+  Fliesstext-Anleitung, jetzt zusätzlich als `facts.wertquotePromille` verlangt.
+- **`ERNEUERUNGSFONDS`** — zusätzlich zum bereits behobenen Gesamtsaldo/Wohnungsanteil-
+  Problem (siehe oben) jetzt auch nach einem im Dokument/Reglement explizit genannten
+  Ziel-/Sollwert des Fonds als `facts.erneuerungsfondsZielwertChf` gefragt, sofern
+  vorhanden — ausdrücklich nur ein im Dokument genannter Wert, keine eigene
+  Einschätzung.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
