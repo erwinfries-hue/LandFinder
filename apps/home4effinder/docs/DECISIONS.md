@@ -770,6 +770,43 @@ Schriftgrössen, Zeilenhöhen oder Farben angefasst, damit die Lesbarkeit unver�
   gerendert werden konnte — bittet um kurze Rückmeldung nach dem Deploy, ob die
   Live-Ansicht mit echten (teils längeren) Textinhalten ebenfalls stimmt.
 
+## Nachgezogen (2026-08-22): STWEG-Akontobeitrag/Erneuerungsfonds-Saldo/Wertquote als strukturierte Fakten
+
+Auf Bitte des Auftraggebers ("Prüfe zuerst die Dokumententypen") systematisch alle
+mitgelieferten Dokumente eines realen Objekts (Kapital-/Zinsausweis, STWEG-Protokolle,
+Betriebskostenabrechnungen, Jahresrechnung, Budget) gegen die jeweilige
+`extractionGuidance` geprüft — drei weitere konkrete, belegte Lücken gefunden:
+
+- **Erneuerungsfonds: Gesamtsaldo vs. Wohnungs-Anteil.** Kapital-/Zinsausweise nennen
+  fast immer ZWEI Beträge nebeneinander: den Gesamtsaldo des Erneuerungsfonds der
+  ganzen STWEG (z.B. CHF 202'706) UND separat den nach Wertquote anteiligen Betrag nur
+  der geprüften Wohnung (z.B. CHF 10'135, ca. 5% davon). Die bisherige Anleitung
+  ("erfasse aktueller Saldo") liess offen, welcher der beiden gemeint ist — riskiert,
+  dass der Fonds fälschlich als winzig statt gesund eingeschätzt wird, wenn der
+  Wohnungs-Anteil statt des Gesamtsaldos erfasst wird. `ERNEUERUNGSFONDS.extractionGuidance`
+  verlangt jetzt explizit den GESAMTSaldo als `facts.erneuerungsfondsSaldoChf`.
+- **STWEG-Akontobeitrag der Wohnung fehlte als strukturierter Fakt.** Der tatsächliche
+  Jahresbeitrag der geprüften Wohnung an die STWEG (Heizkosten- + Nebenkosten- +
+  Erneuerungsfonds-Anteil nach Wertquote) taucht je nach hochgeladenem Dokument in
+  einem von DREI verschiedenen Dokumenttypen auf: `JAHRESRECHNUNG` ("Kostenverteiler
+  nach Eigentümer"), `BUDGET_STWEG` ("Budgetverteilung nach Eigentümer") oder einer
+  eigentümerseitigen "Betriebskostenabrechnung" (siehe nächster Punkt) — keiner davon
+  fragte bisher strukturiert danach, obwohl `betriebskosten.stwegAkontobeitragChfPerYear`
+  ein bekanntes Übernahme-Feld ist. Alle drei Typen fragen jetzt zusätzlich nach
+  `facts.stwegAkontobeitragChfPerYear`, wo der Betrag ersichtlich ist — ebenso nach
+  `facts.wertquotePromille`, die in denselben Dokumenten praktisch immer mitsteht.
+- **`NEBENKOSTENABRECHNUNG` deckte nur die Mieter-Variante ab.** Diese Kategorie war
+  bisher ausschliesslich für die MIETER-Nebenkostenabrechnung formuliert (Vergleich zu
+  Mietvertrag-Akonto). Eine reale, ähnlich benannte Datei
+  ("Betriebskosten_Wohnung_[Jahr].pdf") stellte sich beim Lesen aber als
+  EIGENTÜMER-seitige STWEG-Kostenanteilsabrechnung heraus (Heizkosten-/
+  Nebenkosten-/Erneuerungsfonds-Anteil nach Wertquote, kein Mietvertragsbezug) — beide
+  Varianten sehen vom Dateinamen her ähnlich aus, sind inhaltlich aber grundverschieden.
+  Mit der alten Anleitung hätte Claude nach einem nicht vorhandenen
+  Mietvertrags-Akonto-Vergleich gesucht. Die Anleitung unterscheidet jetzt explizit
+  beide Varianten am Inhalt (nicht am Dateinamen) und fragt bei der Eigentümer-Variante
+  ebenfalls nach `facts.stwegAkontobeitragChfPerYear`/`facts.wertquotePromille`.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
