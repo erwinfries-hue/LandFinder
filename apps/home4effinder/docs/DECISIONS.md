@@ -889,6 +889,38 @@ besser aus") fünf UX-Optimierungen umgesetzt:
   auf eine echte Websuche (Anthropic Web-Search-Tool) upgraden, ohne den Aufrufer
   (`/api/market-rent-estimate`) zu ändern.
 
+## Nachgezogen (2026-08-22): Widersprüche als strukturierte Auswahl statt nur Fliesstext
+
+Auf Rückmeldung: Widersprüche zwischen Quellen (bisher nur als einzelne Funde mit
+`isContradiction: true` innerhalb einer Kategorie sichtbar, ohne erkennbaren
+Zusammenhang zwischen den beiden widersprechenden Aussagen) sollen dem Nutzer als
+Auswahl vorgelegt werden — mit Quelle je Option, damit er entscheiden kann, was stimmt.
+
+- Neuer Domain-Typ `DueDiligenceContradiction` (`packages/domain/src/dueDiligence.ts`):
+  `topic` (kurzer Sachverhalt, z.B. "Zimmerzahl"), `category`, optional `field` (nur
+  gesetzt, wenn der Sachverhalt einem bekannten Bestandsrendite-Übernahme-Feld
+  entspricht, siehe `ALLOWED_UPDATE_FIELDS`), und `options[]` — jede Option mit `value`
+  UND vollem Quellenbeleg (`sourceDocumentName`/`sourcePage`/`sourceQuote`). Neues Feld
+  `contradictions` auf `DueDiligenceResult`.
+- Die bisherigen `isContradiction`-Funde in den Kategorien bleiben unverändert bestehen
+  (weiterhin Teil der Fliesstext-Einschätzung je Kategorie) — der Prompt weist das LLM
+  zusätzlich an, für JEDEN so markierten Fund einen entsprechenden Eintrag in
+  `contradictions` zu erzeugen. Bewusst additiv statt ersetzend: geringeres Risiko, die
+  bestehende Kategorien-Darstellung nicht zu verändern.
+- Ein Widerspruch mit weniger als zwei Optionen wird beim Parsen verworfen (keine
+  irreführende Ein-Options-"Auswahl") — ebenso ein `field`, das keinem der bekannten
+  Feldpfade entspricht (wird nur weggelassen, der Widerspruch selbst bleibt informativ
+  sichtbar, damit auch nicht-strukturierte Widersprüche — z.B. "Sanierung beschlossen
+  oder abgelehnt?" — als Auswahl-Liste samt Quelle erscheinen, nur ohne
+  Übernehmen-Button).
+- UI (`DueDiligencePanel.tsx`): neue Sektion "Widersprüchliche Angaben — bitte
+  entscheiden" direkt nach der Gesamteinschätzung, vor den Kategorien — pro Widerspruch
+  eine Liste der konkurrierenden Werte inkl. Quelle; nur wenn `field` gesetzt ist, ein
+  "Das stimmt — übernehmen"-Button je Option. Bewusst der bereits bestehende
+  `handleApplyProposal`-Mechanismus (identisch zu den `fieldUpdateProposals`) statt
+  einer neuen Route — dieselbe geschlossene Feld-Allowlist, dieselbe explizite
+  Bestätigung, kein neuer Codepfad nötig.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

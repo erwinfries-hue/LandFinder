@@ -479,6 +479,52 @@ export function DueDiligencePanel({
           </div>
           {result.overallSummary ? <p className="lede" style={{ fontSize: "1rem", marginBottom: "0.9rem" }}>{result.overallSummary}</p> : null}
 
+          {result.contradictions.length > 0 ? (
+            <>
+              <div className="sectionhead">
+                <h2 style={{ fontSize: ".85rem" }}>Widersprüchliche Angaben — bitte entscheiden</h2>
+              </div>
+              <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: "0 0 .6rem" }}>
+                Die Quellen widersprechen sich bei folgenden Punkten. Wähle pro Punkt den zutreffenden Wert — bei
+                bekannten Feldern lässt er sich direkt übernehmen.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: ".6rem", marginBottom: "1rem" }}>
+                {result.contradictions.map((contradiction, i) => (
+                  <div key={i} style={{ border: "1px solid var(--warn)", borderRadius: "6px", padding: ".6rem .85rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: ".6rem", marginBottom: ".5rem" }}>
+                      <Chip tone="warn">Widerspruch</Chip>
+                      <strong style={{ fontSize: ".8125rem" }}>{contradiction.topic}</strong>
+                      <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>({CATEGORY_LABEL[contradiction.category] ?? contradiction.category})</span>
+                    </div>
+                    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
+                      {contradiction.options.map((option, j) => (
+                        <li key={j} style={{ fontSize: ".8125rem", display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
+                          <strong>{option.value}</strong>
+                          <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>
+                            laut {option.sourceDocumentName || "unbekannter Quelle"}
+                            {option.sourcePage ? `, Seite ${option.sourcePage}` : ""}
+                            {option.sourceQuote ? `: „${option.sourceQuote}“` : ""}
+                          </span>
+                          {contradiction.field ? (
+                            <button
+                              type="button"
+                              className="btn"
+                              style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
+                              disabled={applying === contradiction.field}
+                              onClick={() => handleApplyProposal(contradiction.field!, option.value)}
+                            >
+                              {applying === contradiction.field ? "Übernimmt…" : "Das stimmt — übernehmen"}
+                            </button>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+
           <div style={{ display: "flex", flexDirection: "column", gap: ".6rem", marginBottom: "1rem" }}>
             {result.categories.map((c) => (
               <div key={c.category} style={{ border: "1px solid var(--line)", borderRadius: "6px", padding: ".6rem .85rem" }}>

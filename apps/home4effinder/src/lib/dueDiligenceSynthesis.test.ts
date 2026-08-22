@@ -54,7 +54,10 @@ const documents: SynthesisDocumentInput[] = [
   { id: "doc-1", filename: "stweg-protokoll-2024.pdf", documentType: "STWEG_PROTOKOLL", summary: "x", facts: {}, findings: [] },
   { id: "doc-2", filename: "grundbuch.pdf", documentType: "GRUNDBUCHAUSZUG", summary: "x", facts: {}, findings: [] },
 ];
-const knownFields: SynthesisKnownField[] = [{ field: "miete.wohnungsMieteChfPerMonth", label: "Nettomiete", currentValue: 1200 }];
+const knownFields: SynthesisKnownField[] = [
+  { field: "miete.wohnungsMieteChfPerMonth", label: "Nettomiete", currentValue: 1200 },
+  { field: "zimmerzahl", label: "Zimmerzahl" },
+];
 
 describe("parseSynthesisResponse", () => {
   it("parst eine vollständige, gültige Antwort inkl. Auflösung von sourceDocumentId auf den echten Dateinamen", () => {
@@ -134,6 +137,72 @@ describe("parseSynthesisResponse", () => {
   });
 });
 
+describe("parseSynthesisResponse — contradictions", () => {
+  it("parst einen vollständigen Widerspruch inkl. Auflösung von sourceDocumentId auf den echten Dateinamen", () => {
+    const json = JSON.stringify({
+      categories: [],
+      sellerQuestions: [],
+      fieldUpdateProposals: [],
+      contradictions: [
+        {
+          topic: "Zimmerzahl",
+          category: "DOKUMENTENVOLLSTAENDIGKEIT",
+          field: "zimmerzahl",
+          options: [
+            { value: 3.5, sourceDocumentId: "doc-1", sourcePage: 1, sourceQuote: "3.5-Zimmerwohnung" },
+            { value: 4, sourceDocumentId: "doc-2" },
+          ],
+        },
+      ],
+    });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    expect(result.contradictions).toHaveLength(1);
+    expect(result.contradictions[0]).toMatchObject({ topic: "Zimmerzahl", field: "zimmerzahl" });
+    expect(result.contradictions[0].options).toHaveLength(2);
+    expect(result.contradictions[0].options[0]).toMatchObject({ value: 3.5, sourceDocumentName: "stweg-protokoll-2024.pdf", sourcePage: 1 });
+    expect(result.contradictions[0].options[1]).toMatchObject({ value: 4, sourceDocumentName: "grundbuch.pdf" });
+  });
+
+  it("lässt field weg, wenn es keinem bekannten Feldpfad entspricht — bleibt informativ statt erfundenen Feldnamen zu tragen", () => {
+    const json = JSON.stringify({
+      categories: [],
+      sellerQuestions: [],
+      fieldUpdateProposals: [],
+      contradictions: [{ topic: "Sanierungsstatus", category: "STWEG", field: "erfundenes.feld", options: [{ value: "beschlossen", sourceDocumentId: "doc-1" }, { value: "abgelehnt", sourceDocumentId: "doc-2" }] }],
+    });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    expect(result.contradictions[0].field).toBeUndefined();
+  });
+
+  it("verwirft einen Widerspruch mit weniger als zwei Optionen", () => {
+    const json = JSON.stringify({
+      categories: [],
+      sellerQuestions: [],
+      fieldUpdateProposals: [],
+      contradictions: [{ topic: "Zimmerzahl", category: "DOKUMENTENVOLLSTAENDIGKEIT", options: [{ value: 3.5, sourceDocumentId: "doc-1" }] }],
+    });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    expect(result.contradictions).toHaveLength(0);
+  });
+
+  it("verwirft einen Widerspruch mit unbekannter category, statt eine erfundene Kategorie zu übernehmen", () => {
+    const json = JSON.stringify({
+      categories: [],
+      sellerQuestions: [],
+      fieldUpdateProposals: [],
+      contradictions: [{ topic: "x", category: "ERFUNDENE_KATEGORIE", options: [{ value: 1, sourceDocumentId: "doc-1" }, { value: 2, sourceDocumentId: "doc-2" }] }],
+    });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    expect(result.contradictions).toHaveLength(0);
+  });
+
+  it("liefert eine leere contradictions-Liste, wenn das Feld im Antwort-JSON fehlt", () => {
+    const json = JSON.stringify({ categories: [], sellerQuestions: [], fieldUpdateProposals: [] });
+    const result = parseSynthesisResponse(json, documents, knownFields);
+    expect(result.contradictions).toEqual([]);
+  });
+});
+
 describe("parseSynthesisResponse — deterministisches Auffüllen nicht genannter Kategorien", () => {
   it("füllt eine vom LLM ausgelassene Kategorie mit einem 'kein Dokument'-Platzhalter, wenn dafür wirklich nichts hochgeladen wurde", () => {
     const json = JSON.stringify({ categories: [], sellerQuestions: [], fieldUpdateProposals: [] });
@@ -186,5 +255,14 @@ describe("buildSynthesisToolSchema", () => {
     const categoryItems = (properties.categories as { items: { properties: Record<string, unknown> } }).items.properties;
     expect(categoryItems.category).toMatchObject({ enum: CATEGORY_ORDER });
     expect(categoryItems.status).toMatchObject({ enum: ["OK", "KLAERUNGSBEDARF", "RISIKO"] });
+  });
+
+  it("schränkt contradictions.field ebenfalls auf die übergebenen bekannten Feldpfade ein", () => {
+    const fields: SynthesisKnownField[] = [{ field: "zimmerzahl", label: "Zimmerzahl" }];
+    const schema = buildSynthesisToolSchema(fields);
+    const properties = schema.properties as Record<string, unknown>;
+    const contradictionItems = (properties.contradictions as { items: { properties: Record<string, unknown> } }).items.properties;
+    expect(contradictionItems.field).toMatchObject({ enum: ["zimmerzahl"] });
+    expect(contradictionItems.category).toMatchObject({ enum: CATEGORY_ORDER });
   });
 });

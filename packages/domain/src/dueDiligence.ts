@@ -109,6 +109,31 @@ export interface DueDiligenceCategoryResult {
   findings: DueDiligenceFinding[];
 }
 
+/** Ein Kandidatwert für einen erkannten Widerspruch — samt Quellenbeleg, damit der Nutzer nachvollziehen kann, WORAUS der Wert stammt, bevor er sich entscheidet. */
+export interface DueDiligenceContradictionOption {
+  value: string | number;
+  sourceDocumentId?: string;
+  sourceDocumentName: string;
+  sourcePage?: number;
+  sourceQuote?: string;
+}
+
+/**
+ * Ein von der Synthese erkannter Widerspruch zwischen zwei oder mehr Quellen zu EINEM
+ * Sachverhalt (z.B. Zimmerzahl laut Inserat vs. laut Grundriss) — strukturiert mit den
+ * konkurrierenden Werten samt Quelle, statt nur als Fliesstext-Fund. Ermöglicht dem
+ * Nutzer im UI, direkt zwischen den Optionen zu wählen ("was stimmt?") statt die
+ * Diskrepanz nur zu lesen. `field` ist nur gesetzt, wenn der Sachverhalt einem bekannten
+ * Bestandsrendite-Übernahme-Feld entspricht (siehe ALLOWED_UPDATE_FIELDS) — nur dann
+ * lässt sich eine gewählte Option direkt übernehmen, sonst bleibt es rein informativ.
+ */
+export interface DueDiligenceContradiction {
+  topic: string;
+  category: DueDiligenceCategory;
+  field?: string;
+  options: DueDiligenceContradictionOption[];
+}
+
 /** Ergebnis der Stufe-2-Synthese über alle hochgeladenen Dokumente eines Objekts hinweg. */
 export interface DueDiligenceResult {
   overallStatus: DueDiligenceSeverity;
@@ -123,6 +148,7 @@ export interface DueDiligenceResult {
   missingDocuments: DueDiligenceMissingDocument[];
   sellerQuestions: DueDiligenceSellerQuestion[];
   fieldUpdateProposals: DueDiligenceFieldUpdateProposal[];
+  contradictions: DueDiligenceContradiction[];
 }
 
 /**
