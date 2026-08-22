@@ -242,7 +242,13 @@ export function PropertyCreateForm() {
     setSaving(true);
 
     try {
-      const res = await fetch("/api/properties", {
+      // fetchJsonWithRetry statt einfachem fetch — derselbe eine automatische
+      // Wiederholungsversuch wie beim Dokumenten-Upload/der Synthese, hier gegen
+      // vereinzelte mobile Netzwerkaussetzer beim Abschluss-Klick (die eigentlichen
+      // Schreibzugriffe selbst sind einfache, schnelle DB-Inserts/-Updates ohne
+      // LLM-Aufruf — anders als bei der Synthese ist ein echter Server-Timeout hier
+      // unwahrscheinlich, ein kurzer Verbindungsabbruch aber nicht).
+      const body = await fetchJsonWithRetry<{ saved?: boolean; id?: string; error?: string }>("/api/properties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -253,8 +259,7 @@ export function PropertyCreateForm() {
           listingUrl: listingUrl.trim(),
         }),
       });
-      const body = (await res.json()) as { saved?: boolean; id?: string; error?: string };
-      if (!res.ok || !body.saved || !body.id) {
+      if (!body.saved || !body.id) {
         setError(body.error ?? "Anlegen fehlgeschlagen.");
         return;
       }
@@ -262,7 +267,7 @@ export function PropertyCreateForm() {
 
       const formData = new FormData(event.currentTarget);
       const facts = buildBestandsrenditeFactsFromFormData(formData, vermietungsmodell, renovationPositionen);
-      await fetch(`/api/properties/${propertyId}/bestandsrendite`, {
+      await fetchJsonWithRetry(`/api/properties/${propertyId}/bestandsrendite`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(facts),

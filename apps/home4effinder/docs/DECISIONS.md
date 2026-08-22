@@ -999,6 +999,16 @@ Synthese statt eines einzelnen Aufrufs über alle Dokumente — bewusst nicht vo
 da architektonisch deutlich aufwendiger und ohne Live-Zugriff hier nicht token-genau
 verifizierbar.
 
+Zusätzlich ein zweiter, unabhängiger "Netzwerkfehler" im selben Testlauf gemeldet — diesmal
+beim finalen Klick auf "Bestandsrendite speichern" (`PropertyCreateForm.tsx::handleSubmit`,
+"Anlegen fehlgeschlagen (Netzwerkfehler)."). Geprüft: sowohl `POST /api/properties` als auch
+`POST /api/properties/[id]/bestandsrendite` sind einfache, schnelle DB-Inserts/-Updates ohne
+LLM-Aufruf — ein echter 60-Sekunden-Server-Timeout ist hier praktisch ausgeschlossen, ein
+kurzer mobiler Verbindungsabbruch beim Abschluss-Klick dagegen plausibel. Auffällig: anders
+als beim Dokumenten-Upload und der Synthese verwendeten genau diese beiden Aufrufe noch
+einfaches `fetch` statt `fetchJsonWithRetry` — Inkonsistenz behoben, beide nutzen jetzt
+denselben einen automatischen Wiederholungsversuch wie der Rest der App.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
