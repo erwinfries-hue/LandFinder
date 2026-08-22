@@ -19,6 +19,7 @@ export interface DueDiligenceDocumentRow {
   analysis_status: string;
   analysis_error: string | null;
   extraction: { summary?: string; findings?: unknown[] } | null;
+  excluded_from_synthesis: boolean;
 }
 
 const SEVERITY_TONE: Record<DueDiligenceSeverity, ChipTone> = { OK: "good", KLAERUNGSBEDARF: "warn", RISIKO: "bad" };
@@ -31,7 +32,7 @@ type StagedFile = { file: File; documentType: DueDiligenceDocumentType; guessed:
 /** Bewusst dieselbe Grenze wie `MAX_PASTED_TEXT_LENGTH` in dueDiligenceExtraction.ts (nicht von dort importiert, um den Anthropic-SDK-Server-Code nicht ins Client-Bundle zu ziehen). */
 const MAX_PASTED_TEXT_LENGTH = 200_000;
 
-type UploadState = { filename: string; status: "UPLOADING" | "DONE" | "FAILED"; error?: string };
+type UploadState = { filename: string; status: "UPLOADING" | "DONE" | "FAILED" | "CANCELLED"; error?: string; controller?: AbortController };
 
 export function DueDiligencePanel({
   propertyId,
@@ -57,6 +58,7 @@ export function DueDiligencePanel({
   const [applying, setApplying] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [reanalyzing, setReanalyzing] = useState<string | null>(null);
+  const [togglingExcluded, setTogglingExcluded] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
 
   function handleFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
@@ -93,8 +95,9 @@ export function DueDiligencePanel({
     const toUpload = stagedFiles;
     setStagedFiles([]);
 
+    const controllers = toUpload.map(() => new AbortController());
     setUploading(true);
-    setUploads(toUpload.map((s) => ({ filename: s.file.name, status: "UPLOADING" as const })));
+    setUploads(toUpload.map((s, i) => ({ filename: s.file.name, status: "UPLOADING" as const, controller: controllers[i] })));
 
     for (let i = 0; i < toUpload.length; i++) {
       const { file, documentType } = toUpload[i];
@@ -102,15 +105,37 @@ export function DueDiligencePanel({
         const formData = new FormData();
         formData.append("file", file);
         formData.append("documentType", documentType);
-        const body = await fetchJsonWithRetry<{ status?: string; error?: string }>(`/api/properties/${propertyId}/documents`, { method: "POST", body: formData });
+        const body = await fetchJsonWithRetry<{ status?: string; error?: string }>(`/api/properties/${propertyId}/documents`, {
+          method: "POST",
+          body: formData,
+          signal: controllers[i].signal,
+        });
         setUploads((prev) => prev.map((u, idx) => (idx === i ? { ...u, status: body.status === "DONE" ? "DONE" : "FAILED", error: body.error } : u)));
-      } catch {
-        setUploads((prev) => prev.map((u, idx) => (idx === i ? { ...u, status: "FAILED", error: "Netzwerkfehler" } : u)));
+      } catch (err) {
+        const aborted = err instanceof Error && err.name === "AbortError";
+        setUploads((prev) =>
+          prev.map((u, idx) => (idx === i ? { ...u, status: aborted ? "CANCELLED" : "FAILED", error: aborted ? undefined : "Netzwerkfehler" } : u)),
+        );
       }
     }
 
     setUploading(false);
     router.refresh();
+  }
+
+  /**
+   * Bricht die Warte auf ein einzelnes, gerade hochladendes/analysierendes Dokument ab —
+   * die Analyse dauert bei grossen/gescannten PDFs mitunter sehr lange. Der Server-Request
+   * läuft im Hintergrund zu Ende (kein Job-Abbruch, siehe documents/route.ts), aber der
+   * Nutzer muss nicht mehr darauf warten und kann mit den übrigen Dateien weiterarbeiten;
+   * das begonnene Dokument taucht nach "Aktualisieren" der Seite ggf. trotzdem fertig
+   * analysiert in der Liste unten auf.
+   */
+  function handleCancelUpload(index: number) {
+    setUploads((prev) => {
+      prev[index]?.controller?.abort();
+      return prev;
+    });
   }
 
   async function handleSynthesize() {
@@ -177,6 +202,34 @@ export function DueDiligencePanel({
     }
   }
 
+  /**
+   * Schaltet den dauerhaften Ausschluss eines bereits hochgeladenen Dokuments aus der
+   * Synthese um (`excluded_from_synthesis`, siehe Migration 0004) — für Dokumente, die
+   * die Synthese unnötig verlangsamen oder wiederholt zum Timeout führen. Das Dokument
+   * bleibt erhalten und weiter analysiert, wird nur nicht mehr an Stufe 2 übergeben, bis
+   * es wieder eingeschlossen wird.
+   */
+  async function handleToggleExcluded(documentId: string, currentlyExcluded: boolean) {
+    setTogglingExcluded(documentId);
+    try {
+      const res = await fetch(`/api/properties/${propertyId}/documents/${documentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excludedFromSynthesis: !currentlyExcluded }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { saved?: boolean; error?: string };
+      if (!res.ok || !body.saved) {
+        window.alert(body.error ?? "Aktualisieren fehlgeschlagen.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      window.alert("Aktualisieren fehlgeschlagen (Netzwerkfehler).");
+    } finally {
+      setTogglingExcluded(null);
+    }
+  }
+
   async function handleCopyEmailDraft(text: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -189,6 +242,7 @@ export function DueDiligencePanel({
   }
 
   const result = initialDueDiligence?.result ?? null;
+  const excludedCount = initialDocuments.filter((d) => d.excluded_from_synthesis).length;
 
   return (
     <Panel style={{ padding: "1rem 1.2rem", marginTop: "1.1rem" }}>
@@ -278,7 +332,7 @@ export function DueDiligencePanel({
 
       {uploads.length > 0 ? (
         <ul style={{ listStyle: "none", margin: "0 0 0.9rem", padding: 0, display: "flex", flexDirection: "column", gap: ".3rem" }}>
-          {uploads.map((u) => (
+          {uploads.map((u, i) => (
             <li key={u.filename} style={{ fontSize: ".8125rem", display: "flex", gap: ".5rem", alignItems: "center" }}>
               <Chip tone={u.status === "DONE" ? "good" : u.status === "FAILED" ? "bad" : "neutral"}>
                 {u.status === "UPLOADING" ? (
@@ -288,12 +342,26 @@ export function DueDiligencePanel({
                   </>
                 ) : u.status === "DONE" ? (
                   "Analysiert"
+                ) : u.status === "CANCELLED" ? (
+                  "Abgebrochen"
                 ) : (
                   "Fehler"
                 )}
               </Chip>
               {u.filename}
-              {u.status === "UPLOADING" ? <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>kann bis zu einer Minute dauern…</span> : null}
+              {u.status === "UPLOADING" ? (
+                <>
+                  <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>kann bis zu einer Minute dauern…</span>
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ width: "auto", padding: ".1rem .45rem", fontSize: ".7rem", marginLeft: "auto" }}
+                    onClick={() => handleCancelUpload(i)}
+                  >
+                    Abbrechen
+                  </button>
+                </>
+              ) : null}
               {u.error ? <span style={{ color: "var(--bad)" }}>— {u.error}</span> : null}
             </li>
           ))}
@@ -320,37 +388,49 @@ export function DueDiligencePanel({
                     <li key={d.id} style={{ fontSize: ".8125rem" }}>
                       <div style={{ display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
                         <Chip tone={d.analysis_status === "DONE" ? "good" : d.analysis_status === "FAILED" ? "bad" : "neutral"}>{d.analysis_status}</Chip>
+                        {d.excluded_from_synthesis ? <Chip tone="warn">Von Synthese ausgeschlossen</Chip> : null}
                         <strong>{DOCUMENT_TYPE_CATALOG[d.document_type as DueDiligenceDocumentType]?.label ?? d.document_type}</strong>
                         <span style={{ color: "var(--ink-faint)" }}>{d.original_filename}</span>
                         <span style={{ color: "var(--ink-faint)" }}>{formatDateTime(d.uploaded_at)}</span>
                         {d.analysis_error ? <span style={{ color: "var(--bad)" }}>— {d.analysis_error}</span> : null}
-                        {d.analysis_status === "FAILED" ? (
+                        <div style={{ display: "flex", gap: ".4rem", marginLeft: "auto" }}>
+                          {d.analysis_status === "FAILED" ? (
+                            <button
+                              type="button"
+                              className="btn"
+                              style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem" }}
+                              disabled={reanalyzing === d.id}
+                              onClick={() => handleReanalyzeDocument(d.id)}
+                            >
+                              {reanalyzing === d.id ? (
+                                <>
+                                  <span className="spinner" aria-hidden="true" />
+                                  Analysiert…
+                                </>
+                              ) : (
+                                "Erneut analysieren"
+                              )}
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             className="btn"
-                            style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
-                            disabled={reanalyzing === d.id}
-                            onClick={() => handleReanalyzeDocument(d.id)}
+                            style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem" }}
+                            disabled={togglingExcluded === d.id}
+                            onClick={() => handleToggleExcluded(d.id, d.excluded_from_synthesis)}
                           >
-                            {reanalyzing === d.id ? (
-                              <>
-                                <span className="spinner" aria-hidden="true" />
-                                Analysiert…
-                              </>
-                            ) : (
-                              "Erneut analysieren"
-                            )}
+                            {togglingExcluded === d.id ? "…" : d.excluded_from_synthesis ? "Wieder einschliessen" : "Von Synthese ausschliessen"}
                           </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          className="btn"
-                          style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: d.analysis_status === "FAILED" ? 0 : "auto" }}
-                          disabled={deleting === d.id}
-                          onClick={() => handleDeleteDocument(d.id, d.original_filename)}
-                        >
-                          {deleting === d.id ? "Löscht…" : "Löschen"}
-                        </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem" }}
+                            disabled={deleting === d.id}
+                            onClick={() => handleDeleteDocument(d.id, d.original_filename)}
+                          >
+                            {deleting === d.id ? "Löscht…" : "Löschen"}
+                          </button>
+                        </div>
                       </div>
                       {/* Sofortiges Feedback aus Stufe 1 — sonst sieht der Nutzer vor dem nächsten
                           "Due-Diligence aktualisieren" nichts vom bereits extrahierten Inhalt. */}
@@ -379,6 +459,11 @@ export function DueDiligencePanel({
         </button>
         {initialDueDiligence?.generated_at ? (
           <span style={{ color: "var(--ink-faint)", fontSize: ".78rem" }}>Zuletzt aktualisiert: {formatDateTime(initialDueDiligence.generated_at)}</span>
+        ) : null}
+        {excludedCount > 0 ? (
+          <span style={{ color: "var(--ink-faint)", fontSize: ".78rem" }}>
+            {excludedCount} Dokument{excludedCount === 1 ? "" : "e"} von der Synthese ausgeschlossen
+          </span>
         ) : null}
       </div>
       {synthesisError ? <p style={{ color: "var(--bad)", fontSize: ".8125rem" }}>{synthesisError}</p> : null}

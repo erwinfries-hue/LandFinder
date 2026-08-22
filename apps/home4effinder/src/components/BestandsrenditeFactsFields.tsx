@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { BESTANDSRENDITE_PARAMETERS, type Vermietungsmodell, type RenovationPosition, type RenovationKategorie, type SteuerlicheAbzugsfaehigkeit, type AmortisationModus } from "@landfinder/financial-engine";
 import type { BestandsrenditeFacts } from "@/lib/bestandsrendite";
 import { getCantonDefaults } from "@/lib/cantonDefaults";
@@ -14,6 +14,32 @@ export const STEUERLICHE_ABZUGSFAEHIGKEIT_LABEL: Record<SteuerlicheAbzugsfaehigk
 
 export function emptyRenovationPosition(): RenovationPosition {
   return { betragChf: 0, kategorie: "WERTERHALTEND", jahr: new Date().getFullYear(), steuerlicheAbzugsfaehigkeit: "UNKLAR" };
+}
+
+/**
+ * Wertvorschläge (HTML-`<datalist>`, keine erzwungene Auswahl — das Feld bleibt frei
+ * editierbar, "nichts wird erfunden") für Felder, bei denen in der Praxis nur wenige,
+ * feste Werte üblich sind statt eines Kontinuums (z.B. Zimmerzahl in 0.5-Schritten,
+ * Hypothekar-Zinssätze in 0.25%-Schritten, 2. Hypothek gesetzlich binnen 15 Jahren zu
+ * amortisieren).
+ */
+const ZIMMERZAHL_OPTIONS = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8];
+const ZINSSATZ_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 4];
+const ERSTE_BELEHNUNG_OPTIONS = [50, 60, 65];
+const ZWEITE_BELEHNUNG_OPTIONS = [0, 5, 10, 15, 20];
+const LEERSTAND_OPTIONS = [0, 1, 2, 3, 5, 7, 10];
+const AUSLASTUNG_OPTIONS = [100, 95, 90, 85, 80, 75, 70, 60];
+const AMORTISATIONSDAUER_OPTIONS = [10, 15];
+const HOLDING_PERIOD_OPTIONS = [5, 10, 15, 20, 25, 30];
+
+function NumberOptions({ id, values }: { id: string; values: number[] }) {
+  return (
+    <datalist id={id}>
+      {values.map((v) => (
+        <option key={v} value={v} />
+      ))}
+    </datalist>
+  );
 }
 
 /**
@@ -54,6 +80,47 @@ export function BestandsrenditeFactsFields({
   const P = BESTANDSRENDITE_PARAMETERS;
   const [ersteAmortisationModus, setErsteAmortisationModus] = useState<AmortisationModus>(existing?.hypothek.ersteHypothek.amortisation.modus ?? "PROZENT_PRO_JAHR");
   const [zweiteAmortisationModus, setZweiteAmortisationModus] = useState<AmortisationModus>(existing?.hypothek.zweiteHypothek.amortisation.modus ?? "DAUER_JAHRE");
+  const zimmerzahlInputRef = useRef<HTMLInputElement>(null);
+  const wohnungsMieteInputRef = useRef<HTMLInputElement>(null);
+  const [rentEstimate, setRentEstimate] = useState<{ value: number; rationale: string } | null>(null);
+  const [estimatingRent, setEstimatingRent] = useState(false);
+  const [rentEstimateError, setRentEstimateError] = useState<string | null>(null);
+
+  /**
+   * Mietschätzung via Claudes allgemeinem Marktwissen (KEINE Live-Recherche, siehe
+   * marketRentEstimate.ts) — nur für den Fall, dass kein Dokument einen Mietwert
+   * liefert. Trägt den Wert direkt ins (unkontrollierte) Feld ein und markiert ihn
+   * separat als Annahme, statt ihn unmarkiert als "echten" Wert erscheinen zu lassen.
+   */
+  async function handleEstimateRent() {
+    if (!canton) {
+      setRentEstimateError("Kanton fehlt — bitte zuerst oben bei den Objekt-Basisdaten auswählen.");
+      return;
+    }
+    setEstimatingRent(true);
+    setRentEstimateError(null);
+    try {
+      const zimmerzahlRaw = zimmerzahlInputRef.current?.value;
+      const zimmerzahlValue = zimmerzahlRaw ? Number(zimmerzahlRaw) : undefined;
+      const res = await fetch("/api/market-rent-estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ canton, zimmerzahl: Number.isFinite(zimmerzahlValue) ? zimmerzahlValue : undefined }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { estimated?: boolean; wohnungsMieteChfPerMonth?: number; rationale?: string; error?: string };
+      if (!res.ok || !body.estimated || typeof body.wohnungsMieteChfPerMonth !== "number") {
+        setRentEstimateError(body.error ?? "Schätzung fehlgeschlagen.");
+        return;
+      }
+      if (wohnungsMieteInputRef.current) wohnungsMieteInputRef.current.value = String(body.wohnungsMieteChfPerMonth);
+      setRentEstimate({ value: body.wohnungsMieteChfPerMonth, rationale: body.rationale ?? "" });
+    } catch {
+      setRentEstimateError("Schätzung fehlgeschlagen (Netzwerkfehler).");
+    } finally {
+      setEstimatingRent(false);
+    }
+  }
+
   const cantonDefaults = getCantonDefaults(canton);
   const defaultHandaenderungssteuerPercent = cantonDefaults?.handaenderungssteuerPercent ?? P.handaenderungssteuerPercent.defaultValue;
   const defaultKalkulatorischerSteuersatzPercent = cantonDefaults?.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent.defaultValue;
@@ -85,13 +152,22 @@ export function BestandsrenditeFactsFields({
 
   return (
     <>
+      <NumberOptions id="dl-zimmerzahl" values={ZIMMERZAHL_OPTIONS} />
+      <NumberOptions id="dl-zinssatz" values={ZINSSATZ_OPTIONS} />
+      <NumberOptions id="dl-erste-belehnung" values={ERSTE_BELEHNUNG_OPTIONS} />
+      <NumberOptions id="dl-zweite-belehnung" values={ZWEITE_BELEHNUNG_OPTIONS} />
+      <NumberOptions id="dl-leerstand" values={LEERSTAND_OPTIONS} />
+      <NumberOptions id="dl-auslastung" values={AUSLASTUNG_OPTIONS} />
+      <NumberOptions id="dl-amortisationsdauer" values={AMORTISATIONSDAUER_OPTIONS} />
+      <NumberOptions id="dl-holding-period" values={HOLDING_PERIOD_OPTIONS} />
+
       <div className="eyebrow" style={{ marginBottom: ".5rem" }}>
         Objekt
       </div>
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="zimmerzahl">Zimmerzahl{zimmerzahl.fromDoc ? ` (aus Dokument: ${zimmerzahl.value})` : ""}</label>
-          <input id="zimmerzahl" name="zimmerzahl" type="number" step="0.5" defaultValue={existing?.zimmerzahl ?? zimmerzahl.value} />
+          <input id="zimmerzahl" name="zimmerzahl" type="number" step="0.5" list="dl-zimmerzahl" ref={zimmerzahlInputRef} defaultValue={existing?.zimmerzahl ?? zimmerzahl.value} />
         </div>
         <div className="field">
           <label htmlFor="baujahr">Baujahr{baujahr.fromDoc ? ` (aus Dokument: ${baujahr.value})` : ""}</label>
@@ -102,6 +178,20 @@ export function BestandsrenditeFactsFields({
             Parkplatz-Kaufpreis (CHF, {parkplatzKaufpreisChf.fromDoc ? `aus Dokument: ${parkplatzKaufpreisChf.value}` : "0 falls keiner"})
           </label>
           <input id="parkplatzKaufpreisChf" name="parkplatzKaufpreisChf" type="number" step="1000" defaultValue={existing?.parkplatzKaufpreisChf ?? parkplatzKaufpreisChf.value} />
+        </div>
+      </div>
+      <div className="field" style={{ marginTop: ".4rem" }}>
+        <div className="checkbox-row">
+          <input
+            id="parkplatzImKaufpreisEnthalten"
+            name="parkplatzImKaufpreisEnthalten"
+            type="checkbox"
+            defaultChecked={existing?.parkplatzImKaufpreisEnthalten ?? false}
+          />
+          <label htmlFor="parkplatzImKaufpreisEnthalten" style={{ marginBottom: 0 }}>
+            Parkplatz-Kaufpreis ist bereits im Kaufpreis oben (Objekt-Basisdaten) enthalten — sonst wird er zusätzlich
+            addiert
+          </label>
         </div>
       </div>
 
@@ -156,8 +246,28 @@ export function BestandsrenditeFactsFields({
             type="number"
             step="10"
             required
+            ref={wohnungsMieteInputRef}
             defaultValue={existing?.miete.wohnungsMieteChfPerMonth ?? wohnungsMiete.value}
           />
+          {!wohnungsMiete.fromDoc && !existing?.miete.wohnungsMieteChfPerMonth ? (
+            <div style={{ marginTop: ".3rem" }}>
+              <button
+                type="button"
+                className="btn"
+                style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem" }}
+                disabled={estimatingRent}
+                onClick={handleEstimateRent}
+              >
+                {estimatingRent ? "Schätzt…" : "Marktschätzung vorschlagen (kein Dokumentwert)"}
+              </button>
+              {rentEstimateError ? <div style={{ color: "var(--bad)", fontSize: ".74rem", marginTop: ".25rem" }}>{rentEstimateError}</div> : null}
+              {rentEstimate ? (
+                <div style={{ color: "var(--warn)", fontSize: ".74rem", marginTop: ".25rem" }}>
+                  Annahme (KI-Schätzung, keine Live-Marktdaten) — bitte prüfen: {rentEstimate.rationale}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div className="field">
           <label htmlFor="parkplatzMieteChfPerMonth">Miete Parkplatz (CHF/Monat){parkplatzMiete.fromDoc ? ` (aus Dokument: ${parkplatzMiete.value})` : ""}</label>
@@ -190,12 +300,12 @@ export function BestandsrenditeFactsFields({
         {vermietungsmodell === "SHORT_STAY" ? (
           <div className="field">
             <label htmlFor="auslastungPercent">Auslastung (%, leer = Default)</label>
-            <input id="auslastungPercent" name="auslastungPercent" type="number" step="1" defaultValue={existing?.miete.auslastungPercent} />
+            <input id="auslastungPercent" name="auslastungPercent" type="number" step="1" list="dl-auslastung" defaultValue={existing?.miete.auslastungPercent} />
           </div>
         ) : (
           <div className="field">
             <label htmlFor="leerstandPercent">Leerstand (%, {standardLabel("miete.leerstandPercent", defaultLeerstandPercent)})</label>
-            <input id="leerstandPercent" name="leerstandPercent" type="number" step="0.5" defaultValue={existing?.miete.leerstandPercent ?? leerstand.value} />
+            <input id="leerstandPercent" name="leerstandPercent" type="number" step="0.5" list="dl-leerstand" defaultValue={existing?.miete.leerstandPercent ?? leerstand.value} />
           </div>
         )}
       </div>
@@ -428,6 +538,7 @@ export function BestandsrenditeFactsFields({
             name="ersteHypothekBelehnungPercent"
             type="number"
             step="1"
+            list="dl-erste-belehnung"
             required
             defaultValue={existing?.hypothek.ersteHypothek.belehnungPercent ?? 65}
           />
@@ -474,6 +585,7 @@ export function BestandsrenditeFactsFields({
             name="zweiteHypothekBelehnungPercent"
             type="number"
             step="1"
+            list="dl-zweite-belehnung"
             required
             defaultValue={existing?.hypothek.zweiteHypothek.belehnungPercent ?? 15}
           />
@@ -509,13 +621,14 @@ export function BestandsrenditeFactsFields({
               name="zweiteHypothekAmortisationDauerJahre"
               type="number"
               step="1"
+              list="dl-amortisationsdauer"
               defaultValue={existing?.hypothek.zweiteHypothek.amortisation.dauerJahre ?? 15}
             />
           </div>
         )}
         <div className="field">
           <label htmlFor="interestRatePercent">Zinssatz (%, für beide Hypotheken)</label>
-          <input id="interestRatePercent" name="interestRatePercent" type="number" step="0.1" required defaultValue={existing?.hypothek.interestRatePercent ?? 2} />
+          <input id="interestRatePercent" name="interestRatePercent" type="number" step="0.1" list="dl-zinssatz" required defaultValue={existing?.hypothek.interestRatePercent ?? 2} />
         </div>
         <div className="field">
           <label htmlFor="kalkulatorischerSteuersatzPercent">
@@ -545,6 +658,7 @@ export function BestandsrenditeFactsFields({
             step="1"
             min="5"
             max="30"
+            list="dl-holding-period"
             defaultValue={existing?.mehrjahresmodell.holdingPeriodYears ?? P.holdingPeriodYearsDefault.defaultValue}
           />
         </div>

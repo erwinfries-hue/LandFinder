@@ -39,6 +39,7 @@ describe("parseBestandsrenditeFacts", () => {
       expect(result.facts.moeblierung.initialCostChf).toBe(0);
       expect(result.facts.renovation.positionen).toEqual([]);
       expect(result.facts.parkplatzKaufpreisChf).toBe(0);
+      expect(result.facts.parkplatzImKaufpreisEnthalten).toBe(false);
       // Optionale Überschreibungen (z.B. Steuersatz) bleiben unset, damit die
       // Platzhalter-Defaults aus BESTANDSRENDITE_PARAMETERS greifen.
       expect(result.facts.kalkulatorischerSteuersatzPercent).toBeUndefined();
@@ -68,6 +69,7 @@ const fullFacts: BestandsrenditeFacts = {
   zimmerzahl: 3.5,
   baujahr: 1998,
   parkplatzKaufpreisChf: 30_000,
+  parkplatzImKaufpreisEnthalten: false,
   stweg: { erneuerungsfondsSaldoChf: 180_000 },
   nebenkosten: {},
   renovation: { initialRenovationCostChf: 25_000, positionen: [{ betragChf: 25_000, kategorie: "WERTERHALTEND", jahr: 2026, steuerlicheAbzugsfaehigkeit: "UNKLAR" }] },
@@ -138,6 +140,16 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(result.furnitureRoi).toBeUndefined();
     expect(result.moeblierungReserveChfPerJahr).toBeUndefined();
     expect(result.allInInvestitionChf).toBeLessThan(computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts).allInInvestitionChf);
+  });
+
+  it("parkplatzImKaufpreisEnthalten=true addiert den Parkplatz-Kaufpreis NICHT zusätzlich (verhindert Doppelzählung)", () => {
+    const ohneFlag = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    expect(ohneFlag.schnellcheck.kaufpreisChf).toBe(900_000); // 870k Wohnung + 30k Parkplatz separat
+
+    const mitFlag: BestandsrenditeFacts = { ...fullFacts, parkplatzImKaufpreisEnthalten: true };
+    const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, mitFlag);
+    expect(result.schnellcheck.kaufpreisChf).toBe(870_000); // Parkplatz bereits im Kaufpreis, kein Doppelzählen
+    expect(result.allInInvestitionChf).toBeLessThan(ohneFlag.allInInvestitionChf);
   });
 
   it("ohne Miete vor/nach Renovation bleibt renovationRoi undefined, obwohl Renovationskosten gesetzt sind", () => {

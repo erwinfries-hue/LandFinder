@@ -48,7 +48,7 @@ export async function getPropertyDocuments(propertyId: string) {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("property_documents")
-    .select("id, document_type, original_filename, uploaded_at, analysis_status, analysis_error, extraction")
+    .select("id, document_type, original_filename, uploaded_at, analysis_status, analysis_error, extraction, excluded_from_synthesis")
     .eq("property_id", propertyId)
     .order("uploaded_at", { ascending: false });
   if (error) {

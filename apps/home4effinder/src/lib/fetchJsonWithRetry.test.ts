@@ -50,6 +50,15 @@ describe("fetchJsonWithRetry", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("retryt NICHT bei einem absichtlichen Abbruch (AbortError) — reicht ihn sofort durch", async () => {
+    const abortError = new DOMException("The user aborted a request.", "AbortError");
+    const fetchMock = vi.fn().mockRejectedValue(abortError);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchJsonWithRetry("/api/x")).rejects.toThrow("The user aborted a request.");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("retryt NICHT, wenn die Antwort erfolgreich als JSON geparst wird, auch bei einem inhaltlichen Fehler", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ synthesized: false, error: "Analyse fehlgeschlagen" }) });
     vi.stubGlobal("fetch", fetchMock);

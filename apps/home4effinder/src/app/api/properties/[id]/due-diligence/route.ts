@@ -51,7 +51,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .from("property_documents")
     .select("id, original_filename, document_type, extraction")
     .eq("property_id", propertyId)
-    .eq("analysis_status", "DONE");
+    .eq("analysis_status", "DONE")
+    .eq("excluded_from_synthesis", false);
   if (documentsError) {
     console.error(`[api/properties/${propertyId}/due-diligence] Lesen der Dokumente fehlgeschlagen`, documentsError);
     return NextResponse.json({ error: "read documents failed" }, { status: 500 });
