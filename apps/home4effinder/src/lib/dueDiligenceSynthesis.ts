@@ -117,12 +117,21 @@ export function compactFindingsForPrompt(findings: DueDiligenceFinding[]): unkno
     .map((f) => ({ category: f.category, severity: f.severity, summary: f.summary, sourcePage: f.sourcePage, isContradiction: f.isContradiction }));
 }
 
+/** Weitere, defensive Obergrenzen gegen den Prompt-Kostentreiber — greifen nur im seltenen Fall einer ungewöhnlich langen Stufe-1-Zusammenfassung/Fakten-Struktur, wirken aber zusätzlich zur Funde-Deckelung oben in dieselbe Richtung (Vercel-60s-Limit, siehe docs/DECISIONS.md). */
+const MAX_SUMMARY_LENGTH_IN_PROMPT = 500;
+const MAX_FACTS_JSON_LENGTH_IN_PROMPT = 1000;
+
+function truncateForPrompt(text: string, maxLength: number): string {
+  return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
+}
+
 function buildSynthesisPrompt(documents: SynthesisDocumentInput[], knownFacts: SynthesisKnownFact[], knownFields: SynthesisKnownField[]): string {
   const documentsBlock = documents
-    .map(
-      (d, i) =>
-        `Dokument ${i + 1} (documentId="${d.id}", Dateiname="${d.filename}", Typ=${DOCUMENT_TYPE_CATALOG[d.documentType].label}):\nZusammenfassung: ${d.summary}\nFakten: ${JSON.stringify(d.facts)}\nBereits erkannte Einzelfunde: ${JSON.stringify(compactFindingsForPrompt(d.findings))}`,
-    )
+    .map((d, i) => {
+      const summary = truncateForPrompt(d.summary, MAX_SUMMARY_LENGTH_IN_PROMPT);
+      const factsJson = truncateForPrompt(JSON.stringify(d.facts), MAX_FACTS_JSON_LENGTH_IN_PROMPT);
+      return `Dokument ${i + 1} (documentId="${d.id}", Dateiname="${d.filename}", Typ=${DOCUMENT_TYPE_CATALOG[d.documentType].label}):\nZusammenfassung: ${summary}\nFakten: ${factsJson}\nBereits erkannte Einzelfunde: ${JSON.stringify(compactFindingsForPrompt(d.findings))}`;
+    })
     .join("\n\n");
 
   const factsBlock = knownFacts.length > 0 ? knownFacts.map((f) => `- ${f.label}: ${f.value}`).join("\n") : "(keine)";
