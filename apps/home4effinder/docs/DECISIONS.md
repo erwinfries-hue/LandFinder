@@ -1340,6 +1340,36 @@ gespeichert werden … bitte nochmals klicken") — kein Datenverlust mehr, der 
 sofort, wenn dieser Schritt fehlschlägt, statt eines scheinbar erfolgreichen, aber leeren
 Ergebnisses.
 
+## Nachgezogen (2026-08-23): Wahrscheinlicher Hauptverdächtiger für "Daten verschwinden" gefunden — Schema-Mismatch bei der Hypotheken-Amortisation
+
+Der vorherige Fix (Antwort beim Bestandsrendite-Speichern prüfen) zeigte sofort Wirkung:
+statt eines stillen Fehlschlags erschien jetzt eine konkrete Fehlermeldung —
+"hypothek.ersteHypothek.belehnungPercent/amortisationModus fehlt". Damit liess sich die
+eigentliche Ursache erstmals sehen statt nur vermuten.
+
+Root Cause: `parseBestandsrenditeFacts` (`bestandsrendite.ts`, serverseitige Validierung
+beim Speichern) erwartete ein FLACHES Feld `ersteHypothek.amortisationModus` (und ebenso
+`amortisationProzentProJahr`/`amortisationDauerJahre`). `buildBestandsrenditeFactsFromFormData`
+(`bestandsrenditeFormParsing.ts`, baut den Request-Body aus dem Formular) sendet diese
+Werte aber immer VERSCHACHTELT unter `ersteHypothek.amortisation.modus` — exakt der
+kanonische `HypothekTrancheFacts`/`AmortisationSpec`-Typ aus
+`@landfinder/financial-engine`, der überall sonst im Code (Engine, Anzeige) so verwendet
+wird. Ein reiner Schema-Mismatch zwischen den beiden Funktionen: `ersteHypothek.amortisationModus`
+existierte im tatsächlich gesendeten Payload schlicht nie, jede Speicherung von
+Bestandsrendite-Fakten (egal ob im Neu-Erfassen-Flow oder auf der Objekt-Bearbeiten-Seite,
+beide nutzen dieselbe `buildBestandsrenditeFactsFromFormData`) schlug dadurch IMMER mit
+einem 400 fehl. Unentdeckt, weil die Antwort clientseitig bis zum vorherigen Fix nirgends
+geprüft wurde — sehr wahrscheinlich die eigentliche Ursache hinter mehreren der in dieser
+Sitzung gemeldeten "Felder sind leer"/"Daten verschwinden nach dem Speichern"-Symptome,
+nicht nur beim jüngsten Fund.
+
+Fix in `parseBestandsrenditeFacts`: liest jetzt korrekt aus `ersteHypothek.amortisation.modus`
+(und `.prozentProJahr`/`.dauerJahre`) statt aus dem nie existierenden flachen Feld. Neuer
+Regressionstest in `bestandsrenditeFormParsing.test.ts`, der `buildBestandsrenditeFactsFromFormData`
+UND `parseBestandsrenditeFacts` zusammen (nicht mehr nur isoliert) durchspielt — genau
+diese Lücke (beide Funktionen einzeln getestet, nie im Zusammenspiel) liess den Fehler
+bisher unbemerkt durch alle Testläufe rutschen.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

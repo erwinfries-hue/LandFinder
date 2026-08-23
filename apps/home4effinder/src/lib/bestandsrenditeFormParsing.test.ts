@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildBestandsrenditeFactsFromFormData } from "./bestandsrenditeFormParsing";
+import { parseBestandsrenditeFacts } from "./bestandsrendite";
 
 function formDataFrom(entries: Record<string, string>): FormData {
   const form = new FormData();
@@ -54,4 +55,35 @@ describe("buildBestandsrenditeFactsFromFormData", () => {
     const nichtGeplant = buildBestandsrenditeFactsFromFormData(formDataFrom({}), "LANGFRISTIG_UNMOEBLIERT", []);
     expect((nichtGeplant.stweg as Record<string, unknown>).naechsteGrossaSanierungGeplant).toBe(false);
   });
+
+  it(
+    "das Ergebnis lässt sich unverändert über parseBestandsrenditeFacts speichern (Regressionstest: " +
+      "amortisationModus war früher fälschlich flach erwartet, buildBestandsrenditeFactsFromFormData " +
+      "sendet aber immer verschachtelt unter amortisation — beide Funktionen wurden bisher nur isoliert " +
+      "getestet, nie zusammen, siehe DECISIONS.md)",
+    () => {
+      const facts = buildBestandsrenditeFactsFromFormData(
+        formDataFrom({
+          wohnungsMieteChfPerMonth: "1450",
+          interestRatePercent: "2",
+          ersteHypothekBelehnungPercent: "65",
+          ersteHypothekAmortisationModus: "PROZENT_PRO_JAHR",
+          ersteHypothekAmortisationProzentProJahr: "1",
+          zweiteHypothekBelehnungPercent: "5",
+          zweiteHypothekAmortisationModus: "DAUER_JAHRE",
+          zweiteHypothekAmortisationDauerJahre: "15",
+        }),
+        "LANGFRISTIG_UNMOEBLIERT",
+        [],
+      );
+
+      const result = parseBestandsrenditeFacts(facts);
+
+      expect("facts" in result).toBe(true);
+      if ("facts" in result) {
+        expect(result.facts.hypothek.ersteHypothek.amortisation).toEqual({ modus: "PROZENT_PRO_JAHR", prozentProJahr: 1, dauerJahre: undefined });
+        expect(result.facts.hypothek.zweiteHypothek.amortisation).toEqual({ modus: "DAUER_JAHRE", prozentProJahr: undefined, dauerJahre: 15 });
+      }
+    },
+  );
 });
