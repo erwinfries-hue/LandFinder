@@ -1238,6 +1238,44 @@ läuft, statt nur den einzeln angeklickten Button zu sperren — verhindert, das
 die Race Condition über die UI überhaupt erst auslösen kann (die serverseitige
 Versionsprüfung bleibt als zweite Verteidigungslinie, z.B. bei zwei offenen Tabs).
 
+## Nachgezogen (2026-08-23): Synthese-Netzwerkfehler trotz aller Prompt-Kürzungen weiterhin reproduzierbar — Haiku-4.5-Rückfalloption bei Sonnet-5-Zeitüberschreitung
+
+Live-Test: trotz aller bisherigen Massnahmen (SONSTIGES-Filter, Funde-Kompaktierung,
+Prompt-Längenkappung, Parallelisierung, Haiku-Routing für Stufe-1-Extraktion — siehe die
+vier vorherigen Einträge) trat "Vorschläge aus den Dokumenten konnten nicht ermittelt
+werden (Netzwerkfehler)" beim Neu-Erfassen-Flow erneut auf, diesmal mit sichtbarer
+Nebenwirkung: da die Synthese nie zurückkam, blieben `docFieldProposals` leer und die
+Bestandsrendite-Felder zeigten nur die generischen kantonsbasierten Default-Werte statt
+der tatsächlich aus den Dokumenten stammenden Werte ("Felder werden auf ursprüngliche
+Default-Werte gestellt").
+
+Root Cause bestätigt: die Stufe-2-Synthese lief weiterhin ausschliesslich mit Sonnet 5
+(`maxDuration = 60` bei `/api/properties/prefill-synthesis`, Vercel-Hobby-Limit), das bei
+umfangreicheren Dokumentensets die Zeitgrenze reisst — ein einzelner LLM-Aufruf, dessen
+Dauer sich mit den bisherigen Prompt-Kürzungen zwar verringert, aber nicht verlässlich
+unter 60s gedrückt werden kann.
+
+Fix in `synthesizeDueDiligence` (`dueDiligenceSynthesis.ts`): Sonnet 5 bekommt ein
+Zeitbudget von 25s. Läuft das ab, wird NICHT weiter gewartet (der Sonnet-Request wird
+per `AbortController` abgebrochen), sondern sofort ein zweiter Aufruf mit Haiku 4.5 —
+exakt derselbe Prompt, dieselbe Werkzeug-Definition — im verbleibenden Zeitbudget
+gestartet. Damit bleibt insgesamt genug Zeitreserve unter der 60-Sekunden-Grenze für
+Vercels Function-Timeout. "Nichts wird erfunden" bleibt unverändert die Vorgabe, da
+beide Modelle exakt dieselben Dokumente/Instruktionen bekommen — nur das Modell wechselt
+auf eines mit geringerer Antwortzeit, wenn das primäre zu langsam ist. Als bewusster
+Kompromiss: Haiku könnte bei sehr subtilen Widersprüchen/Risikoeinschätzungen etwas
+weniger nuanciert sein als Sonnet 5 — im Vergleich zu einem kompletten Fehlschlag ohne
+jeden Feldvorschlag ist das die klar bessere Alternative. Mit Vitest-Fake-Timern
+getestet (`dueDiligenceSynthesis.test.ts`): Sonnet-5-Ergebnis wird verwendet, wenn es
+rechtzeitig antwortet; bei simuliertem Hängenbleiben wird zuverlässig auf Haiku
+gewechselt.
+
+Bewusst NICHT (nochmals) angegangen: die eigentliche Batch-/Mehrfach-Synthese-Architektur
+(siehe vorheriger Eintrag) — dieser Fix ist die risikoärmere, sofort wirksame
+Zwischenlösung für denselben Symptomkomplex; falls Netzwerkfehler trotzdem weiter
+auftreten (z.B. weil auch Haiku 4.5 bei sehr grossen Dokumentensets nicht mehr rechtzeitig
+antwortet), bleibt die Batch-Synthese oder das Vercel-Pro-Upgrade der nächste Schritt.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

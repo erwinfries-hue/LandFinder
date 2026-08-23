@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   computeMissingDocuments,
   computeOverallStatus,
@@ -6,12 +6,20 @@ import {
   buildSynthesisToolSchema,
   compactFindingsForPrompt,
   selectSynthesisPromptDocuments,
+  synthesizeDueDiligence,
   MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT,
   type SynthesisDocumentInput,
   type SynthesisKnownField,
 } from "./dueDiligenceSynthesis";
 import { CATEGORY_ORDER } from "./dueDiligenceCategories";
 import type { DueDiligenceFinding } from "@landfinder/domain";
+
+const createMock = vi.fn();
+vi.mock("@anthropic-ai/sdk", () => ({
+  default: class {
+    messages = { create: createMock };
+  },
+}));
 
 describe("computeMissingDocuments", () => {
   it("listet alle 18 Prio-A/B-Typen als fehlend, wenn nichts hochgeladen ist", () => {
@@ -329,5 +337,49 @@ describe("compactFindingsForPrompt", () => {
     // die drei RISIKO-Funde müssen trotz Deckelung enthalten sein (nach Schwere sortiert)
     const summaries = (compact as { summary: string }[]).map((f) => f.summary);
     expect(summaries.slice(0, 3)).toEqual(["finding-0", "finding-1", "finding-2"]);
+  });
+});
+
+describe("synthesizeDueDiligence — Sonnet-5-Zeitlimit mit Haiku-4.5-Rückfalloption", () => {
+  const TOOL_NAME = "emit_due_diligence_synthesis";
+  function toolUseResponse(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      stop_reason: "tool_use",
+      content: [{ type: "tool_use", name: TOOL_NAME, input: { categories: [], sellerQuestions: [], fieldUpdateProposals: [], contradictions: [], ...overrides } }],
+    };
+  }
+
+  beforeEach(() => {
+    createMock.mockReset();
+    process.env.ANTHROPIC_API_KEY = "test-key";
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("verwendet das Sonnet-5-Ergebnis, wenn es rechtzeitig antwortet — kein Haiku-Aufruf", async () => {
+    createMock.mockResolvedValue(toolUseResponse({ overallSummary: "von Sonnet" }));
+
+    const result = await synthesizeDueDiligence(documents, [], knownFields);
+
+    expect(result.overallSummary).toBe("von Sonnet");
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock.mock.calls[0][0]).toMatchObject({ model: "claude-sonnet-5" });
+  });
+
+  it("wechselt auf Haiku 4.5, wenn Sonnet 5 nicht innert des Zeitbudgets antwortet", async () => {
+    vi.useFakeTimers();
+    createMock.mockImplementation((params: { model: string }) => {
+      if (params.model === "claude-sonnet-5") return new Promise(() => {}); // hängt absichtlich, wie ein zu langsamer Live-Aufruf
+      return Promise.resolve(toolUseResponse({ overallSummary: "von Haiku" }));
+    });
+
+    const resultPromise = synthesizeDueDiligence(documents, [], knownFields);
+    await vi.advanceTimersByTimeAsync(30_000);
+    const result = await resultPromise;
+
+    expect(result.overallSummary).toBe("von Haiku");
+    expect(createMock).toHaveBeenCalledTimes(2);
+    expect(createMock.mock.calls[1][0]).toMatchObject({ model: "claude-haiku-4-5-20251001" });
   });
 });

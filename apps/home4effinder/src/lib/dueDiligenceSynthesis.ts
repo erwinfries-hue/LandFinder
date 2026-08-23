@@ -385,6 +385,24 @@ export function parseSynthesisResponse(jsonText: string, documents: SynthesisDoc
   };
 }
 
+const SYNTHESIS_MODEL_PRIMARY = "claude-sonnet-5";
+const SYNTHESIS_MODEL_FALLBACK = "claude-haiku-4-5-20251001";
+
+/**
+ * Sonnet 5 braucht bei umfangreichen Dokumentensets trotz aller Prompt-Kürzungen
+ * (siehe DECISIONS.md) manchmal länger, als Vercels Serverless-Zeitlimit erlaubt — dann
+ * kommt beim Nutzer nur ein "Netzwerkfehler" an, OHNE jeden Feldvorschlag (per Live-Test
+ * wiederholt beobachtet, auch nach SONSTIGES-Filter/Prompt-Kürzung/Parallelisierung).
+ * Daher: Sonnet 5 bekommt ein knappes Zeitbudget; läuft es ab, wird NICHT abgewartet,
+ * sondern sofort mit Haiku 4.5 (schneller, gleicher Prompt) im verbleibenden
+ * Zeitbudget nochmals versucht — lieber ein etwas weniger nuanciertes Ergebnis als gar
+ * keines. Beide Modelle bekommen exakt denselben Prompt/dieselbe Werkzeug-Definition,
+ * "nichts wird erfunden" bleibt also unverändert die Vorgabe, nur das Modell wechselt.
+ */
+const SYNTHESIS_PRIMARY_TIMEOUT_MS = 25_000;
+
+class SynthesisTimeoutError extends Error {}
+
 export async function synthesizeDueDiligence(
   documents: SynthesisDocumentInput[],
   knownFacts: SynthesisKnownFact[],
@@ -398,16 +416,37 @@ export async function synthesizeDueDiligence(
   }
 
   const promptDocuments = selectSynthesisPromptDocuments(documents);
+  const system = buildSynthesisPrompt(promptDocuments, knownFacts, knownFields);
+  const tools = [{ name: SYNTHESIS_TOOL_NAME, description: "Nimmt das Due-Diligence-Syntheseergebnis entgegen.", input_schema: buildSynthesisToolSchema(knownFields) }];
 
   const client = new Anthropic({ apiKey });
-  const response = await client.messages.create({
-    model: "claude-sonnet-5",
-    max_tokens: 8192,
-    system: buildSynthesisPrompt(promptDocuments, knownFacts, knownFields),
-    tools: [{ name: SYNTHESIS_TOOL_NAME, description: "Nimmt das Due-Diligence-Syntheseergebnis entgegen.", input_schema: buildSynthesisToolSchema(knownFields) }],
-    tool_choice: { type: "tool", name: SYNTHESIS_TOOL_NAME },
-    messages: [{ role: "user", content: "Erstelle die Due-Diligence-Synthese gemäss den Anweisungen im System-Prompt und rufe das Tool mit dem Ergebnis auf." }],
-  });
+  const callModel = (model: string, signal?: AbortSignal) =>
+    client.messages.create(
+      {
+        model,
+        max_tokens: 8192,
+        system,
+        tools,
+        tool_choice: { type: "tool", name: SYNTHESIS_TOOL_NAME },
+        messages: [{ role: "user", content: "Erstelle die Due-Diligence-Synthese gemäss den Anweisungen im System-Prompt und rufe das Tool mit dem Ergebnis auf." }],
+      },
+      { signal },
+    );
+
+  const primaryController = new AbortController();
+  let response;
+  try {
+    response = await Promise.race([
+      callModel(SYNTHESIS_MODEL_PRIMARY, primaryController.signal),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new SynthesisTimeoutError()), SYNTHESIS_PRIMARY_TIMEOUT_MS);
+      }),
+    ]);
+  } catch (err) {
+    if (!(err instanceof SynthesisTimeoutError)) throw err;
+    primaryController.abort();
+    response = await callModel(SYNTHESIS_MODEL_FALLBACK);
+  }
 
   if (response.stop_reason === "max_tokens") {
     throw new Error("Antwort von Claude wurde bei max_tokens abgeschnitten — vermutlich zu viele/umfangreiche Dokumente für eine einzelne Synthese.");
