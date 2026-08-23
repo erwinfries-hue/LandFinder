@@ -58,9 +58,9 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing, canton }: 
   }
 
   return (
-    <Panel style={{ padding: "1.4rem 1.6rem", marginTop: "1.6rem" }}>
+    <Panel style={{ padding: "1.1rem 1.3rem", marginTop: "1.1rem" }}>
       <div className="eyebrow">Bestandsrendite-Fakten{existing ? " — bearbeiten" : " erfassen"}</div>
-      <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: "0.4rem 0 1.1rem" }}>
+      <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: "0.3rem 0 .8rem" }}>
         Nur Miete, Hypothek-Eckwerte und Vermietungsmodell sind Pflicht. Alle übrigen Felder mit &quot;Standard: …&quot;
         im Label sind bereits mit einem recherchierten Vorschlagswert vorausgefüllt (bei Kanton-abhängigen Werten wie
         Handänderungssteuer und Steuersatz auf {canton ?? "das Objekt"} bezogen) — einfach überschreiben, falls du es

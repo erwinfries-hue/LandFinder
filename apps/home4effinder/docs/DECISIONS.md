@@ -1049,6 +1049,34 @@ Objekt angehängt) — der Abbruch-Button macht das nur unmissverständlich und 
 übrigen Dokumente in der Warteschlange weiterlaufen, statt dass der Nutzer rätseln muss, ob
 er warten oder einfach speichern soll.
 
+## Nachgezogen (2026-08-23): Datenfelder (Erfassungsformulare) kompaktiert
+
+Folgeauftrag zur bereits umgesetzten Kompaktierung der Anzeigeseiten (PR #18, Eintrag
+weiter oben) — diesmal explizit die EINGABE-Formulare selbst (`BestandsrenditeFactsFields`,
+das lange Fakten-Formular sowohl im Neu-Erfassen-Flow als auch beim Bearbeiten; die
+einfacheren Objekt-Basisdaten-Formulare), die bislang unangetastet blieben. Gleiche
+Methodik wie zuvor: NUR Padding/Margin/Gap reduziert, Schriftgrösse/Zeilenhöhe/Farben
+unverändert gelassen, damit die Lesbarkeit nicht leidet.
+
+Zentral in `globals.css` (wirkt automatisch auf alle Formulare app-weit, da `.field`/
+`.fieldgrid` überall gleich verwendet werden — auch Login, Objekt-Bearbeiten):
+- `.field` Abstand zwischen Feldern: 1.1rem → 0.8rem
+- `.field label` Abstand Label→Eingabe: 0.35rem → 0.25rem
+- `.field input/textarea/select` Innenabstand: 0.65rem 0.75rem → 0.5rem 0.65rem
+- `.fieldgrid` Abstand zwischen Feldspalten/-zeilen: 1.1rem 1.6rem → 0.8rem 1.2rem
+- `.field .fieldhelp` Abstand zur Eingabe: 0.35rem → 0.25rem
+
+Zusätzlich die Abstände zwischen den ca. 10 Abschnittsüberschriften ("eyebrow", z.B.
+"Miete & Vermietungsmodell", "STWEG", "Finanzierung & Steuer") im langen Fakten-Formular
+von 1.4rem/.5rem auf 1rem/.4rem reduziert (`BestandsrenditeFactsFields.tsx`) sowie die
+umgebenden Panel-Innenabstände in `BestandsrenditeVertiefungForm.tsx`/
+`PropertyEditForm.tsx`/`PropertyCreateForm.tsx` entsprechend angepasst.
+
+Visuell verifiziert über einen statischen HTML-Mock mit dem echten `globals.css`
+(Screenshot via headless Chromium, wie schon bei der ersten Kompaktierung — kein
+Supabase-/Anthropic-Zugriff in dieser Sandbox für eine echte Live-Vorschau) — Labels und
+Eingaben bleiben klar unterscheidbar, die Abschnittsüberschriften weiterhin klar abgesetzt.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
