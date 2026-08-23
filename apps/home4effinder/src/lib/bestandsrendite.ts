@@ -16,6 +16,7 @@ import {
   type SchnellcheckResult,
   type InvestmentCaseResult,
   type AmortisationSpec,
+  type AmortisationModus,
 } from "@landfinder/financial-engine";
 import {
   calculateFurnitureRoi,
@@ -354,18 +355,27 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
   const hypothek = body.hypothek as Record<string, unknown> | undefined;
   const ersteHypothek = hypothek?.ersteHypothek as Record<string, unknown> | undefined;
   const zweiteHypothek = hypothek?.zweiteHypothek as Record<string, unknown> | undefined;
+  // `amortisation` ist ein VERSCHACHTELTES Objekt ({ modus, prozentProJahr?, dauerJahre? },
+  // siehe AmortisationSpec in @landfinder/financial-engine) — sowohl der von
+  // buildBestandsrenditeFactsFromFormData gebaute Request-Body als auch der kanonische
+  // HypothekTrancheFacts-Typ verschachteln so. Diese Prüfung erwartete früher fälschlich
+  // ein FLACHES `amortisationModus`-Feld, das nie gesendet wurde — jede Speicherung von
+  // Bestandsrendite-Fakten schlug dadurch mit einem 400 fehl, unbemerkt, solange die
+  // Antwort clientseitig nicht geprüft wurde (siehe DECISIONS.md).
+  const ersteAmortisation = ersteHypothek?.amortisation as Record<string, unknown> | undefined;
+  const zweiteAmortisation = zweiteHypothek?.amortisation as Record<string, unknown> | undefined;
   if (!hypothek || typeof hypothek.interestRatePercent !== "number") return { error: "hypothek.interestRatePercent fehlt" };
-  if (!ersteHypothek || typeof ersteHypothek.belehnungPercent !== "number" || typeof ersteHypothek.amortisationModus !== "string") {
-    return { error: "hypothek.ersteHypothek.belehnungPercent/amortisationModus fehlt" };
+  if (!ersteHypothek || typeof ersteHypothek.belehnungPercent !== "number" || typeof ersteAmortisation?.modus !== "string") {
+    return { error: "hypothek.ersteHypothek.belehnungPercent/amortisation.modus fehlt" };
   }
-  if (!zweiteHypothek || typeof zweiteHypothek.belehnungPercent !== "number" || typeof zweiteHypothek.amortisationModus !== "string") {
-    return { error: "hypothek.zweiteHypothek.belehnungPercent/amortisationModus fehlt" };
+  if (!zweiteHypothek || typeof zweiteHypothek.belehnungPercent !== "number" || typeof zweiteAmortisation?.modus !== "string") {
+    return { error: "hypothek.zweiteHypothek.belehnungPercent/amortisation.modus fehlt" };
   }
-  if (ersteHypothek.amortisationModus !== "PROZENT_PRO_JAHR" && ersteHypothek.amortisationModus !== "DAUER_JAHRE") {
-    return { error: "hypothek.ersteHypothek.amortisationModus muss PROZENT_PRO_JAHR oder DAUER_JAHRE sein" };
+  if (ersteAmortisation.modus !== "PROZENT_PRO_JAHR" && ersteAmortisation.modus !== "DAUER_JAHRE") {
+    return { error: "hypothek.ersteHypothek.amortisation.modus muss PROZENT_PRO_JAHR oder DAUER_JAHRE sein" };
   }
-  if (zweiteHypothek.amortisationModus !== "PROZENT_PRO_JAHR" && zweiteHypothek.amortisationModus !== "DAUER_JAHRE") {
-    return { error: "hypothek.zweiteHypothek.amortisationModus muss PROZENT_PRO_JAHR oder DAUER_JAHRE sein" };
+  if (zweiteAmortisation.modus !== "PROZENT_PRO_JAHR" && zweiteAmortisation.modus !== "DAUER_JAHRE") {
+    return { error: "hypothek.zweiteHypothek.amortisation.modus muss PROZENT_PRO_JAHR oder DAUER_JAHRE sein" };
   }
 
   const betriebskosten = (body.betriebskosten as Record<string, unknown>) ?? {};
@@ -427,17 +437,17 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
         ersteHypothek: {
           belehnungPercent: ersteHypothek.belehnungPercent,
           amortisation: {
-            modus: ersteHypothek.amortisationModus,
-            prozentProJahr: num(ersteHypothek.amortisationProzentProJahr),
-            dauerJahre: num(ersteHypothek.amortisationDauerJahre),
+            modus: ersteAmortisation.modus as AmortisationModus,
+            prozentProJahr: num(ersteAmortisation.prozentProJahr),
+            dauerJahre: num(ersteAmortisation.dauerJahre),
           },
         },
         zweiteHypothek: {
           belehnungPercent: zweiteHypothek.belehnungPercent,
           amortisation: {
-            modus: zweiteHypothek.amortisationModus,
-            prozentProJahr: num(zweiteHypothek.amortisationProzentProJahr),
-            dauerJahre: num(zweiteHypothek.amortisationDauerJahre),
+            modus: zweiteAmortisation.modus as AmortisationModus,
+            prozentProJahr: num(zweiteAmortisation.prozentProJahr),
+            dauerJahre: num(zweiteAmortisation.dauerJahre),
           },
         },
         interestRatePercent: hypothek.interestRatePercent,

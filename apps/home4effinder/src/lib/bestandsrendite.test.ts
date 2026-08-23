@@ -4,8 +4,8 @@ import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts, applyFieldUp
 const minimalValidInput = {
   miete: { wohnungsMieteChfPerMonth: 1450, vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT" },
   hypothek: {
-    ersteHypothek: { belehnungPercent: 65, amortisationModus: "PROZENT_PRO_JAHR", amortisationProzentProJahr: 0 },
-    zweiteHypothek: { belehnungPercent: 5, amortisationModus: "DAUER_JAHRE", amortisationDauerJahre: 15 },
+    ersteHypothek: { belehnungPercent: 65, amortisation: { modus: "PROZENT_PRO_JAHR", prozentProJahr: 0 } },
+    zweiteHypothek: { belehnungPercent: 5, amortisation: { modus: "DAUER_JAHRE", dauerJahre: 15 } },
     interestRatePercent: 2,
   },
 };
