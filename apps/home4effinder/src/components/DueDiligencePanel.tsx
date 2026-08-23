@@ -74,6 +74,15 @@ export function DueDiligencePanel({
   const [togglingExcluded, setTogglingExcluded] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
 
+  // `initialDocuments` ist eine serverseitige Momentaufnahme vom letzten Seitenaufbau —
+  // nach einem frischen Upload braucht `router.refresh()` (siehe handleUpload) eine
+  // spürbare Rundreise, bis sie aktualisiert bei diesem Client ankommt. Bis dahin blieb
+  // "Due-Diligence aktualisieren" fälschlich deaktiviert, obwohl gerade erfolgreich neue
+  // Dokumente hochgeladen wurden ("Knopf tut nichts", per Live-Test beobachtet) — deshalb
+  // zusätzlich der lokale `uploads`-Stand berücksichtigt, der sofort nach Abschluss eines
+  // Uploads bekannt ist, ohne auf den Server-Refresh zu warten.
+  const hasAnyDocuments = initialDocuments.length > 0 || uploads.some((u) => u.status === "DONE");
+
   function handleFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
     const files = event.target.files ? Array.from(event.target.files) : [];
     if (files.length > 0) {
@@ -476,7 +485,7 @@ export function DueDiligencePanel({
       )}
 
       <div className="wizard-actions" style={{ marginBottom: result ? "1rem" : 0 }}>
-        <button type="button" className="btn" style={{ width: "auto" }} disabled={synthesizing || initialDocuments.length === 0} onClick={handleSynthesize}>
+        <button type="button" className="btn" style={{ width: "auto" }} disabled={synthesizing || !hasAnyDocuments} onClick={handleSynthesize}>
           {synthesizing ? (
             <>
               <span className="spinner" aria-hidden="true" />
