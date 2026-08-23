@@ -100,6 +100,19 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(result.stweg).toEqual(fullFacts.stweg); // unveränderte Datenhaltung, siehe StwegFacts
   });
 
+  it("noiBreakdown summiert sich exakt zum bereits bekannten NOI aus dem Cashflow-Wasserfall (Drill-down-Anzeige)", () => {
+    const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    const b = result.noiBreakdown;
+
+    expect(b.noiChf).toBe(result.investmentCase.wasserfall.noiChf);
+    expect(b.potenziellerJahresertragChf - b.leerstandAbzugChf).toBeCloseTo(b.effektiverJahresertragChf, 6);
+    expect(b.betriebskostenTotalChf).toBeCloseTo(
+      b.stwegAkontobeitragChfPerYear + b.eigentuemerkostenChfPerYear + b.vermietungskostenChfPerYear + b.reinigungServiceChfPerYear,
+      6,
+    );
+    expect(b.effektiverJahresertragChf - b.betriebskostenTotalChf).toBeCloseTo(b.noiChf, 6);
+  });
+
   it("dokumentiert jede verwendete Platzhalter-Annahme in assumptionNotes", () => {
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
     expect(result.assumptionNotes.length).toBeGreaterThan(0);

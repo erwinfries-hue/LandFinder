@@ -1392,6 +1392,51 @@ praktisch alle berechneten Kacheln (Ebene A/B/C, Hypotheken, Break-even, Möblie
 Renovations-ROI) sowie einige zusätzliche Zeilen im Cashflow-Wasserfall. Reine
 Formel-Dokumentation, keine Änderung an den Berechnungen selbst.
 
+## Nachgezogen (2026-08-23): "read documents failed" nach Migration-0004 — fehlende manuelle Datenbank-Migration, kein Code-Fehler
+
+Live-Test nach dem letzten Fix: "Due-Diligence aktualisieren" liess sich zwar klicken
+(Button-Fix aus dem vorherigen Eintrag griff), aber die Synthese schlug mit
+"read documents failed" fehl — gleichzeitig zeigte "Hochgeladene Dokumente (0)" trotz
+mehrerer bereits erfolgreich analysierter Dokumente.
+
+Root Cause: KEIN Code-Fehler, sondern eine noch nicht angewendete Datenbank-Migration.
+`0004_document_excluded_from_synthesis.sql` (fügt `property_documents.excluded_from_synthesis`
+hinzu, für das "Von Synthese ausschliessen"-Feature) wurde am 2026-08-22 zum Repo
+hinzugefügt — Migrationen in diesem Projekt laufen aber nicht automatisch (siehe
+README "Erstinbetriebnahme"), sie müssen manuell im Supabase-SQL-Editor nachgezogen
+werden. Beim Auftraggeber fehlte dieser eine Schritt noch:
+- `getPropertyDocuments()` selektiert die (fehlende) Spalte mit und fängt den
+  resultierenden DB-Fehler bereits ab, fällt aber still auf eine leere Liste zurück —
+  daher "Hochgeladene Dokumente (0)" trotz erfolgreicher Uploads.
+- Die Due-Diligence-Route filtert zusätzlich `.eq("excluded_from_synthesis", false)` und
+  fängt den Fehler NICHT ab, sondern gibt ihn direkt als "read documents failed" zurück.
+
+Fix: keine Code-Änderung — der Auftraggeber hat die Migration nachträglich manuell im
+Supabase SQL-Editor ausgeführt (`alter table property_documents add column if not exists
+excluded_from_synthesis boolean not null default false;`), danach funktionierte beides.
+Für künftige Migrationen bleibt das Risiko bestehen (kein automatisierter
+Migrations-Check beim Deploy) — als mögliche spätere Verbesserung: den spezifischen
+Postgres-Fehlercode für "Spalte existiert nicht" (42703) erkennen und eine gezieltere
+Fehlermeldung ("Migration noch nicht ausgeführt") statt des generischen "read failed"
+zeigen. Bewusst nicht jetzt umgesetzt, da kein wiederkehrendes Problem, sondern ein
+einmaliger Einrichtungsschritt.
+
+## Nachgezogen (2026-08-23): NOI-Drill-down im Cashflow-Wasserfall
+
+Wunsch aus dem Live-Test: die NOI-Zeile ("NOI (vor Finanzierung)") im
+Cashflow-Wasserfall (Ebene B) per Aufklappen in ihre Bestandteile zerlegen können, statt
+nur die eine Endzahl zu sehen.
+
+`computeBestandsrenditeAnalysis` liefert neu `noiBreakdown` (potenzieller Jahresertrag,
+Leerstand-/Auslastungsabzug, effektiver Jahresertrag, die vier Betriebskosten-Posten
+einzeln, Betriebskosten total, NOI) — reine zusätzliche Aufschlüsselung derselben bereits
+berechneten Grössen (`calculateJahresertrag`/`calculateBetriebskosten` aus
+`@landfinder/financial-engine`, beide schon vorher intern von `calculateInvestmentCase`
+verwendet), keine neue Berechnung. In `BestandsrenditeAnalysisView.tsx` als
+`<details>`-Aufklapper direkt unter der NOI-Zeile — gleiches Muster wie der bereits
+bestehende "Jahr-für-Jahr-Details anzeigen"-Aufklapper beim 15-Jahres-Modell, damit sich
+das Interaktionsmuster konsistent anfühlt.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
