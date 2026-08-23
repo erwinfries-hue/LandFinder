@@ -1276,6 +1276,44 @@ Zwischenlösung für denselben Symptomkomplex; falls Netzwerkfehler trotzdem wei
 auftreten (z.B. weil auch Haiku 4.5 bei sehr grossen Dokumentensets nicht mehr rechtzeitig
 antwortet), bleibt die Batch-Synthese oder das Vercel-Pro-Upgrade der nächste Schritt.
 
+## Nachgezogen (2026-08-23): Netzwerkfehler bei der Synthese abermals reproduziert — harte Dokumenten-Obergrenze im Prompt, Sonnet-Zeitbudget weiter verkürzt
+
+Live-Test: derselbe "Netzwerkfehler" bei der Prefill-Synthese trat noch einmal auf,
+diesmal mit deutlich sichtbarem Muster: die JSON-Antwort-Prüfung (`res.json()` in
+`fetchJsonWithRetry`) schlägt fehl statt eine strukturierte Fehlermeldung zu liefern —
+typisch für eine reine Vercel-Timeout-Fehlerseite (kein valides JSON), nicht für einen
+regulären Anwendungsfehler. Das bedeutet: selbst mit der Haiku-4.5-Rückfalloption
+(vorheriger Eintrag) hat der GESAMTE Funktionsaufruf (Sonnet-Versuch bis zum Zeitbudget +
+anschliessender Haiku-Versuch) offenbar weiterhin die 60-Sekunden-Grenze gerissen — bei
+diesem Dokumentenset reichte das verbleibende Zeitbudget für Haiku 4.5 also nicht.
+
+Zwei weitere, bewusst risikoarme Verschärfungen in `dueDiligenceSynthesis.ts`:
+
+1. **Harte Obergrenze `MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT = 8`** in
+   `selectSynthesisPromptDocuments`: der SONSTIGES-Filter allein begrenzt nur den
+   Dokument-TYP, nicht die Anzahl — bei vielen ZWINGEND/EMPFOHLEN-Dokumenten (z.B.
+   mehrere STWEG-Protokolle über mehrere Jahre, mehrere Mietverträge) blieb die
+   Prompt-Grösse weiterhin unbeschränkt und damit nicht verlässlich unter dem
+   Zeitlimit kalkulierbar. Jetzt werden bei einem Überschuss die wichtigsten Dokumente
+   nach Priorität aus dem Dokumenttyp-Katalog behalten (ZWINGEND vor EMPFOHLEN vor
+   OPTIONAL), bei gleicher Priorität in Upload-Reihenfolge — macht die maximale
+   Prompt-Grösse deterministisch, unabhängig davon, wie viele Dokumente ein Nutzer
+   hochlädt. Ausgeschlossene Dokumente bleiben unverändert einzeln analysiert
+   sichtbar/gespeichert, tragen nur nicht zur Cross-Dokument-Synthese bei.
+2. **`SYNTHESIS_PRIMARY_TIMEOUT_MS` 25s → 15s**: gibt der Haiku-4.5-Rückfalloption mehr
+   vom verbleibenden 60-Sekunden-Budget (statt bisher ~35s jetzt ~45s), da Sonnet 5 bei
+   grossen Prompts selbst regelmässig bereits deutlich mehr als 15s braucht und die
+   zusätzlichen 10s Wartezeit auf Sonnet dem Nutzer ohnehin selten zum Erfolg verhalfen.
+
+Das ist jetzt der VIERTE Fix-Versuch für denselben Symptomkomplex (siehe die drei
+vorherigen Einträge) — ein klares Signal, dass reine Prompt-Kürzung/Modell-Rückfalloptionen
+an ihre Grenze stossen, wenn der Nutzer weiterhin sehr grosse Dokumentensets hochlädt.
+Dieser Fix ist eine sinnvolle zusätzliche Absicherung, aber KEINE Garantie mehr — dem
+Auftraggeber wurde explizit mitgeteilt, dass bei weiterem Auftreten die zwei
+verbleibenden echten Lösungen (Vercel-Pro-Upgrade für ein höheres Zeitlimit, oder die
+grössere Batch-/Mehrfach-Synthese-Architektur) anstehen, und dass er zwischen diesen
+beiden wählen soll, statt weitere Prompt-Mikrooptimierungen abzuwarten.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
