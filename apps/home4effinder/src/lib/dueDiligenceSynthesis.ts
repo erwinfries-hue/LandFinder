@@ -65,6 +65,19 @@ export function computeMissingDocuments(uploadedTypes: DueDiligenceDocumentType[
   return missing;
 }
 
+const PRIORITY_SORT_WEIGHT: Record<string, number> = { ZWINGEND: 0, EMPFOHLEN: 1, OPTIONAL: 2 };
+
+/**
+ * Harte Obergrenze für die Anzahl Dokumente im Stufe-2-Prompt — unabhängig davon, wie
+ * viele der Nutzer hochlädt. Der SONSTIGES-Filter allein reicht bei sehr grossen
+ * Dokumentensets (mehrjährige STWEG-Protokolle, lange Mietverträge etc.) nicht aus, um
+ * verlässlich unter Vercels 60-Sekunden-Zeitlimit zu bleiben (per Live-Test wiederholt
+ * beobachtet, siehe DECISIONS.md) — die Anzahl UND Grösse der übrig bleibenden Dokumente
+ * variiert stark. Diese Obergrenze macht die Prompt-Grösse im Worst Case deterministisch
+ * kalkulierbar, unabhängig von der Dokumentanzahl des Objekts.
+ */
+export const MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT = 8;
+
 /**
  * Wählt die Dokumente aus, die dem LLM für die Synthese tatsächlich vorgelegt werden.
  * SONSTIGES-Dokumente (keiner bekannten Due-Diligence-Kategorie zugeordnet, z.B.
@@ -78,10 +91,26 @@ export function computeMissingDocuments(uploadedTypes: DueDiligenceDocumentType[
  * mit einer leeren Liste zu scheitern. Der AUFRUFER von `synthesizeDueDiligence` übergibt
  * weiterhin die volle Liste an `parseSynthesisResponse` (sourceDocumentId-Auflösung/
  * computeMissingDocuments) — nur dieser gefilterte Ausschnitt geht in den Prompt.
+ *
+ * Bleiben nach dem SONSTIGES-Filter immer noch mehr als `MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT`
+ * Dokumente übrig, werden die wichtigsten nach Dokumenttyp-Priorität (ZWINGEND vor
+ * EMPFOHLEN vor OPTIONAL, siehe DOCUMENT_TYPE_CATALOG) behalten — bei gleicher Priorität
+ * bleibt die Upload-Reihenfolge erhalten. Die weggelassenen Dokumente bleiben unverändert
+ * einzeln analysiert sichtbar und werden am Objekt gespeichert, tragen nur nicht zu dieser
+ * Cross-Dokument-Synthese bei.
  */
 export function selectSynthesisPromptDocuments(documents: SynthesisDocumentInput[]): SynthesisDocumentInput[] {
   const relevant = documents.filter((d) => d.documentType !== "SONSTIGES");
-  return relevant.length > 0 ? relevant : documents;
+  const selected = relevant.length > 0 ? relevant : documents;
+  if (selected.length <= MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT) return selected;
+
+  const withIndex = selected.map((d, index) => ({ d, index }));
+  withIndex.sort((a, b) => {
+    const weightA = PRIORITY_SORT_WEIGHT[DOCUMENT_TYPE_CATALOG[a.d.documentType]?.priority ?? ""] ?? 3;
+    const weightB = PRIORITY_SORT_WEIGHT[DOCUMENT_TYPE_CATALOG[b.d.documentType]?.priority ?? ""] ?? 3;
+    return weightA !== weightB ? weightA - weightB : a.index - b.index;
+  });
+  return withIndex.slice(0, MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT).map((w) => w.d);
 }
 
 export function computeOverallStatus(categories: DueDiligenceCategoryResult[]): DueDiligenceSeverity {
@@ -399,7 +428,7 @@ const SYNTHESIS_MODEL_FALLBACK = "claude-haiku-4-5-20251001";
  * keines. Beide Modelle bekommen exakt denselben Prompt/dieselbe Werkzeug-Definition,
  * "nichts wird erfunden" bleibt also unverändert die Vorgabe, nur das Modell wechselt.
  */
-const SYNTHESIS_PRIMARY_TIMEOUT_MS = 25_000;
+const SYNTHESIS_PRIMARY_TIMEOUT_MS = 15_000;
 
 class SynthesisTimeoutError extends Error {}
 

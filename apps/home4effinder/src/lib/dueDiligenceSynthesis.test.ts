@@ -8,6 +8,7 @@ import {
   selectSynthesisPromptDocuments,
   synthesizeDueDiligence,
   MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT,
+  MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT,
   type SynthesisDocumentInput,
   type SynthesisKnownField,
 } from "./dueDiligenceSynthesis";
@@ -302,6 +303,42 @@ describe("selectSynthesisPromptDocuments", () => {
   it("lässt eine Liste ohne SONSTIGES-Dokumente unverändert", () => {
     const docs: SynthesisDocumentInput[] = [{ id: "1", filename: "a.pdf", documentType: "GRUNDBUCHAUSZUG", summary: "x", facts: {}, findings: [] }];
     expect(selectSynthesisPromptDocuments(docs)).toEqual(docs);
+  });
+
+  it(`deckelt auf höchstens ${MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT} Dokumente, ZWINGEND vor EMPFOHLEN, Upload-Reihenfolge bei gleicher Priorität`, () => {
+    const zwingend: SynthesisDocumentInput[] = ["STWEG_PROTOKOLL", "JAHRESRECHNUNG", "BUDGET_STWEG", "ERNEUERUNGSFONDS", "STWEG_REGLEMENT"].map((t, i) => ({
+      id: `z${i}`,
+      filename: `${t}.pdf`,
+      documentType: t as SynthesisDocumentInput["documentType"],
+      summary: "x",
+      facts: {},
+      findings: [],
+    }));
+    const empfohlen: SynthesisDocumentInput[] = ["GEBAEUDEVERSICHERUNG", "HEIZUNG_SERVICE", "ENERGIEAUSWEIS", "SINA", "RENOVATIONSNACHWEIS"].map((t, i) => ({
+      id: `e${i}`,
+      filename: `${t}.pdf`,
+      documentType: t as SynthesisDocumentInput["documentType"],
+      summary: "x",
+      facts: {},
+      findings: [],
+    }));
+    const result = selectSynthesisPromptDocuments([...zwingend, ...empfohlen]);
+
+    expect(result).toHaveLength(MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT);
+    expect(result.slice(0, 5).map((d) => d.id)).toEqual(["z0", "z1", "z2", "z3", "z4"]);
+    expect(result.slice(5).map((d) => d.id)).toEqual(["e0", "e1", "e2"]);
+  });
+
+  it("wendet die Obergrenze NICHT an, wenn genau so viele oder weniger Dokumente übrig bleiben", () => {
+    const docs: SynthesisDocumentInput[] = Array.from({ length: MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT }, (_, i) => ({
+      id: `d${i}`,
+      filename: `d${i}.pdf`,
+      documentType: "GRUNDBUCHAUSZUG",
+      summary: "x",
+      facts: {},
+      findings: [],
+    }));
+    expect(selectSynthesisPromptDocuments(docs)).toHaveLength(MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT);
   });
 });
 
