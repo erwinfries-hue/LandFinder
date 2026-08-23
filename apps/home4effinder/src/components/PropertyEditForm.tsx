@@ -49,7 +49,7 @@ export function PropertyEditForm({
   }
 
   return (
-    <Panel style={{ padding: "1.4rem 1.6rem", marginTop: "1.6rem" }}>
+    <Panel style={{ padding: "1.1rem 1.3rem", marginTop: "1.1rem" }}>
       <div className="eyebrow">Objekt-Basisdaten bearbeiten</div>
       <form onSubmit={handleSubmit}>
         <div className="fieldgrid">

@@ -614,10 +614,10 @@ export function PropertyCreateForm() {
           </div>
         </div>
 
-        <div className="eyebrow" style={{ marginTop: "1.6rem", marginBottom: ".5rem" }}>
+        <div className="eyebrow" style={{ marginTop: "1.1rem", marginBottom: ".4rem" }}>
           Bestandsrendite-Fakten
         </div>
-        <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: "0 0 1rem" }}>
+        <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: "0 0 .7rem" }}>
           Nur Miete, Hypothek-Eckwerte und Vermietungsmodell sind Pflicht. Alle übrigen Felder mit &quot;Standard:
           …&quot; im Label sind mit einem recherchierten Vorschlagswert vorausgefüllt, Felder mit &quot;aus
           Dokument: …&quot; stammen aus den oben hochgeladenen Unterlagen — beides einfach überschreiben, falls du

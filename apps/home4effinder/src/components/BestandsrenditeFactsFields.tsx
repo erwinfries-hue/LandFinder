@@ -195,10 +195,10 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
 
-      <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         Kaufnebenkosten
       </div>
-      <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .6rem" }}>
+      <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .45rem" }}>
         Vorausgefüllt mit einem Vorschlagswert{canton ? ` für Kanton ${canton}` : ""} — bei Bedarf einfach überschreiben.
       </p>
       <div className="fieldgrid">
@@ -234,7 +234,7 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
 
-      <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         Miete &amp; Vermietungsmodell
       </div>
       <div className="fieldgrid">
@@ -310,7 +310,7 @@ export function BestandsrenditeFactsFields({
         )}
       </div>
 
-      <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         Möblierung (0, falls unmöbliert)
       </div>
       <div className="fieldgrid">
@@ -354,7 +354,7 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
 
-      <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         Renovation
       </div>
       <div className="fieldgrid">
@@ -383,7 +383,7 @@ export function BestandsrenditeFactsFields({
           />
         </div>
       </div>
-      <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: ".5rem 0" }}>
+      <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: ".4rem 0" }}>
         Nur wertvermehrende Positionen unten erhöhen den angenommenen Immobilienwert im 15-Jahres-Modell — ohne
         Positionen bleibt der Gesamtbetrag oben nur Teil der Investitionssumme, ohne Werteffekt beim Exit.
       </p>
@@ -459,7 +459,7 @@ export function BestandsrenditeFactsFields({
         + Renovationsposition hinzufügen
       </button>
 
-      <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         Betriebskosten (CHF/Jahr)
       </div>
       <div className="fieldgrid">
@@ -487,7 +487,7 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
 
-      <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         Eigene Reserven (je CHF/Jahr ODER % vom Kaufpreis — CHF hat Vorrang, leer = Default ~0.30%)
       </div>
       <div className="fieldgrid">
@@ -521,10 +521,10 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
 
-      <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         Finanzierung &amp; Steuer
       </div>
-      <p style={{ color: "var(--ink-soft)", fontSize: ".76rem", margin: "0 0 .6rem" }}>
+      <p style={{ color: "var(--ink-soft)", fontSize: ".76rem", margin: "0 0 .45rem" }}>
         1. und 2. Hypothek getrennt erfasst (übliche Schweizer Struktur) — je mit eigener Amortisation, wahlweise als
         Prozentsatz vom ursprünglichen Betrag pro Jahr oder als Zieldauer in Jahren (linear bis 0). Die 1. Hypothek
         bleibt oft unamortisiert, die 2. wird meist über eine feste Dauer getilgt — beide Felder sind aber frei
@@ -645,7 +645,7 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
 
-      <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         15-Jahres-Modell (vorausgefüllt mit Standardwerten, bei Bedarf überschreiben)
       </div>
       <div className="fieldgrid">
@@ -708,7 +708,7 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
 
-      <div className="eyebrow" style={{ marginTop: "1.4rem", marginBottom: ".5rem" }}>
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         STWEG
       </div>
       <div className="fieldgrid">
@@ -741,7 +741,7 @@ export function BestandsrenditeFactsFields({
           />
         </div>
       </div>
-      <div className="field" style={{ marginTop: ".6rem" }}>
+      <div className="field" style={{ marginTop: ".45rem" }}>
         <div className="checkbox-row">
           <input id="naechsteGrossaSanierungGeplant" name="naechsteGrossaSanierungGeplant" type="checkbox" defaultChecked={existing?.stweg.naechsteGrossaSanierungGeplant ?? false} />
           <label htmlFor="naechsteGrossaSanierungGeplant" style={{ marginBottom: 0 }}>
@@ -749,15 +749,15 @@ export function BestandsrenditeFactsFields({
           </label>
         </div>
       </div>
-      <div className="field" style={{ marginTop: ".6rem" }}>
+      <div className="field" style={{ marginTop: ".45rem" }}>
         <label htmlFor="naechsteGrossaSanierungNotes">Notizen dazu</label>
         <textarea id="naechsteGrossaSanierungNotes" name="naechsteGrossaSanierungNotes" rows={2} defaultValue={existing?.stweg.naechsteGrossaSanierungNotes} style={{ width: "100%" }} />
       </div>
-      <div className="field" style={{ marginTop: ".6rem" }}>
+      <div className="field" style={{ marginTop: ".45rem" }}>
         <label htmlFor="sanierungsstauNotes">Sanierungsstau-Hinweise</label>
         <textarea id="sanierungsstauNotes" name="sanierungsstauNotes" rows={2} defaultValue={existing?.stweg.sanierungsstauNotes} style={{ width: "100%" }} />
       </div>
-      <div className="fieldgrid" style={{ marginTop: ".6rem" }}>
+      <div className="fieldgrid" style={{ marginTop: ".45rem" }}>
         <div className="field">
           <label htmlFor="offeneBeschluesseCount">Offene/strittige Beschlüsse (Anzahl, falls bekannt)</label>
           <input id="offeneBeschluesseCount" name="offeneBeschluesseCount" type="number" step="1" min="0" defaultValue={existing?.stweg.offeneBeschluesseCount} />
@@ -767,7 +767,7 @@ export function BestandsrenditeFactsFields({
           <input id="quelle" name="quelle" type="text" defaultValue={existing?.stweg.quelle} />
         </div>
       </div>
-      <div className="field" style={{ marginTop: ".6rem" }}>
+      <div className="field" style={{ marginTop: ".45rem" }}>
         <label htmlFor="beschlussrisikenNotes">Beschlussrisiken (z.B. Rechtsstreitigkeiten zwischen Eigentümern)</label>
         <textarea id="beschlussrisikenNotes" name="beschlussrisikenNotes" rows={2} defaultValue={existing?.stweg.beschlussrisikenNotes} style={{ width: "100%" }} />
       </div>
