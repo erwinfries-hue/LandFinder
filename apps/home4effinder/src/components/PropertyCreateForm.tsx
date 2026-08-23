@@ -320,11 +320,25 @@ export function PropertyCreateForm() {
       }
 
       const facts = buildBestandsrenditeFactsFromFormData(formData, vermietungsmodell, renovationPositionen);
-      await fetchJsonWithRetry(`/api/properties/${propertyId}/bestandsrendite`, {
+      const factsSaveBody = await fetchJsonWithRetry<{ saved?: boolean; error?: string }>(`/api/properties/${propertyId}/bestandsrendite`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(facts),
       });
+      // Bislang ungeprüft — ein fehlgeschlagenes Speichern (z.B. serverseitige
+      // Validierung oder ein DB-Fehler) blieb unsichtbar: der Client hängte trotzdem
+      // Dokumente an und leitete auf die (dann leere) Objektseite weiter — genau das
+      // beobachtete "alle Daten wieder verschwunden" nach dem Speichern. Jetzt: bei
+      // einem Fehlschlag NICHT weitermachen, sondern auf der Seite bleiben und die
+      // konkrete Fehlermeldung zeigen — das Objekt existiert an diesem Punkt bereits
+      // (siehe oben), ein erneuter Klick auf "Bestandsrendite speichern" versucht nur
+      // diesen Schritt erneut, ohne ein zweites Objekt anzulegen.
+      if (!factsSaveBody.saved) {
+        setError(
+          `Objekt wurde bereits angelegt, aber die Bestandsrendite-Fakten konnten nicht gespeichert werden${factsSaveBody.error ? ` (${factsSaveBody.error})` : ""}. Bitte nochmals auf „Bestandsrendite speichern" klicken — es wird kein zweites Objekt angelegt.`,
+        );
+        return;
+      }
 
       // Bereits analysierte Dokumente ans neue Objekt anhängen — ohne erneute
       // Claude-Analyse, das Ergebnis ist schon da (reiner Storage-Upload + DB-Insert,

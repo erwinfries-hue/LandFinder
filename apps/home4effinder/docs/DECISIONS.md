@@ -1314,6 +1314,32 @@ verbleibenden echten Lösungen (Vercel-Pro-Upgrade für ein höheres Zeitlimit, 
 grössere Batch-/Mehrfach-Synthese-Architektur) anstehen, und dass er zwischen diesen
 beiden wählen soll, statt weitere Prompt-Mikrooptimierungen abzuwarten.
 
+## Nachgezogen (2026-08-23): "Alle Daten wieder verschwunden" bei kleinem Dokumentenset — ungeprüfter Fetch beim Bestandsrendite-Speichern gefunden
+
+Live-Test mit nur 3 Dokumenten (Exposé + 2 STWEG-Protokolle) — bewusst klein gewählt, um
+die Synthese-Zeitproblematik der letzten Einträge auszuschliessen. Analyse und Synthese
+liefen sauber durch, aber nach dem finalen Klick auf "Bestandsrendite speichern" waren
+alle Daten weg. Da diesmal kein Netzwerkfehler-Text zu sehen war, lag der Fehler woanders
+als in den letzten Einträgen vermutet.
+
+Root Cause gefunden beim erneuten Durchgehen von `PropertyCreateForm.tsx::handleSubmit`:
+der Aufruf `POST /api/properties/[id]/bestandsrendite` (schreibt die eigentlichen
+Bestandsrendite-Fakten) prüfte die Antwort NIE — anders als alle anderen Schreibaufrufe
+in derselben Funktion (Objekt anlegen, Dokumente anhängen, Due-Diligence mitspeichern),
+die das bereits in einer früheren Runde bekamen (siehe Eintrag "Zwei ernste Bugs beim
+Speichern..."). Schlägt dieser eine Aufruf fehl (serverseitige Validierung oder ein
+DB-Fehler), bemerkte das der Client nicht: er hängte trotzdem die Dokumente an, speicherte
+die Synthese und leitete auf die Objektseite weiter — die dann mit leerem
+`bestandsrendite` dastand, weil der eigentliche Schreibvorgang nie durchkam. Exakt das
+beobachtete "alle Daten wieder verschwunden".
+
+Fix: Antwort jetzt geprüft (`factsSaveBody.saved`); bei einem Fehlschlag wird NICHT
+weitergemacht, sondern auf der Seite geblieben und eine konkrete Fehlermeldung gezeigt
+("Objekt wurde bereits angelegt, aber die Bestandsrendite-Fakten konnten nicht
+gespeichert werden … bitte nochmals klicken") — kein Datenverlust mehr, der Nutzer sieht
+sofort, wenn dieser Schritt fehlschlägt, statt eines scheinbar erfolgreichen, aber leeren
+Ergebnisses.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
