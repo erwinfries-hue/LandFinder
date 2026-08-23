@@ -16,7 +16,27 @@ import { buildBestandsrenditeFactsFromFormData } from "@/lib/bestandsrenditeForm
  * `BestandsrenditeFactsFields` — dieselbe Komponente wird auch im kombinierten
  * Neu-Erfassen-Flow verwendet (`PropertyCreateForm`).
  */
-export function BestandsrenditeVertiefungForm({ propertyId, existing, canton }: { propertyId: string; existing: BestandsrenditeFacts | null; canton?: string }) {
+export function BestandsrenditeVertiefungForm({
+  propertyId,
+  existing,
+  canton,
+  bestandsrenditeUpdatedAt,
+}: {
+  propertyId: string;
+  existing: BestandsrenditeFacts | null;
+  canton?: string;
+  /**
+   * Ändert sich, sobald `bestandsrendite` serverseitig neu geschrieben wurde (z.B. durch
+   * "Übernehmen" eines Feldwert-Vorschlags/Widerspruchs im Due-Diligence-Panel weiter
+   * unten auf der Seite). Als `key` auf `BestandsrenditeFactsFields` verwendet, damit die
+   * Formularfelder (unkontrollierte Inputs mit `defaultValue`) nach einem `router.refresh()`
+   * TATSÄCHLICH neu gemountet werden und den frisch übernommenen Wert zeigen — ohne
+   * geänderten `key` ignoriert React ein geändertes `defaultValue` auf einem bereits
+   * gemounteten unkontrollierten Input, das Feld bliebe optisch beim alten/leeren Stand,
+   * obwohl der Wert in der Datenbank längst aktualisiert wurde.
+   */
+  bestandsrenditeUpdatedAt?: string | null;
+}) {
   const router = useRouter();
   const [vermietungsmodell, setVermietungsmodell] = useState<Vermietungsmodell>(existing?.miete.vermietungsmodell ?? "LANGFRISTIG_UNMOEBLIERT");
   const [renovationPositionen, setRenovationPositionen] = useState<RenovationPosition[]>(existing?.renovation.positionen ?? []);
@@ -68,6 +88,7 @@ export function BestandsrenditeVertiefungForm({ propertyId, existing, canton }: 
       </p>
       <form onSubmit={handleSubmit}>
         <BestandsrenditeFactsFields
+          key={bestandsrenditeUpdatedAt ?? "new"}
           existing={existing}
           canton={canton}
           vermietungsmodell={vermietungsmodell}

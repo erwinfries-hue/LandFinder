@@ -266,6 +266,14 @@ export function PropertyCreateForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // WICHTIG: FormData SOFORT synchron aus event.currentTarget lesen, VOR dem ersten
+    // await — React setzt event.currentTarget auf null, sobald die synchrone
+    // Dispatch-Phase des Events endet (unabhängig vom Event-Pooling). Wird das Formular
+    // erst NACH einem await gelesen (wie es hier vorher der Fall war, nach dem
+    // POST /api/properties-Aufruf), liefert `new FormData(event.currentTarget)` ein
+    // leeres FormData-Objekt — genau das beobachtete Symptom "einige Felder sind wieder
+    // leer" nach dem Speichern.
+    const formData = new FormData(event.currentTarget);
     setError(null);
     setSaving(true);
 
@@ -300,7 +308,6 @@ export function PropertyCreateForm() {
         setCreatedPropertyId(propertyId);
       }
 
-      const formData = new FormData(event.currentTarget);
       const facts = buildBestandsrenditeFactsFromFormData(formData, vermietungsmodell, renovationPositionen);
       await fetchJsonWithRetry(`/api/properties/${propertyId}/bestandsrendite`, {
         method: "POST",
@@ -309,19 +316,31 @@ export function PropertyCreateForm() {
       });
 
       // Bereits analysierte Dokumente ans neue Objekt anhängen — ohne erneute
-      // Claude-Analyse, das Ergebnis ist schon da.
+      // Claude-Analyse, das Ergebnis ist schon da. Fehlschläge werden gezählt und am
+      // Ende gemeldet (vorher wurde die Antwort gar nicht geprüft — ein Fehler blieb
+      // unsichtbar, das Objekt stand danach mit 0 Dokumenten da, ohne dass der Nutzer
+      // erfuhr, warum).
       const analyzed = prefillFiles.filter((p) => p.status === "DONE" && p.extraction);
+      const attachFailures: string[] = [];
       for (const p of analyzed) {
         const attachFormData = new FormData();
         attachFormData.append("file", p.file);
         attachFormData.append("documentType", p.documentType);
         attachFormData.append("extraction", JSON.stringify(p.extraction));
         try {
-          await fetch(`/api/properties/${propertyId}/documents/attach`, { method: "POST", body: attachFormData });
+          const attachRes = await fetch(`/api/properties/${propertyId}/documents/attach`, { method: "POST", body: attachFormData });
+          const attachBody = (await attachRes.json().catch(() => ({}))) as { saved?: boolean };
+          if (!attachRes.ok || !attachBody.saved) attachFailures.push(p.file.name);
         } catch {
           // Nicht abbrechen — das Objekt ist bereits angelegt, ein einzelnes
           // fehlgeschlagenes Anhängen kann der Nutzer auf der Objektseite nachholen.
+          attachFailures.push(p.file.name);
         }
+      }
+      if (attachFailures.length > 0) {
+        window.alert(
+          `${attachFailures.length} von ${analyzed.length} Dokument(en) konnten nicht ans Objekt angehängt werden: ${attachFailures.join(", ")}. Bitte auf der Objektseite manuell erneut hochladen.`,
+        );
       }
 
       // Bereits berechnete Due-Diligence-Synthese direkt mitspeichern, statt Claude ein
@@ -329,14 +348,19 @@ export function PropertyCreateForm() {
       if (synthesisResult) {
         const knownFields = BESTANDSRENDITE_KNOWN_FIELD_LABELS.map(({ field, label }) => ({ field, label }));
         try {
-          await fetch(`/api/properties/${propertyId}/due-diligence/save-prefilled`, {
+          const savePrefilledRes = await fetch(`/api/properties/${propertyId}/due-diligence/save-prefilled`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ result: synthesisResult, documents: synthesisDocuments, knownFields }),
           });
+          const savePrefilledBody = (await savePrefilledRes.json().catch(() => ({}))) as { saved?: boolean };
+          if (!savePrefilledRes.ok || !savePrefilledBody.saved) {
+            window.alert("Due-Diligence-Auswertung konnte nicht gespeichert werden — auf der Objektseite bitte über „Due-Diligence aktualisieren“ nachholen.");
+          }
         } catch {
           // Nicht abbrechen — kann auf der Objektseite jederzeit über "Due-Diligence
           // aktualisieren" nachgeholt werden.
+          window.alert("Due-Diligence-Auswertung konnte nicht gespeichert werden (Netzwerkfehler) — auf der Objektseite bitte über „Due-Diligence aktualisieren“ nachholen.");
         }
       }
 

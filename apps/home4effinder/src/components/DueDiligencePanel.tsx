@@ -56,6 +56,8 @@ export function DueDiligencePanel({
   const [synthesizing, setSynthesizing] = useState(false);
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [applying, setApplying] = useState<string | null>(null);
+  /** Felder, die in dieser Sitzung bereits erfolgreich übernommen wurden — sofortiges "Übernommen ✓" statt Button, ohne auf den nächsten `router.refresh()` warten zu müssen (der die Formularfelder erst nach dem Neuladen aktualisiert). */
+  const [appliedFields, setAppliedFields] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState<string | null>(null);
   const [reanalyzing, setReanalyzing] = useState<string | null>(null);
   const [togglingExcluded, setTogglingExcluded] = useState<string | null>(null);
@@ -158,12 +160,20 @@ export function DueDiligencePanel({
   async function handleApplyProposal(field: string, newValue: string | number) {
     setApplying(field);
     try {
-      await fetch(`/api/properties/${propertyId}/due-diligence/apply-proposal`, {
+      const res = await fetch(`/api/properties/${propertyId}/due-diligence/apply-proposal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ field, newValue }),
       });
+      const body = (await res.json().catch(() => ({}))) as { saved?: boolean; error?: string };
+      if (!res.ok || !body.saved) {
+        window.alert(body.error ?? "Übernehmen fehlgeschlagen.");
+        return;
+      }
+      setAppliedFields((prev) => new Set(prev).add(field));
       router.refresh();
+    } catch {
+      window.alert("Übernehmen fehlgeschlagen (Netzwerkfehler).");
     } finally {
       setApplying(null);
     }
@@ -505,7 +515,9 @@ export function DueDiligencePanel({
                             {option.sourcePage ? `, Seite ${option.sourcePage}` : ""}
                             {option.sourceQuote ? `: „${option.sourceQuote}“` : ""}
                           </span>
-                          {contradiction.field ? (
+                          {contradiction.field && appliedFields.has(contradiction.field) ? (
+                            <Chip tone="good">Übernommen ✓</Chip>
+                          ) : contradiction.field ? (
                             <button
                               type="button"
                               className="btn"
@@ -622,9 +634,13 @@ export function DueDiligencePanel({
                     {p.currentValue != null ? ` (bisher ${p.currentValue})` : " (bisher nicht erfasst)"} — laut {p.sourceDocumentName}
                     {p.sourcePage ? `, Seite ${p.sourcePage}` : ""}
                   </span>
-                  <button type="button" className="btn" style={{ width: "auto", padding: ".2rem .6rem", fontSize: ".76rem" }} disabled={applying === p.field} onClick={() => handleApplyProposal(p.field, p.newValue)}>
-                    {applying === p.field ? "Übernimmt…" : "Übernehmen"}
-                  </button>
+                  {appliedFields.has(p.field) ? (
+                    <Chip tone="good">Übernommen ✓</Chip>
+                  ) : (
+                    <button type="button" className="btn" style={{ width: "auto", padding: ".2rem .6rem", fontSize: ".76rem" }} disabled={applying === p.field} onClick={() => handleApplyProposal(p.field, p.newValue)}>
+                      {applying === p.field ? "Übernimmt…" : "Übernehmen"}
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
