@@ -1437,6 +1437,41 @@ verwendet), keine neue Berechnung. In `BestandsrenditeAnalysisView.tsx` als
 bestehende "Jahr-für-Jahr-Details anzeigen"-Aufklapper beim 15-Jahres-Modell, damit sich
 das Interaktionsmuster konsistent anfühlt.
 
+## Nachgezogen (2026-08-23): Parkplatz und Tiefgaragenplatz/Garage getrennt erfassbar
+
+Wunsch: beim Kaufpreis zwischen "1.1 Kaufpreis Wohnung", "1.2 Kaufpreis Wohnung und
+Parkplatz/Garage im Kombi", "2.1 Kaufpreis Parkplatz" und "2.2 Kaufpreis
+Tiefgaragenplatz/Garage" unterscheiden können. Rückfrage geklärt: beide Parkierungsarten
+sollen gleichzeitig erfassbar sein (ein Objekt kann z.B. einen offenen Parkplatz UND
+einen separaten Garagenplatz haben), rechnerisch aber identisch behandelt werden — reine
+Kategorisierung/Beschriftung, keine unterschiedliche Formel.
+
+Umsetzung: `garagenplatzKaufpreisChf`/`garagenplatzImKaufpreisEnthalten` als neue,
+zum bestehenden `parkplatzKaufpreisChf`/`parkplatzImKaufpreisEnthalten` PARALLELE Felder
+ergänzt (bewusst nicht umbenannt/verschachtelt — bestehende gespeicherte Daten bleiben
+unverändert gültig, kein Migrationsrisiko). Beide addieren sich unabhängig voneinander
+zum Basis-Kaufpreis, sofern nicht jeweils per eigener Checkbox als "bereits im Kaufpreis
+enthalten" markiert — deckt alle vier genannten Szenarien durch Kombination von
+Betrag+Checkbox pro Parkierungsart ab, ohne dass "1.1/1.2/2.1/2.2" als eigene Felder
+nötig wären. Neues `parkierung`-Feld im Analyse-Ergebnis (`parkplatzZusatzChf`/
+`garagenplatzZusatzChf`/`totalZusatzChf`) für die Anzeige der Aufschlüsselung.
+
+Sichtbar integriert an drei Stellen (zweiter, mündlicher Nachtrag zum ursprünglichen
+Wunsch — "beim kaufpreis bitte parkplatz noch sinnvoll integrieren in dieser ansicht"):
+- Objekt-Detailseite, oberste Kennzahlen-Kachel: "Kaufpreis" zeigt bei vorhandenen
+  Bestandsrendite-Fakten neu den TOTALEN Kaufpreis inkl. Parkplatz/Garage (statt nur den
+  Basis-Kaufpreis der Objekt-Basisdaten) mit Aufschlüsselung als Sub-Zeile.
+- Ebene-A-Schnellcheck-Kachel "Kaufpreis (Wohnung + Parkplatz/Garage)": ebenfalls mit
+  Aufschlüsselungs-Sub-Zeile, wenn Parkplatz/Garage zusätzlich dazugerechnet werden.
+- Basis-Kaufpreis-Feld (Objekt-Basisdaten, sowohl Neu-Erfassen-Flow als auch
+  Bearbeiten-Formular) umbenannt zu "Kaufpreis (CHF, Wohnung — ggf. inkl.
+  Parkplatz/Garage, falls im Preis enthalten)" zur Klarstellung.
+
+Auch die Dokumenten-KI-Extraktionsanleitung (`documentTypes.ts`) und die
+Feldwert-Übernahmevorschläge (`bestandsrenditeKnownFields.ts`/`ALLOWED_UPDATE_FIELDS`)
+kennen jetzt beide Schlüssel — ein aus Dokumenten erkannter Garagenplatz-Kaufpreis kann
+genauso automatisch vorgeschlagen werden wie bisher schon der Parkplatz-Kaufpreis.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

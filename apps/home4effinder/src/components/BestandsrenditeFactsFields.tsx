@@ -141,6 +141,7 @@ export function BestandsrenditeFactsFields({
   const zimmerzahl = resolved("zimmerzahl", undefined);
   const baujahr = resolved("baujahr", undefined);
   const parkplatzKaufpreisChf = resolved("parkplatzKaufpreisChf", 0);
+  const garagenplatzKaufpreisChf = resolved("garagenplatzKaufpreisChf", 0);
   const wohnungsMiete = resolved("miete.wohnungsMieteChfPerMonth", undefined);
   const parkplatzMiete = resolved("miete.parkplatzMieteChfPerMonth", 0);
   const sonstigeEinnahmen = resolved("miete.sonstigeEinnahmenChfPerYear", 0);
@@ -175,9 +176,21 @@ export function BestandsrenditeFactsFields({
         </div>
         <div className="field">
           <label htmlFor="parkplatzKaufpreisChf">
-            Parkplatz-Kaufpreis (CHF, {parkplatzKaufpreisChf.fromDoc ? `aus Dokument: ${parkplatzKaufpreisChf.value}` : "0 falls keiner"})
+            Parkplatz-Kaufpreis, offen/aussen (CHF, {parkplatzKaufpreisChf.fromDoc ? `aus Dokument: ${parkplatzKaufpreisChf.value}` : "0 falls keiner"})
           </label>
           <input id="parkplatzKaufpreisChf" name="parkplatzKaufpreisChf" type="number" step="1000" defaultValue={existing?.parkplatzKaufpreisChf ?? parkplatzKaufpreisChf.value} />
+        </div>
+        <div className="field">
+          <label htmlFor="garagenplatzKaufpreisChf">
+            Tiefgaragenplatz-/Garage-Kaufpreis (CHF, {garagenplatzKaufpreisChf.fromDoc ? `aus Dokument: ${garagenplatzKaufpreisChf.value}` : "0 falls keiner"})
+          </label>
+          <input
+            id="garagenplatzKaufpreisChf"
+            name="garagenplatzKaufpreisChf"
+            type="number"
+            step="1000"
+            defaultValue={existing?.garagenplatzKaufpreisChf ?? garagenplatzKaufpreisChf.value}
+          />
         </div>
       </div>
       <div className="field" style={{ marginTop: ".4rem" }}>
@@ -189,8 +202,22 @@ export function BestandsrenditeFactsFields({
             defaultChecked={existing?.parkplatzImKaufpreisEnthalten ?? false}
           />
           <label htmlFor="parkplatzImKaufpreisEnthalten" style={{ marginBottom: 0 }}>
-            Parkplatz-Kaufpreis ist bereits im Kaufpreis oben (Objekt-Basisdaten) enthalten — sonst wird er zusätzlich
-            addiert
+            Parkplatz-Kaufpreis (offen/aussen) ist bereits im Kaufpreis oben (Objekt-Basisdaten) enthalten — sonst
+            wird er zusätzlich addiert
+          </label>
+        </div>
+      </div>
+      <div className="field" style={{ marginTop: ".4rem" }}>
+        <div className="checkbox-row">
+          <input
+            id="garagenplatzImKaufpreisEnthalten"
+            name="garagenplatzImKaufpreisEnthalten"
+            type="checkbox"
+            defaultChecked={existing?.garagenplatzImKaufpreisEnthalten ?? false}
+          />
+          <label htmlFor="garagenplatzImKaufpreisEnthalten" style={{ marginBottom: 0 }}>
+            Tiefgaragenplatz-/Garage-Kaufpreis ist bereits im Kaufpreis oben (Objekt-Basisdaten) enthalten — sonst
+            wird er zusätzlich addiert
           </label>
         </div>
       </div>

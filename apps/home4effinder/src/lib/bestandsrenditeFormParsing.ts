@@ -25,6 +25,8 @@ export function buildBestandsrenditeFactsFromFormData(
     baujahr: num("baujahr"),
     parkplatzKaufpreisChf: req("parkplatzKaufpreisChf"),
     parkplatzImKaufpreisEnthalten: form.get("parkplatzImKaufpreisEnthalten") === "on",
+    garagenplatzKaufpreisChf: req("garagenplatzKaufpreisChf"),
+    garagenplatzImKaufpreisEnthalten: form.get("garagenplatzImKaufpreisEnthalten") === "on",
     stweg: {
       wertquotePromille: num("wertquotePromille"),
       erneuerungsfondsSaldoChf: num("erneuerungsfondsSaldoChf"),

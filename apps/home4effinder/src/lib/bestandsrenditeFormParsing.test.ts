@@ -12,6 +12,7 @@ describe("buildBestandsrenditeFactsFromFormData", () => {
   it("baut die Pflichtfelder (req) auch ohne Eingabe als 0", () => {
     const facts = buildBestandsrenditeFactsFromFormData(formDataFrom({}), "LANGFRISTIG_UNMOEBLIERT", []);
     expect(facts.parkplatzKaufpreisChf).toBe(0);
+    expect(facts.garagenplatzKaufpreisChf).toBe(0);
     expect((facts.miete as Record<string, unknown>).wohnungsMieteChfPerMonth).toBe(0);
   });
 

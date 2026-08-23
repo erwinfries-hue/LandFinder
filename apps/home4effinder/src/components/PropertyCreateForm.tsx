@@ -632,7 +632,7 @@ export function PropertyCreateForm() {
             </select>
           </div>
           <div className="field">
-            <label htmlFor="askingPriceChf">Kaufpreis (CHF)</label>
+            <label htmlFor="askingPriceChf">Kaufpreis (CHF, Wohnung — ggf. inkl. Parkplatz/Garage, falls im Preis enthalten)</label>
             <input
               id="askingPriceChf"
               type="number"
