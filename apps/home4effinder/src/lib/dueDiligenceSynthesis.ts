@@ -96,7 +96,7 @@ const KNOWN_SEVERITIES = new Set<DueDiligenceSeverity>(["OK", "KLAERUNGSBEDARF",
 
 const SEVERITY_SORT_WEIGHT: Record<DueDiligenceSeverity, number> = { RISIKO: 0, KLAERUNGSBEDARF: 1, OK: 2 };
 /** Deckelt die pro Dokument in den Stufe-2-Prompt übernommenen Stufe-1-Funde — wichtig bei findingsreichen Dokumenten (z.B. mehrjährige STWEG-Protokolle), siehe compactFindingsForPrompt. */
-export const MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT = 10;
+export const MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT = 6;
 
 /**
  * Der grösste Prompt-Kostentreiber bei findingsreichen Dokumenten waren die vollständigen
@@ -118,8 +118,8 @@ export function compactFindingsForPrompt(findings: DueDiligenceFinding[]): unkno
 }
 
 /** Weitere, defensive Obergrenzen gegen den Prompt-Kostentreiber — greifen nur im seltenen Fall einer ungewöhnlich langen Stufe-1-Zusammenfassung/Fakten-Struktur, wirken aber zusätzlich zur Funde-Deckelung oben in dieselbe Richtung (Vercel-60s-Limit, siehe docs/DECISIONS.md). */
-const MAX_SUMMARY_LENGTH_IN_PROMPT = 500;
-const MAX_FACTS_JSON_LENGTH_IN_PROMPT = 1000;
+const MAX_SUMMARY_LENGTH_IN_PROMPT = 350;
+const MAX_FACTS_JSON_LENGTH_IN_PROMPT = 700;
 
 function truncateForPrompt(text: string, maxLength: number): string {
   return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
