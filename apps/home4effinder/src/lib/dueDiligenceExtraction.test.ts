@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseDocumentExtractionResponse, isSupportedDocumentFile, isPdfDocumentFile, buildExtractionToolSchema } from "./dueDiligenceExtraction";
+import { parseDocumentExtractionResponse, isSupportedDocumentFile, isPdfDocumentFile, buildExtractionToolSchema, resolveExtractionModel } from "./dueDiligenceExtraction";
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
 import { CATEGORY_ORDER } from "./dueDiligenceCategories";
 
@@ -108,6 +108,18 @@ describe("parseDocumentExtractionResponse — basisdaten", () => {
     const json = JSON.stringify({ summary: "x", facts: {}, findings: [], basisdaten: { kantonCode: "XX" } });
     const result = parseDocumentExtractionResponse(json, "EXPOSE_INSERAT");
     expect(result.basisdaten).toBeUndefined();
+  });
+});
+
+describe("resolveExtractionModel", () => {
+  it("verwendet Haiku für SONSTIGES-Dokumente", () => {
+    expect(resolveExtractionModel("SONSTIGES")).toBe("claude-haiku-4-5-20251001");
+  });
+
+  it("verwendet Sonnet 5 für alle anderen Dokumenttypen", () => {
+    expect(resolveExtractionModel("STWEG_PROTOKOLL")).toBe("claude-sonnet-5");
+    expect(resolveExtractionModel("MIETVERTRAG")).toBe("claude-sonnet-5");
+    expect(resolveExtractionModel("EXPOSE_INSERAT")).toBe("claude-sonnet-5");
   });
 });
 

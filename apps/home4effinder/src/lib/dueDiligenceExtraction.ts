@@ -194,6 +194,21 @@ export function parseDocumentExtractionResponse(jsonText: string, fallbackDocume
   return { detectedDocumentType, summary, facts, findings, ...(basisdaten ? { basisdaten } : {}) };
 }
 
+/**
+ * SONSTIGES-Dokumente (keiner Due-Diligence-Kategorie zugeordnet, z.B. Kaufangebot/
+ * Finanzierungsbestätigung/Antrag/Katasterplan — bereits von der Stufe-2-Synthese
+ * ausgeschlossen, siehe `selectSynthesisPromptDocuments` in dueDiligenceSynthesis.ts)
+ * stellen geringere Anforderungen an die Extraktion: im Wesentlichen Objekt-Basisdaten
+ * und einfache Fakten, keine nuancierte Risikobewertung wie bei STWEG-Protokollen/
+ * Mietverträgen. Dafür reicht das deutlich schnellere und günstigere Haiku-Modell —
+ * eine von mehreren Massnahmen gegen die insgesamt lange Wartezeit bei vielen
+ * hochgeladenen Dokumenten (siehe docs/DECISIONS.md). Für alle anderen Dokumenttypen
+ * bleibt Sonnet 5, wo Qualität/Nuance stärker zählt.
+ */
+export function resolveExtractionModel(documentType: DueDiligenceDocumentType): string {
+  return documentType === "SONSTIGES" ? "claude-haiku-4-5-20251001" : "claude-sonnet-5";
+}
+
 export async function extractDocumentFields(
   source: DocumentSourceInput,
   documentType: DueDiligenceDocumentType,
@@ -210,7 +225,7 @@ export async function extractDocumentFields(
       : ({ type: "document", source: { type: "text", media_type: "text/plain", data: source.text }, title: filename } as const);
 
   const response = await client.messages.create({
-    model: "claude-sonnet-5",
+    model: resolveExtractionModel(documentType),
     // War bisher 4096 — bei mehrseitigen, fundreichen Dokumenten (z.B. STWEG-Protokolle
     // mit vielen Einzelfunden inkl. wörtlichem Zitat, Grundbuchauszüge, mehrjährige
     // Betriebskostenaufstellungen) reichte das nicht: die Antwort wurde mitten in der

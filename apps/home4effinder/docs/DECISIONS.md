@@ -1164,6 +1164,45 @@ Massnahmen weiterhin scheitern, wäre der nächste, deutlich aufwendigere Schrit
 Batch-/Hintergrund-Synthese (mehrere kleinere LLM-Aufrufe statt eines grossen) — bewusst
 nicht vorgezogen, ohne Live-Zugriff hier nicht token-genau planbar/verifizierbar.
 
+## Nachgezogen (2026-08-23): Weitere Optimierungen ohne Vercel-Upgrade
+
+Auf Rückfrage geprüft, ob ein Wechsel zur OpenAI-API sinnvoll wäre (Auftraggeber hatte mit
+ChatGPT schnellere Analysen erlebt) — Ergebnis mit dem Auftraggeber besprochen: ChatGPT Pro
+umfasst keinen API-Zugang, der wahrgenommene Geschwindigkeitsunterschied liegt eher an der
+Nutzungsart (ein Dokument interaktiv vs. viele Dokumente serverseitig in einem Rutsch) als
+am Modell selbst, und ein zweiter KI-Anbieter würde Vercels 60-Sekunden-Grenze nicht
+aufheben. Empfehlung: Vercel-Pro-Upgrade ($20/Monat, hebt die Grenze auf 300s) wäre der
+direktere Hebel — vorerst aber zurückgestellt ("belassen wir für den Moment"), stattdessen
+weitere Optimierungen innerhalb der bestehenden Grenzen angefordert.
+
+Zwei weitere, bewusst risikoarme Massnahmen (siehe auch die Kette vorheriger Einträge zum
+selben Thema):
+
+- **Haiku 4.5 statt Sonnet 5 für SONSTIGES-Dokumente** (`resolveExtractionModel` in
+  `dueDiligenceExtraction.ts`): diese Dokumente (Kaufangebot, Finanzierungsbestätigung,
+  Antrag, Katasterplan o.ä. — bereits von der Stufe-2-Synthese ausgeschlossen, siehe
+  `selectSynthesisPromptDocuments`) stellen geringere Anforderungen an die Extraktion
+  (im Wesentlichen Objekt-Basisdaten/einfache Fakten, keine nuancierte Risikobewertung).
+  Haiku ist für diese Fälle spürbar schneller und günstiger, ohne die Qualität bei den
+  eigentlich due-diligence-relevanten Dokumenttypen (weiterhin Sonnet 5) zu berühren.
+- **Prompt-Obergrenzen weiter verschärft**: `MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT` 10 → 6,
+  `MAX_SUMMARY_LENGTH_IN_PROMPT` 500 → 350, `MAX_FACTS_JSON_LENGTH_IN_PROMPT` 1000 → 700
+  Zeichen — weitere Verkleinerung des Stufe-2-Prompts on top der bereits vorhandenen
+  Massnahmen (SONSTIGES-Filter, Funde-Kompaktierung).
+
+**Bewusst NICHT umgesetzt:** eine echte Batch-/Mehrfach-Synthese (Dokumente in Gruppen
+aufteilen, Teilergebnisse deterministisch zusammenführen) — das wäre der einzige Hebel, der
+die 60-Sekunden-Grenze für BELIEBIG viele Dokumente vollständig auflösen würde, ohne ein
+Vercel-Upgrade. Bewusst zurückgestellt: das ist eine substanzielle Änderung an der
+Kernlogik der Synthese (Zusammenführen von Kategorien/Widersprüchen/Feldvorschlägen aus
+mehreren Teilergebnissen), die sich in dieser Sandbox ohne Live-Zugriff auf echte Dokumente
+nicht Ende-zu-Ende verifizieren lässt — ein unentdeckter Fehler in der Zusammenführungslogik
+wäre schwerer zu bemerken als ein sichtbarer Timeout und würde die Kernanforderung
+"nichts wird erfunden" gefährden. Empfehlung an den Auftraggeber: falls die Synthese trotz
+aller bisherigen Massnahmen weiterhin an sehr grossen Dokumentensets scheitert, ist das der
+nächste sinnvolle Schritt — dann aber mit Rückmeldung aus einem konkreten Fehlschlag als
+Testfall, statt blind entwickelt.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
