@@ -1125,6 +1125,45 @@ Dokumenten-Anhänge-Loop) — die zweite Ursache (ungeprüfte attach-Antwort) de
 Fall unabhängig ab. Beide Fixes sind in Kombination die robusteste verfügbare Erklärung
 für das beobachtete Verhalten.
 
+## Nachgezogen (2026-08-23): Netzwerkfehler bei der Synthese persistierte weiterhin — Analyse/Anhängen parallelisiert, Prompt weiter gedeckelt
+
+Erneute Rückmeldung mit demselben grossen Dokumentenset (~15-20 Dateien, mehrheitlich
+STWEG-Protokolle/Heizkosten über mehrere Jahre): die Prefill-Synthese scheiterte trotz
+SONSTIGES-Filterung und Funde-Kompaktierung weiterhin mit "Netzwerkfehler", UND explizit
+gemeldet: der gesamte Vorgang (Analysieren + Speichern) dauert "sehr sehr lange", und nach
+dem Speichern waren wieder 0 Dokumente/leere Felder zu sehen.
+
+**Wahrscheinlichste Ursache für "0 Dokumente" diesmal:** nicht mehr derselbe Bug wie zuvor
+(der ist behoben, siehe voriger Eintrag), sondern schlicht die Dauer selbst — bei 15-20
+Dokumenten lief `handleAnalyze` bisher komplett SEQUENZIELL (eine Claude-Analyse nach der
+anderen), gefolgt von einem ebenso sequenziellen Anhängen-Loop beim Speichern (ein
+Server-Request pro Dokument, nacheinander). Bei mehreren Minuten Gesamtdauer auf einem
+mobilen Gerät steigt das Risiko einer unterbrochenen Verbindung oder eines ungeduldigen
+Verlassens der Seite deutlich — mit potenziell nur teilweise abgeschlossenem Speichern.
+
+Zwei weitere Massnahmen:
+
+- **Parallelisierung statt strikter Sequenz** (`concurrency.ts`, neue Funktion
+  `runWithConcurrency`): sowohl `handleAnalyze` (Stufe-1-Analyse, max. 3 gleichzeitig —
+  bewusst moderat, jede Analyse ist ein eigener LLM-Aufruf, keine Anthropic-Rate-Limits
+  strapazieren) als auch der Dokumenten-Anhänge-Loop beim Speichern (max. 5 gleichzeitig —
+  reiner Storage-Upload + DB-Insert, kein LLM, höhere Nebenläufigkeit vertretbar) laufen
+  jetzt parallel statt einzeln nacheinander. Jeder einzelne Server-Request bleibt
+  unabhängig mit eigenem Zeitbudget — Parallelität ist rein clientseitig (mehrere Fetches
+  gleichzeitig), erhöht also nicht das Risiko eines einzelnen Timeouts, senkt aber die
+  Gesamtdauer spürbar und damit das Zeitfenster für eine unterbrochene Verbindung.
+- **Weitere defensive Prompt-Obergrenzen** in `buildSynthesisPrompt`
+  (`dueDiligenceSynthesis.ts`): `summary` auf 500 und die `facts`-JSON-Darstellung auf
+  1000 Zeichen JE Dokument gedeckelt (zusätzlich zur bereits vorhandenen
+  Funde-Deckelung/-Kompaktierung) — greift nur im Grenzfall ungewöhnlich langer
+  Stufe-1-Ausgaben, wirkt aber in dieselbe Richtung.
+
+Weiterhin unverändert: die harte 60-Sekunden-Grenze (Vercel-Hobby-Plan) selbst lässt sich
+im Code nicht anheben. Sollte die Synthese bei sehr grossen Dokumentensets trotz all dieser
+Massnahmen weiterhin scheitern, wäre der nächste, deutlich aufwendigere Schritt eine echte
+Batch-/Hintergrund-Synthese (mehrere kleinere LLM-Aufrufe statt eines grossen) — bewusst
+nicht vorgezogen, ohne Live-Zugriff hier nicht token-genau planbar/verifizierbar.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

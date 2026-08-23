@@ -13,6 +13,7 @@ import { BestandsrenditeFactsFields, emptyRenovationPosition } from "./Bestandsr
 import { buildBestandsrenditeFactsFromFormData } from "@/lib/bestandsrenditeFormParsing";
 import { BESTANDSRENDITE_KNOWN_FIELD_LABELS } from "@/lib/bestandsrenditeKnownFields";
 import { fetchJsonWithRetry } from "@/lib/fetchJsonWithRetry";
+import { runWithConcurrency } from "@/lib/concurrency";
 
 /** Datei, die ausgewählt aber noch nicht analysiert ist — Dokumenttyp aus dem Dateinamen vorgeschlagen (`documentTypeGuess.ts`), vor dem Hochladen editierbar. */
 type StagedFile = { file: File; documentType: DueDiligenceDocumentType; guessed: boolean };
@@ -218,15 +219,23 @@ export function PropertyCreateForm() {
    * Bricht die Wartezeit auf ein einzelnes, sehr lange drehendes Dokument ab (z.B. grosses
    * gescanntes PDF) — der Server-Request läuft im Hintergrund zu Ende (stateless, siehe
    * `/api/properties/prefill/route.ts`, kein DB-Zustand zum Aufräumen), aber der Nutzer muss
-   * nicht mehr darauf warten. Wichtig: `handleAnalyze` analysiert alle Dateien SEQUENZIELL —
-   * ohne Abbruch würde ein hängendes Dokument auch alle nachfolgenden blockieren, mit Abbruch
-   * geht die Schleife sofort zum nächsten Dokument über. Speichern ("Bestandsrendite
-   * speichern") war schon vorher technisch möglich, während ein Dokument noch lief (nur
-   * fertig analysierte Dokumente werden angehängt) — der Abbruch macht das nur unmissverständlich.
+   * nicht mehr darauf warten. Speichern ("Bestandsrendite speichern") war schon vorher
+   * technisch möglich, während ein Dokument noch lief (nur fertig analysierte Dokumente
+   * werden angehängt) — der Abbruch macht das nur unmissverständlich.
    */
   function handleCancelAnalysis(entry: PrefillFile) {
     entry.controller?.abort();
   }
+
+  /**
+   * Höchstens so viele Dokumente gleichzeitig analysieren — bewusst moderat statt
+   * unbegrenzt parallel, um die Anthropic-API-Rate-Limits nicht zu strapazieren (jede
+   * Analyse ist ein eigener LLM-Aufruf). Vorher strikt sequenziell: bei grösseren
+   * Dokumentensets (15-20 Dateien) dauerte das mehrere Minuten — mit Parallelität sinkt
+   * die Gesamtdauer etwa im Verhältnis dieser Zahl, ohne das Zeitbudget eines einzelnen
+   * Server-Requests zu erhöhen (jeder Request bleibt unabhängig, siehe `concurrency.ts`).
+   */
+  const ANALYZE_CONCURRENCY = 3;
 
   async function handleAnalyze() {
     if (stagedFiles.length === 0) return;
@@ -234,16 +243,18 @@ export function PropertyCreateForm() {
     setAnalyzing(true);
     const newEntries: PrefillFile[] = stagedFiles.map((s) => ({ file: s.file, documentType: s.documentType, status: "ANALYZING" as const, controller: new AbortController() }));
     setStagedFiles([]);
-    // Lokaler Snapshot statt React-State, damit wir am Ende der Schleife garantiert den
-    // vollständigen, aktuellen Stand haben (State-Updates in der Schleife sind async).
+    // Lokaler Snapshot statt React-State, damit wir am Ende garantiert den vollständigen,
+    // aktuellen Stand haben (State-Updates sind async) — sicher auch bei gleichzeitigen
+    // Updates aus mehreren parallelen Workern, da jede Zuweisung synchron erfolgt (kein
+    // await zwischen Lesen und Schreiben von `allFiles`).
     let allFiles = [...prefillFiles, ...newEntries];
     setPrefillFiles(allFiles);
 
-    for (const entry of newEntries) {
+    await runWithConcurrency(newEntries, ANALYZE_CONCURRENCY, async (entry) => {
       const updated = await analyzeEntry(entry);
       allFiles = allFiles.map((p) => (p === entry ? updated : p));
       setPrefillFiles(allFiles);
-    }
+    });
 
     setAnalyzing(false);
 
@@ -316,13 +327,17 @@ export function PropertyCreateForm() {
       });
 
       // Bereits analysierte Dokumente ans neue Objekt anhängen — ohne erneute
-      // Claude-Analyse, das Ergebnis ist schon da. Fehlschläge werden gezählt und am
-      // Ende gemeldet (vorher wurde die Antwort gar nicht geprüft — ein Fehler blieb
-      // unsichtbar, das Objekt stand danach mit 0 Dokumenten da, ohne dass der Nutzer
-      // erfuhr, warum).
+      // Claude-Analyse, das Ergebnis ist schon da (reiner Storage-Upload + DB-Insert,
+      // deshalb hier eine höhere Nebenläufigkeit als bei der LLM-lastigen Analyse
+      // vertretbar). Fehlschläge werden gezählt und am Ende gemeldet (vorher wurde die
+      // Antwort gar nicht geprüft — ein Fehler blieb unsichtbar, das Objekt stand danach
+      // mit 0 Dokumenten da, ohne dass der Nutzer erfuhr, warum). Je länger dieser Schritt
+      // sequenziell gedauert hätte, desto grösser auch das Risiko, dass der Nutzer die
+      // Seite ungeduldig verlässt, bevor alle Dokumente angehängt sind — Parallelität
+      // verkürzt genau dieses Zeitfenster.
       const analyzed = prefillFiles.filter((p) => p.status === "DONE" && p.extraction);
       const attachFailures: string[] = [];
-      for (const p of analyzed) {
+      await runWithConcurrency(analyzed, 5, async (p) => {
         const attachFormData = new FormData();
         attachFormData.append("file", p.file);
         attachFormData.append("documentType", p.documentType);
@@ -336,7 +351,7 @@ export function PropertyCreateForm() {
           // fehlgeschlagenes Anhängen kann der Nutzer auf der Objektseite nachholen.
           attachFailures.push(p.file.name);
         }
-      }
+      });
       if (attachFailures.length > 0) {
         window.alert(
           `${attachFailures.length} von ${analyzed.length} Dokument(en) konnten nicht ans Objekt angehängt werden: ${attachFailures.join(", ")}. Bitte auf der Objektseite manuell erneut hochladen.`,
