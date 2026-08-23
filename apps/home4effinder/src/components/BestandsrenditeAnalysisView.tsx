@@ -20,16 +20,26 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           <h2>Ebene A — Schnellcheck</h2>
         </div>
         <div className="metricgrid">
-          <Metric l="Kaufpreis (Wohnung + Parkplatz)" v={`CHF ${formatChf(schnellcheck.kaufpreisChf)}`} />
-          <Metric l="Preis/m²" v={`CHF ${formatChf(Math.round(schnellcheck.preisProM2Chf))}`} />
-          <Metric l="Jahresnettomiete" v={`CHF ${formatChf(schnellcheck.jahresnettomieteChf)}`} />
-          <Metric l="Bruttorendite (Kaufpreis)" v={`${schnellcheck.bruttoRenditePercent.toFixed(2)}%`} />
-          <Metric l="Eigenkapitalbedarf" v={`CHF ${formatChf(Math.round(schnellcheck.eigenkapitalbedarfChf))}`} sub="inkl. Kaufnebenkosten" />
-          <Metric l="Belehnung" v={`${schnellcheck.belehnungPercent}%`} />
+          <Metric
+            l="Kaufpreis (Wohnung + Parkplatz)"
+            v={`CHF ${formatChf(schnellcheck.kaufpreisChf)}`}
+            hint="= Wohnungskaufpreis + separater Parkplatzkaufpreis (0, falls dieser bereits im Kaufpreis enthalten ist)."
+          />
+          <Metric l="Preis/m²" v={`CHF ${formatChf(Math.round(schnellcheck.preisProM2Chf))}`} hint="= Kaufpreis ÷ Wohnfläche (m²)." />
+          <Metric l="Jahresnettomiete" v={`CHF ${formatChf(schnellcheck.jahresnettomieteChf)}`} hint="= (Nettomiete Wohnung + Miete Parkplatz) × 12." />
+          <Metric l="Bruttorendite (Kaufpreis)" v={`${schnellcheck.bruttoRenditePercent.toFixed(2)}%`} hint="= Jahresnettomiete ÷ Kaufpreis × 100." />
+          <Metric
+            l="Eigenkapitalbedarf"
+            v={`CHF ${formatChf(Math.round(schnellcheck.eigenkapitalbedarfChf))}`}
+            sub="inkl. Kaufnebenkosten"
+            hint="= Kaufpreis − Hypothek (Belehnung-% × Kaufpreis) + Kaufnebenkosten."
+          />
+          <Metric l="Belehnung" v={`${schnellcheck.belehnungPercent}%`} hint="= Belehnung-% der 1. Hypothek + Belehnung-% der 2. Hypothek, wie erfasst." />
           <Metric
             l="Grober Cashflow"
             v={`CHF ${formatChf(Math.round(schnellcheck.groberCashflowChf))}`}
             valueColor={schnellcheck.groberCashflowChf >= 0 ? "var(--good)" : "var(--bad)"}
+            hint="= Jahresnettomiete − pauschale laufende Kosten − Hypothekarzins. Grobe Schnellcheck-Schätzung ohne Amortisation/Steuer/Reserven — die volle Aufschlüsselung folgt in Ebene B."
           />
         </div>
 
@@ -37,8 +47,18 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           <h2 style={{ fontSize: ".85rem" }}>1./2. Hypothek</h2>
         </div>
         <div className="metricgrid">
-          <Metric l="1. Hypothek" v={`CHF ${formatChf(Math.round(hypothek.ersteHypothekChf))}`} sub={`Amortisation CHF ${formatChf(Math.round(hypothek.ersteAmortisationChfPerYear))}/Jahr`} />
-          <Metric l="2. Hypothek" v={`CHF ${formatChf(Math.round(hypothek.zweiteHypothekChf))}`} sub={`Amortisation CHF ${formatChf(Math.round(hypothek.zweiteAmortisationChfPerYear))}/Jahr`} />
+          <Metric
+            l="1. Hypothek"
+            v={`CHF ${formatChf(Math.round(hypothek.ersteHypothekChf))}`}
+            sub={`Amortisation CHF ${formatChf(Math.round(hypothek.ersteAmortisationChfPerYear))}/Jahr`}
+            hint={'Betrag = Kaufpreis × Belehnung-% (1. Hypothek). Amortisation: bei „Prozent pro Jahr" = Betrag × Satz; bei „Dauer in Jahren" = Betrag ÷ Jahre.'}
+          />
+          <Metric
+            l="2. Hypothek"
+            v={`CHF ${formatChf(Math.round(hypothek.zweiteHypothekChf))}`}
+            sub={`Amortisation CHF ${formatChf(Math.round(hypothek.zweiteAmortisationChfPerYear))}/Jahr`}
+            hint={'Betrag = Kaufpreis × Belehnung-% (2. Hypothek). Amortisation: bei „Prozent pro Jahr" = Betrag × Satz; bei „Dauer in Jahren" = Betrag ÷ Jahre.'}
+          />
         </div>
       </Panel>
 
@@ -48,11 +68,27 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
         </div>
         <div className="metricgrid">
           <Metric l="All-in-Investition" v={`CHF ${formatChf(Math.round(result.allInInvestitionChf))}`} sub="Kaufpreis + Nebenkosten + Renovation + Möblierung" />
-          <Metric l="Bruttorendite auf Kaufpreis" v={`${investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}%`} />
-          <Metric l="Bruttorendite auf All-in" v={`${investmentCase.bruttoRenditeAllInPercent.toFixed(2)}%`} />
-          <Metric l="Nettorendite vor Finanzierung" v={`${investmentCase.nettoRenditeVorFinanzierungPercent.toFixed(2)}%`} />
-          <Metric l="Cash-on-Cash" v={`${investmentCase.cashOnCashPercent.toFixed(2)}%`} />
-          <Metric l="Eigenkapital" v={`CHF ${formatChf(Math.round(result.eigenkapitalChf))}`} />
+          <Metric
+            l="Bruttorendite auf Kaufpreis"
+            v={`${investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}%`}
+            hint="= potenzieller Jahresertrag (Mieten × 12 + sonstige Einnahmen, OHNE Leerstand-/Auslastungsabzug) ÷ Kaufpreis × 100."
+          />
+          <Metric
+            l="Bruttorendite auf All-in"
+            v={`${investmentCase.bruttoRenditeAllInPercent.toFixed(2)}%`}
+            hint="= potenzieller Jahresertrag ÷ All-in-Investition × 100."
+          />
+          <Metric
+            l="Nettorendite vor Finanzierung"
+            v={`${investmentCase.nettoRenditeVorFinanzierungPercent.toFixed(2)}%`}
+            hint="= NOI (effektiver Jahresertrag − Betriebskosten) ÷ All-in-Investition × 100."
+          />
+          <Metric
+            l="Cash-on-Cash"
+            v={`${investmentCase.cashOnCashPercent.toFixed(2)}%`}
+            hint="= nachhaltiger Cashflow Jahr 1 (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) ÷ eingesetztes Eigenkapital × 100."
+          />
+          <Metric l="Eigenkapital" v={`CHF ${formatChf(Math.round(result.eigenkapitalChf))}`} hint="= All-in-Investition − Hypothek (1. + 2., je Kaufpreis × Belehnung-%)." />
         </div>
 
         <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
@@ -61,24 +97,34 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
         <table className="stresstable">
           <tbody>
             <tr>
-              <td>NOI (vor Finanzierung)</td>
+              <td>
+                NOI (vor Finanzierung) <InfoHint text="= effektiver Jahresertrag (nach Leerstand/Auslastung) − Betriebskosten." />
+              </td>
               <td className="num mono">CHF {formatChf(Math.round(investmentCase.wasserfall.noiChf))}</td>
             </tr>
             <tr>
-              <td>nach Zins</td>
+              <td>
+                nach Zins <InfoHint text="= NOI − Hypothekarzins (Zinssatz × Hypothekarbetrag)." />
+              </td>
               <td className="num mono">CHF {formatChf(Math.round(investmentCase.wasserfall.cashflowNachZinsChf))}</td>
             </tr>
             <tr>
-              <td>nach Amortisation</td>
+              <td>
+                nach Amortisation <InfoHint text="= Cashflow nach Zins − jährliche Amortisation (1. + 2. Hypothek)." />
+              </td>
               <td className="num mono">CHF {formatChf(Math.round(investmentCase.wasserfall.cashflowNachAmortisationChf))}</td>
             </tr>
             <tr>
-              <td>nach kalkulatorischer Steuer</td>
+              <td>
+                nach kalkulatorischer Steuer{" "}
+                <InfoHint text="= Cashflow nach Amortisation − (Cashflow nach Zins, mind. 0) × kalkulatorischer Steuersatz. Nur der Hypothekarzins ist steuerlich abzugsfähig, die Amortisation nicht — grobe persönliche Schätzung, kein Steuerberatungsersatz." />
+              </td>
               <td className="num mono">CHF {formatChf(Math.round(investmentCase.wasserfall.cashflowNachSteuerChf))}</td>
             </tr>
             <tr>
               <td>
-                <strong>Nachhaltiger Cashflow</strong> (nach eigener Reparatur-/Leerstandsreserve)
+                <strong>Nachhaltiger Cashflow</strong> (nach eigener Reparatur-/Leerstandsreserve){" "}
+                <InfoHint text="= Cashflow nach Steuer − Reparaturreserve − Leerstandsreserve (je fixer CHF-Betrag oder % vom Kaufpreis, wie erfasst)." />
               </td>
               <td className="num mono" style={{ color: investmentCase.wasserfall.nachhaltigerCashflowChf >= 0 ? "var(--good)" : "var(--bad)" }}>
                 <strong>CHF {formatChf(Math.round(investmentCase.wasserfall.nachhaltigerCashflowChf))}</strong>
@@ -91,9 +137,23 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           <h2 style={{ fontSize: ".85rem" }}>Break-even</h2>
         </div>
         <div className="metricgrid">
-          <Metric l="Break-even-Miete" v={breakEven.mieteChfPerMonth !== undefined ? `CHF ${formatChf(Math.round(breakEven.mieteChfPerMonth))}/Monat` : "—"} />
-          <Metric l="Break-even-Zins" v={breakEven.zinsPercent !== undefined ? `${breakEven.zinsPercent.toFixed(2)}%` : "—"} />
-          {breakEven.auslastungPercent !== undefined ? <Metric l="Break-even-Auslastung" v={`${breakEven.auslastungPercent.toFixed(1)}%`} /> : null}
+          <Metric
+            l="Break-even-Miete"
+            v={breakEven.mieteChfPerMonth !== undefined ? `CHF ${formatChf(Math.round(breakEven.mieteChfPerMonth))}/Monat` : "—"}
+            hint="Monatsmiete Wohnung, bei der der nachhaltige Cashflow (Jahr 1) genau 0 erreicht — alle anderen Annahmen bleiben unverändert. Numerisch ermittelt (Bisektion), keine geschlossene Formel."
+          />
+          <Metric
+            l="Break-even-Zins"
+            v={breakEven.zinsPercent !== undefined ? `${breakEven.zinsPercent.toFixed(2)}%` : "—"}
+            hint="Hypothekarzins, bei dem der nachhaltige Cashflow (Jahr 1) genau 0 erreicht — alle anderen Annahmen bleiben unverändert."
+          />
+          {breakEven.auslastungPercent !== undefined ? (
+            <Metric
+              l="Break-even-Auslastung"
+              v={`${breakEven.auslastungPercent.toFixed(1)}%`}
+              hint="Auslastung (nur bei Short-Stay), bei der der nachhaltige Cashflow (Jahr 1) genau 0 erreicht."
+            />
+          ) : null}
         </div>
       </Panel>
 
@@ -103,9 +163,17 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
             <h2>Value-Add — Möblierung</h2>
           </div>
           <div className="metricgrid">
-            <Metric l="Zusätzlicher Jahresertrag" v={`CHF ${formatChf(Math.round(furnitureRoi.zusaetzlicherJahresertragChf))}`} />
-            <Metric l="Furniture ROI" v={`${furnitureRoi.roiPercent.toFixed(1)}%`} />
-            <Metric l="Payback" v={furnitureRoi.paybackYears !== undefined ? `${furnitureRoi.paybackYears.toFixed(1)} Jahre` : "—"} />
+            <Metric
+              l="Zusätzlicher Jahresertrag"
+              v={`CHF ${formatChf(Math.round(furnitureRoi.zusaetzlicherJahresertragChf))}`}
+              hint="= Mietaufschlag möbliert ggü. unmöbliert (CHF/Monat) × 12."
+            />
+            <Metric l="Furniture ROI" v={`${furnitureRoi.roiPercent.toFixed(1)}%`} hint="= zusätzlicher Jahresertrag ÷ Möblierungsinvestition × 100." />
+            <Metric
+              l="Payback"
+              v={furnitureRoi.paybackYears !== undefined ? `${furnitureRoi.paybackYears.toFixed(1)} Jahre` : "—"}
+              hint="= Möblierungsinvestition ÷ zusätzlicher Jahresertrag; ohne Wert, wenn kein Mehrertrag entsteht (Payback wäre unendlich)."
+            />
             {moeblierungReserveChfPerJahr !== undefined ? (
               <Metric
                 l="Geglättete Ersatzreserve"
@@ -124,20 +192,36 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           </div>
           {renovationSummary.totalChf > 0 ? (
             <div className="metricgrid" style={{ marginBottom: renovationRoi ? "1rem" : 0 }}>
-              <Metric l="Werterhaltend" v={`CHF ${formatChf(Math.round(renovationSummary.totalByKategorie.WERTERHALTEND))}`} />
+              <Metric
+                l="Werterhaltend"
+                v={`CHF ${formatChf(Math.round(renovationSummary.totalByKategorie.WERTERHALTEND))}`}
+                hint="Summe aller erfassten Renovationspositionen der Kategorie „Werterhaltend“ — fliesst NICHT in den angenommenen Immobilienwert beim Exit ein (anders als „Wertvermehrend“)."
+              />
               <Metric
                 l="Wertvermehrend"
                 v={`CHF ${formatChf(Math.round(renovationSummary.totalByKategorie.WERTVERMEHREND))}`}
                 hint="Erhöht den angenommenen Immobilienwert im 15-Jahres-Modell beim Exit — die beiden anderen Kategorien nicht."
               />
-              <Metric l="Energetisch" v={`CHF ${formatChf(Math.round(renovationSummary.totalByKategorie.ENERGETISCH))}`} />
+              <Metric
+                l="Energetisch"
+                v={`CHF ${formatChf(Math.round(renovationSummary.totalByKategorie.ENERGETISCH))}`}
+                hint="Summe aller erfassten Renovationspositionen der Kategorie „Energetisch“ — fliesst NICHT in den angenommenen Immobilienwert beim Exit ein (anders als „Wertvermehrend“)."
+              />
             </div>
           ) : null}
           {renovationRoi ? (
             <div className="metricgrid">
-              <Metric l="Zusätzlicher Jahresertrag" v={`CHF ${formatChf(Math.round(renovationRoi.zusaetzlicherJahresertragChf))}`} />
-              <Metric l="Renovation ROI" v={`${renovationRoi.roiPercent.toFixed(1)}%`} />
-              <Metric l="Payback" v={renovationRoi.paybackYears !== undefined ? `${renovationRoi.paybackYears.toFixed(1)} Jahre` : "—"} />
+              <Metric
+                l="Zusätzlicher Jahresertrag"
+                v={`CHF ${formatChf(Math.round(renovationRoi.zusaetzlicherJahresertragChf))}`}
+                hint="= (Miete nach Renovation − Miete vor Renovation) × 12."
+              />
+              <Metric l="Renovation ROI" v={`${renovationRoi.roiPercent.toFixed(1)}%`} hint="= zusätzlicher Jahresertrag ÷ Renovationskosten × 100." />
+              <Metric
+                l="Payback"
+                v={renovationRoi.paybackYears !== undefined ? `${renovationRoi.paybackYears.toFixed(1)} Jahre` : "—"}
+                hint="= Renovationskosten ÷ zusätzlicher Jahresertrag; ohne Wert, wenn kein Mehrertrag entsteht (Payback wäre unendlich)."
+              />
             </div>
           ) : null}
         </Panel>
@@ -150,12 +234,36 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           </h2>
         </div>
         <div className="metricgrid">
-          <Metric l="Levered IRR" v={mehrjahresmodell.leveredIrrPercent !== undefined ? `${mehrjahresmodell.leveredIrrPercent.toFixed(1)}%` : "—"} />
-          <Metric l="Unlevered IRR" v={mehrjahresmodell.unleveredIrrPercent !== undefined ? `${mehrjahresmodell.unleveredIrrPercent.toFixed(1)}%` : "—"} />
-          <Metric l="Equity Multiple" v={`${mehrjahresmodell.equityMultiple.toFixed(2)}×`} />
-          <Metric l="Exit-Erlös (netto)" v={`CHF ${formatChf(Math.round(mehrjahresmodell.exit.netProceedsChf))}`} />
-          <Metric l="Angenommener Verkaufswert" v={`CHF ${formatChf(Math.round(mehrjahresmodell.exit.assumedPropertyValueChf))}`} />
-          <Metric l="Kumulierter Cashflow" v={`CHF ${formatChf(Math.round(lastYear.kumulierterCashflowChf))}`} />
+          <Metric
+            l="Levered IRR"
+            v={mehrjahresmodell.leveredIrrPercent !== undefined ? `${mehrjahresmodell.leveredIrrPercent.toFixed(1)}%` : "—"}
+            hint="Interner Zinsfuss auf die Eigenkapital-Cashflows: −Eigenkapital in Jahr 0, jährlicher nachhaltiger Cashflow, plus Exit-Erlös im letzten Jahr. Numerisch ermittelt, keine geschlossene Formel."
+          />
+          <Metric
+            l="Unlevered IRR"
+            v={mehrjahresmodell.unleveredIrrPercent !== undefined ? `${mehrjahresmodell.unleveredIrrPercent.toFixed(1)}%` : "—"}
+            hint="Interner Zinsfuss, als wäre die gesamte All-in-Investition ohne Fremdkapital finanziert (Cashflows = NOI, Exit ohne Restschuldabzug) — zum Vergleich, wie viel des Levered IRR aus dem Finanzierungshebel stammt."
+          />
+          <Metric
+            l="Equity Multiple"
+            v={`${mehrjahresmodell.equityMultiple.toFixed(2)}×`}
+            hint="= (Summe aller jährlichen nachhaltigen Cashflows + Exit-Erlös) ÷ eingesetztes Eigenkapital."
+          />
+          <Metric
+            l="Exit-Erlös (netto)"
+            v={`CHF ${formatChf(Math.round(mehrjahresmodell.exit.netProceedsChf))}`}
+            hint="= angenommener Verkaufswert − Restschuld Hypothek − Verkaufskosten − Grundstückgewinnsteuer (falls erfasst). Details in der Tabelle unten."
+          />
+          <Metric
+            l="Angenommener Verkaufswert"
+            v={`CHF ${formatChf(Math.round(mehrjahresmodell.exit.assumedPropertyValueChf))}`}
+            hint="= (Kaufpreis + wertvermehrende Renovation) × (1 + Wertsteigerung-%/Jahr) hoch Haltedauer in Jahren."
+          />
+          <Metric
+            l="Kumulierter Cashflow"
+            v={`CHF ${formatChf(Math.round(lastYear.kumulierterCashflowChf))}`}
+            hint="Summe der nachhaltigen Cashflows aller Jahre bis zum Exit-Jahr (ohne Exit-Erlös)."
+          />
         </div>
 
         <div className="sectionhead" style={{ marginTop: "0.8rem" }}>

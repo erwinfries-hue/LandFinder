@@ -1370,6 +1370,28 @@ UND `parseBestandsrenditeFacts` zusammen (nicht mehr nur isoliert) durchspielt �
 diese Lücke (beide Funktionen einzeln getestet, nie im Zusammenspiel) liess den Fehler
 bisher unbemerkt durch alle Testläufe rutschen.
 
+## Nachgezogen (2026-08-23): "Due-Diligence aktualisieren" tat nach frischem Upload nichts + Formel-Hovertexte für alle berechneten Werte
+
+**1. "Due-Diligence aktualisieren" reagierte nach dem Hochladen weiterer Dokumente nicht
+auf Klicks.** Der Button war `disabled={synthesizing || initialDocuments.length === 0}` —
+`initialDocuments` ist aber eine serverseitige Momentaufnahme vom letzten Seitenaufbau.
+`handleUpload` ruft nach Abschluss zwar `router.refresh()` auf, das ist in Next.js aber
+grundsätzlich asynchron/Hintergrund (kein awaitbares Promise) — bis die aktualisierten
+Daten beim Client ankommen, blieb der Button für den Nutzer sichtbar (und tastbar)
+deaktiviert, ein Klick hatte dadurch buchstäblich keine Wirkung. Fix: neue abgeleitete
+Grösse `hasAnyDocuments = initialDocuments.length > 0 || uploads.some(u => u.status ===
+"DONE")` — berücksichtigt zusätzlich den lokalen `uploads`-Stand, der sofort nach
+Abschluss eines Uploads bekannt ist, ohne auf die Server-Rundreise warten zu müssen.
+
+**2. Formel-Hovertexte für berechnete Werte ergänzt.** Die Infrastruktur dafür gab es
+bereits (`Metric`-Komponente mit `hint`-Prop → `InfoHint`, touch-/tastaturfreundliches
+"ⓘ"-Symbol statt native `title` — auf Mobilgeräten ohne Hover ohnehin unbrauchbar), aber
+nur 2 von 39 `<Metric>`-Kacheln in `BestandsrenditeAnalysisView.tsx` nutzten sie. Jetzt
+mit der exakten Formel aus dem jeweiligen `@landfinder/financial-engine`-Code ergänzt für
+praktisch alle berechneten Kacheln (Ebene A/B/C, Hypotheken, Break-even, Möblierungs-/
+Renovations-ROI) sowie einige zusätzliche Zeilen im Cashflow-Wasserfall. Reine
+Formel-Dokumentation, keine Änderung an den Berechnungen selbst.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
