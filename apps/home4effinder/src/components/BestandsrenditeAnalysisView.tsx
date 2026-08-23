@@ -10,7 +10,8 @@ import type { BestandsrenditeAnalysisResult } from "@/lib/bestandsrendite";
  * Client-Live-Recompute nötig.
  */
 export function BestandsrenditeAnalysisView({ result }: { result: BestandsrenditeAnalysisResult }) {
-  const { schnellcheck, investmentCase, mehrjahresmodell, investmentTreiber, furnitureRoi, moeblierungReserveChfPerJahr, renovationRoi, renovationSummary, breakEven, stweg, hypothek } = result;
+  const { schnellcheck, investmentCase, noiBreakdown, mehrjahresmodell, investmentTreiber, furnitureRoi, moeblierungReserveChfPerJahr, renovationRoi, renovationSummary, breakEven, stweg, hypothek } =
+    result;
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
 
   return (
@@ -101,6 +102,63 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
                 NOI (vor Finanzierung) <InfoHint text="= effektiver Jahresertrag (nach Leerstand/Auslastung) − Betriebskosten." />
               </td>
               <td className="num mono">CHF {formatChf(Math.round(investmentCase.wasserfall.noiChf))}</td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ paddingTop: 0, paddingBottom: ".4rem" }}>
+                <details>
+                  <summary style={{ cursor: "pointer", fontSize: ".78rem", color: "var(--accent)" }}>NOI aufschlüsseln</summary>
+                  <table className="stresstable" style={{ marginTop: ".5rem" }}>
+                    <tbody>
+                      <tr>
+                        <td>Potenzieller Jahresertrag</td>
+                        <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.potenziellerJahresertragChf))}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          − Leerstand/Auslastung <InfoHint text="Abzug wegen Leerstandsquote (Langfrist-/mittelfristige Vermietung) bzw. Nicht-Auslastung (Short-Stay)." />
+                        </td>
+                        <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.leerstandAbzugChf))}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <strong>= Effektiver Jahresertrag</strong>
+                        </td>
+                        <td className="num mono">
+                          <strong>CHF {formatChf(Math.round(noiBreakdown.effektiverJahresertragChf))}</strong>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>− STWEG-Akontobeitrag</td>
+                        <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.stwegAkontobeitragChfPerYear))}</td>
+                      </tr>
+                      <tr>
+                        <td>− Sonstige Eigentümerkosten</td>
+                        <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.eigentuemerkostenChfPerYear))}</td>
+                      </tr>
+                      <tr>
+                        <td>− Vermietungs-/Inseratskosten</td>
+                        <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.vermietungskostenChfPerYear))}</td>
+                      </tr>
+                      <tr>
+                        <td>− Reinigung/Service</td>
+                        <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.reinigungServiceChfPerYear))}</td>
+                      </tr>
+                      <tr>
+                        <td>= Betriebskosten total</td>
+                        <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.betriebskostenTotalChf))}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <strong>= NOI (vor Finanzierung)</strong>
+                        </td>
+                        <td className="num mono">
+                          <strong>CHF {formatChf(Math.round(noiBreakdown.noiChf))}</strong>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </details>
+              </td>
             </tr>
             <tr>
               <td>

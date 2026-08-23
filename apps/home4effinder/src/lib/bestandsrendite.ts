@@ -6,6 +6,8 @@ import {
   calculateAllInInvestition,
   calculateSchnellcheck,
   calculateInvestmentCase,
+  calculateJahresertrag,
+  calculateBetriebskosten,
   breakEvenMieteChfPerMonth,
   breakEvenZinsPercent,
   breakEvenAuslastungPercent,
@@ -136,11 +138,26 @@ export interface BestandsrenditePropertyInput {
 
 const P = BESTANDSRENDITE_PARAMETERS;
 
+/** Aufschlüsselung des NOI (Jahr 1) für den Drill-down in der Cashflow-Wasserfall-Tabelle — dieselben Grössen, aus denen `investmentCase.wasserfall.noiChf` besteht, hier einzeln statt nur als eine Zahl. */
+export interface NoiBreakdown {
+  potenziellerJahresertragChf: number;
+  /** = potenziellerJahresertragChf − effektiverJahresertragChf (Leerstand bei Langfristvermietung, Nicht-Auslastung bei Short-Stay). */
+  leerstandAbzugChf: number;
+  effektiverJahresertragChf: number;
+  stwegAkontobeitragChfPerYear: number;
+  eigentuemerkostenChfPerYear: number;
+  vermietungskostenChfPerYear: number;
+  reinigungServiceChfPerYear: number;
+  betriebskostenTotalChf: number;
+  noiChf: number;
+}
+
 export interface BestandsrenditeAnalysisResult {
   schnellcheck: SchnellcheckResult;
   allInInvestitionChf: number;
   eigenkapitalChf: number;
   investmentCase: InvestmentCaseResult;
+  noiBreakdown: NoiBreakdown;
   breakEven: { mieteChfPerMonth: number | undefined; zinsPercent: number | undefined; auslastungPercent: number | undefined };
   furnitureRoi: ValueAddRoiResult | undefined;
   /** Geglättete jährliche Ersatzreserve für die Möblierung — rein informativ, nicht Grundlage der 15-Jahres-Cashflows (die rechnen mit dem tatsächlichen Ersatz-Cashout im Ersatzjahr, siehe mehrjahresmodell). */
@@ -255,6 +272,20 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
 
   const investmentCase = calculateInvestmentCase(investmentCaseInput);
 
+  const jahresertrag = calculateJahresertrag(investmentCaseInput.ertrag);
+  const betriebskostenTotalChf = calculateBetriebskosten(investmentCaseInput.betriebskosten);
+  const noiBreakdown: NoiBreakdown = {
+    potenziellerJahresertragChf: jahresertrag.potenziellerJahresertragChf,
+    leerstandAbzugChf: jahresertrag.potenziellerJahresertragChf - jahresertrag.effektiverJahresertragChf,
+    effektiverJahresertragChf: jahresertrag.effektiverJahresertragChf,
+    stwegAkontobeitragChfPerYear: investmentCaseInput.betriebskosten.stwegAkontobeitragChfPerYear,
+    eigentuemerkostenChfPerYear: investmentCaseInput.betriebskosten.eigentuemerkostenChfPerYear,
+    vermietungskostenChfPerYear: investmentCaseInput.betriebskosten.vermietungskostenChfPerYear,
+    reinigungServiceChfPerYear: investmentCaseInput.betriebskosten.reinigungServiceChfPerYear,
+    betriebskostenTotalChf,
+    noiChf: investmentCase.wasserfall.noiChf,
+  };
+
   const furnitureRoi = facts.moeblierung.initialCostChf > 0 ? calculateFurnitureRoi({ moeblierungInitialChf: facts.moeblierung.initialCostChf, mietPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth }) : undefined;
   const renovationRoi =
     facts.renovation.initialRenovationCostChf > 0 &&
@@ -317,6 +348,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     allInInvestitionChf,
     eigenkapitalChf,
     investmentCase,
+    noiBreakdown,
     breakEven: {
       mieteChfPerMonth: breakEvenMieteChfPerMonth(investmentCaseInput),
       zinsPercent: breakEvenZinsPercent(investmentCaseInput),
