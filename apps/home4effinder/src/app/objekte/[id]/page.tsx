@@ -85,7 +85,15 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
           <div className="metricgrid" style={{ marginTop: investmentScore ? ".8rem" : 0 }}>
             <Metric l="Kanton" v={property.canton} />
             <Metric l="Adresse" v={property.address_text} />
-            <Metric l="Kaufpreis" v={`CHF ${formatChf(property.asking_price_chf)}`} />
+            <Metric
+              l={analysis && analysis.parkierung.totalZusatzChf > 0 ? "Kaufpreis (inkl. Parkplatz/Garage)" : "Kaufpreis"}
+              v={`CHF ${formatChf(analysis ? analysis.schnellcheck.kaufpreisChf : property.asking_price_chf)}`}
+              sub={
+                analysis && analysis.parkierung.totalZusatzChf > 0
+                  ? `Basis CHF ${formatChf(property.asking_price_chf)} + Parkplatz/Garage CHF ${formatChf(analysis.parkierung.totalZusatzChf)}`
+                  : undefined
+              }
+            />
             <Metric l="Wohnfläche" v={`${formatChf(property.wohnflaeche_m2)} m²`} />
             <Metric l="Erfasst" v={formatDateTime(property.created_at)} />
             {property.bestandsrendite_updated_at ? (

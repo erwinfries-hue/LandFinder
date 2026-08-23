@@ -10,9 +10,30 @@ import type { BestandsrenditeAnalysisResult } from "@/lib/bestandsrendite";
  * Client-Live-Recompute nötig.
  */
 export function BestandsrenditeAnalysisView({ result }: { result: BestandsrenditeAnalysisResult }) {
-  const { schnellcheck, investmentCase, noiBreakdown, mehrjahresmodell, investmentTreiber, furnitureRoi, moeblierungReserveChfPerJahr, renovationRoi, renovationSummary, breakEven, stweg, hypothek } =
-    result;
+  const {
+    schnellcheck,
+    investmentCase,
+    noiBreakdown,
+    parkierung,
+    mehrjahresmodell,
+    investmentTreiber,
+    furnitureRoi,
+    moeblierungReserveChfPerJahr,
+    renovationRoi,
+    renovationSummary,
+    breakEven,
+    stweg,
+    hypothek,
+  } = result;
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
+
+  // Nur die Parkierungsarten nennen, die tatsächlich zusätzlich zum Basis-Kaufpreis
+  // dazugerechnet wurden (nicht die, die bereits im Basis-Kaufpreis enthalten sind).
+  const parkierungTeile = [
+    parkierung.parkplatzZusatzChf > 0 ? `Parkplatz CHF ${formatChf(parkierung.parkplatzZusatzChf)}` : null,
+    parkierung.garagenplatzZusatzChf > 0 ? `Garage CHF ${formatChf(parkierung.garagenplatzZusatzChf)}` : null,
+  ].filter((t): t is string => t !== null);
+  const parkierungSub = parkierungTeile.length > 0 ? `davon zusätzlich: ${parkierungTeile.join(", ")}` : undefined;
 
   return (
     <>
@@ -22,9 +43,10 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
         </div>
         <div className="metricgrid">
           <Metric
-            l="Kaufpreis (Wohnung + Parkplatz)"
+            l="Kaufpreis (Wohnung + Parkplatz/Garage)"
             v={`CHF ${formatChf(schnellcheck.kaufpreisChf)}`}
-            hint="= Wohnungskaufpreis + separater Parkplatzkaufpreis (0, falls dieser bereits im Kaufpreis enthalten ist)."
+            sub={parkierungSub}
+            hint="= Basis-Kaufpreis (Objekt-Basisdaten) + separater Parkplatz-/Garagenkaufpreis (0, falls dieser bereits im Basis-Kaufpreis enthalten ist)."
           />
           <Metric l="Preis/m²" v={`CHF ${formatChf(Math.round(schnellcheck.preisProM2Chf))}`} hint="= Kaufpreis ÷ Wohnfläche (m²)." />
           <Metric l="Jahresnettomiete" v={`CHF ${formatChf(schnellcheck.jahresnettomieteChf)}`} hint="= (Nettomiete Wohnung + Miete Parkplatz) × 12." />

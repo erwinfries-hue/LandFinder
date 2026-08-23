@@ -40,6 +40,8 @@ describe("parseBestandsrenditeFacts", () => {
       expect(result.facts.renovation.positionen).toEqual([]);
       expect(result.facts.parkplatzKaufpreisChf).toBe(0);
       expect(result.facts.parkplatzImKaufpreisEnthalten).toBe(false);
+      expect(result.facts.garagenplatzKaufpreisChf).toBe(0);
+      expect(result.facts.garagenplatzImKaufpreisEnthalten).toBe(false);
       // Optionale Überschreibungen (z.B. Steuersatz) bleiben unset, damit die
       // Platzhalter-Defaults aus BESTANDSRENDITE_PARAMETERS greifen.
       expect(result.facts.kalkulatorischerSteuersatzPercent).toBeUndefined();
@@ -70,6 +72,8 @@ const fullFacts: BestandsrenditeFacts = {
   baujahr: 1998,
   parkplatzKaufpreisChf: 30_000,
   parkplatzImKaufpreisEnthalten: false,
+  garagenplatzKaufpreisChf: 0,
+  garagenplatzImKaufpreisEnthalten: false,
   stweg: { erneuerungsfondsSaldoChf: 180_000 },
   nebenkosten: {},
   renovation: { initialRenovationCostChf: 25_000, positionen: [{ betragChf: 25_000, kategorie: "WERTERHALTEND", jahr: 2026, steuerlicheAbzugsfaehigkeit: "UNKLAR" }] },
@@ -165,6 +169,18 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(result.allInInvestitionChf).toBeLessThan(ohneFlag.allInInvestitionChf);
   });
 
+  it("Parkplatz und Garagenplatz können gleichzeitig erfasst sein und addieren sich beide zum Kaufpreis, unabhängig voneinander ausschliessbar", () => {
+    const beide: BestandsrenditeFacts = { ...fullFacts, parkplatzKaufpreisChf: 20_000, garagenplatzKaufpreisChf: 35_000 };
+    const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, beide);
+    expect(result.schnellcheck.kaufpreisChf).toBe(925_000); // 870k + 20k Parkplatz + 35k Garage
+    expect(result.parkierung).toEqual({ parkplatzZusatzChf: 20_000, garagenplatzZusatzChf: 35_000, totalZusatzChf: 55_000 });
+
+    const nurGarageEnthalten: BestandsrenditeFacts = { ...beide, garagenplatzImKaufpreisEnthalten: true };
+    const resultNurGarage = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, nurGarageEnthalten);
+    expect(resultNurGarage.schnellcheck.kaufpreisChf).toBe(890_000); // nur der Parkplatz zählt zusätzlich, die Garage ist bereits im Kaufpreis
+    expect(resultNurGarage.parkierung).toEqual({ parkplatzZusatzChf: 20_000, garagenplatzZusatzChf: 0, totalZusatzChf: 20_000 });
+  });
+
   it("ohne Miete vor/nach Renovation bleibt renovationRoi undefined, obwohl Renovationskosten gesetzt sind", () => {
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
     expect(result.renovationRoi).toBeUndefined();
@@ -222,6 +238,7 @@ describe("isAllowedUpdateField / applyFieldUpdate", () => {
     expect(isAllowedUpdateField("zimmerzahl")).toBe(true);
     expect(isAllowedUpdateField("baujahr")).toBe(true);
     expect(isAllowedUpdateField("parkplatzKaufpreisChf")).toBe(true);
+    expect(isAllowedUpdateField("garagenplatzKaufpreisChf")).toBe(true);
   });
 
   it("setzt ein Feld ohne Punkt direkt auf der Wurzel, ohne andere Felder anzutasten", () => {

@@ -11,6 +11,7 @@ export const BESTANDSRENDITE_KNOWN_FIELD_LABELS: { field: AllowedUpdateField; la
   { field: "zimmerzahl", label: "Zimmerzahl" },
   { field: "baujahr", label: "Baujahr" },
   { field: "parkplatzKaufpreisChf", label: "Parkplatz-Kaufpreis (CHF)" },
+  { field: "garagenplatzKaufpreisChf", label: "Tiefgaragenplatz-/Garage-Kaufpreis (CHF)" },
   { field: "miete.wohnungsMieteChfPerMonth", label: "Nettomiete Wohnung (CHF/Monat)" },
   { field: "miete.parkplatzMieteChfPerMonth", label: "Miete Parkplatz (CHF/Monat)" },
   { field: "miete.sonstigeEinnahmenChfPerYear", label: "Sonstige Einnahmen (CHF/Jahr)" },

@@ -68,7 +68,7 @@ export function PropertyEditForm({
             </select>
           </div>
           <div className="field">
-            <label htmlFor="edit-askingPriceChf">Kaufpreis (CHF)</label>
+            <label htmlFor="edit-askingPriceChf">Kaufpreis (CHF, Wohnung — ggf. inkl. Parkplatz/Garage, falls im Preis enthalten)</label>
             <input id="edit-askingPriceChf" name="askingPriceChf" type="number" step="1000" min="0" required defaultValue={property.asking_price_chf} />
           </div>
           <div className="field">

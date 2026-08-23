@@ -45,9 +45,14 @@ import {
 export interface BestandsrenditeFacts {
   zimmerzahl?: number;
   baujahr?: number;
+  /** Offener/Aussen-Parkplatz — getrennt von `garagenplatzKaufpreisChf` (Tiefgaragenplatz/Garage), da beide gleichzeitig vorhanden sein können (z.B. ein Aussenparkplatz UND ein separater Garagenplatz). */
   parkplatzKaufpreisChf: number;
   /** Manuell gesetzt: Inserats-/Kaufpreis (Objekt-Basisdaten) enthält den Parkplatz bereits — dann wird `parkplatzKaufpreisChf` NICHT zusätzlich addiert (verhindert Doppelzählung), bleibt aber informativ erfasst. */
   parkplatzImKaufpreisEnthalten: boolean;
+  /** Tiefgaragenplatz/Garage — rechnerisch identisch zu `parkplatzKaufpreisChf` behandelt (reine Kategorisierung/Beschriftung, keine unterschiedliche Formel), aber als eigenes Feld, da ein Objekt beide Parkierungsarten gleichzeitig haben kann. */
+  garagenplatzKaufpreisChf: number;
+  /** Analog zu `parkplatzImKaufpreisEnthalten`, aber für den Garagenplatz. */
+  garagenplatzImKaufpreisEnthalten: boolean;
 
   stweg: StwegFacts;
 
@@ -167,6 +172,8 @@ export interface BestandsrenditeAnalysisResult {
   mehrjahresmodell: MehrjahresmodellResult;
   investmentTreiber: InvestmentTreiberResult;
   hypothek: { ersteHypothekChf: number; zweiteHypothekChf: number; ersteAmortisationChfPerYear: number; zweiteAmortisationChfPerYear: number };
+  /** Wie viel vom Gesamt-Kaufpreis (`schnellcheck.kaufpreisChf`) zusätzlich zum Basis-Kaufpreis (Objekt-Basisdaten) aus Parkplatz/Garage stammt — 0, wenn keiner erfasst ist oder beide bereits im Basis-Kaufpreis enthalten sind. */
+  parkierung: { parkplatzZusatzChf: number; garagenplatzZusatzChf: number; totalZusatzChf: number };
   /** Unveränderte STWEG-Fakten aus den Facts — reine Datenhaltung ohne Scoring/Formel, siehe StwegFacts. */
   stweg: StwegFacts;
   assumptionNotes: string[];
@@ -190,11 +197,16 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   const notariatGrundbuchPercent = facts.nebenkosten.notariatGrundbuchPercent ?? P.notariatGrundbuchPercent.defaultValue;
   const maklerprovisionPercent = facts.nebenkosten.maklerprovisionPercent ?? P.maklerprovisionPercent.defaultValue;
 
-  // Ist der Parkplatz laut Nutzer bereits im erfassten Kaufpreis (Objekt-Basisdaten)
-  // enthalten, wird `parkplatzKaufpreisChf` NICHT nochmals addiert — sonst würde der
-  // Parkplatzwert doppelt in die Investitionssumme/den Schnellcheck einfliessen.
+  // Ist ein Parkplatz/Garagenplatz laut Nutzer bereits im erfassten Kaufpreis
+  // (Objekt-Basisdaten) enthalten, wird sein Kaufpreis NICHT nochmals addiert — sonst
+  // würde er doppelt in die Investitionssumme/den Schnellcheck einfliessen. Beide
+  // Parkierungsarten sind unabhängig voneinander erfasst (ein Objekt kann z.B. einen
+  // Aussenparkplatz UND einen separaten Garagenplatz haben), rechnerisch aber identisch
+  // behandelt — reine Kategorisierung/Beschriftung, keine unterschiedliche Formel.
   const parkplatzKaufpreisZusatzChf = facts.parkplatzImKaufpreisEnthalten ? 0 : facts.parkplatzKaufpreisChf;
-  const kaufpreisChf = property.kaufpreisChf + parkplatzKaufpreisZusatzChf;
+  const garagenplatzKaufpreisZusatzChf = facts.garagenplatzImKaufpreisEnthalten ? 0 : facts.garagenplatzKaufpreisChf;
+  const parkierungKaufpreisZusatzChf = parkplatzKaufpreisZusatzChf + garagenplatzKaufpreisZusatzChf;
+  const kaufpreisChf = property.kaufpreisChf + parkierungKaufpreisZusatzChf;
   const nebenkosten = calculateNebenkosten({ kaufpreisChf, handaenderungssteuerPercent, notariatGrundbuchPercent, maklerprovisionPercent });
 
   const renovationSummary = summarizeRenovationPositionen(facts.renovation.positionen);
@@ -223,7 +235,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   const kaufnebenkostenPercent = handaenderungssteuerPercent + notariatGrundbuchPercent + maklerprovisionPercent;
   const schnellcheck = calculateSchnellcheck({
     wohnungskaufpreisChf: property.kaufpreisChf,
-    parkplatzkaufpreisChf: parkplatzKaufpreisZusatzChf,
+    parkplatzkaufpreisChf: parkierungKaufpreisZusatzChf,
     wohnflaecheM2: property.wohnflaecheM2,
     wohnungsMieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth,
     parkplatzMieteChfPerMonth: facts.miete.parkplatzMieteChfPerMonth,
@@ -361,6 +373,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     mehrjahresmodell,
     investmentTreiber,
     hypothek: { ersteHypothekChf, zweiteHypothekChf, ersteAmortisationChfPerYear, zweiteAmortisationChfPerYear },
+    parkierung: { parkplatzZusatzChf: parkplatzKaufpreisZusatzChf, garagenplatzZusatzChf: garagenplatzKaufpreisZusatzChf, totalZusatzChf: parkierungKaufpreisZusatzChf },
     stweg: facts.stweg,
     assumptionNotes,
   };
@@ -426,6 +439,8 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
       baujahr: num(body.baujahr),
       parkplatzKaufpreisChf: num(body.parkplatzKaufpreisChf) ?? 0,
       parkplatzImKaufpreisEnthalten: body.parkplatzImKaufpreisEnthalten === true,
+      garagenplatzKaufpreisChf: num(body.garagenplatzKaufpreisChf) ?? 0,
+      garagenplatzImKaufpreisEnthalten: body.garagenplatzImKaufpreisEnthalten === true,
       stweg,
       nebenkosten: {
         handaenderungssteuerPercent: num(nebenkosten.handaenderungssteuerPercent),
@@ -509,6 +524,7 @@ const ALLOWED_UPDATE_FIELDS = [
   "zimmerzahl",
   "baujahr",
   "parkplatzKaufpreisChf",
+  "garagenplatzKaufpreisChf",
   "miete.wohnungsMieteChfPerMonth",
   "miete.parkplatzMieteChfPerMonth",
   "miete.sonstigeEinnahmenChfPerYear",
