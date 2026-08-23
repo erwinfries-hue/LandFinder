@@ -1203,6 +1203,41 @@ aller bisherigen Massnahmen weiterhin an sehr grossen Dokumentensets scheitert, 
 nächste sinnvolle Schritt — dann aber mit Rückmeldung aus einem konkreten Fehlschlag als
 Testfall, statt blind entwickelt.
 
+## Nachgezogen (2026-08-23): Übernehmen-Race löschte Felder, doppelte "Übernommen ✓"-Anzeige
+
+Live-Test-Meldung: "felder werden gelöscht und wenn dann übernehmen geklickt, zeigt es
+beide an als angenommen" (bei einem Widerspruch mit zwei Optionen, z.B. zwei konkurrierende
+Erneuerungsfonds-Saldo-Werte, wurden beide gleichzeitig als übernommen markiert). Zwei
+zusammenwirkende Ursachen, beide in dieser Sitzung behoben:
+
+**1. Echte Race Condition in `apply-proposal/route.ts` (Datenverlust).** Die Route las
+`properties.bestandsrendite`, wendete das Feld-Update in-memory an und schrieb das ganze
+Objekt zurück — klassisches Read-Modify-Write ohne Nebenläufigkeitsschutz. Klickt der
+Nutzer kurz hintereinander zwei "Übernehmen"-Buttons (z.B. zwei Widerspruchsoptionen oder
+zwei verschiedene Feldvorschläge), lesen beide Requests denselben alten Stand; der zuletzt
+abgeschlossene Schreibvorgang überschreibt den anderen komplett, der zuerst übernommene
+Wert geht dabei kommentarlos verloren — genau das beobachtete "Felder werden gelöscht".
+Behoben mit optimistischer Nebenläufigkeitskontrolle: die Route liest jetzt zusätzlich
+`bestandsrendite_updated_at`, und die UPDATE-Query bedingt sich per `.eq(...)`/`.is(...)`
+auf genau diesen zuvor gelesenen Wert plus `.select("id")`, um zu erkennen, ob die Zeile
+tatsächlich getroffen wurde. Kein betroffener Row (0 Treffer) bedeutet: zwischenzeitlich
+hat ein anderer Request bereits geschrieben — dann wird NICHT überschrieben, sondern 409
+zurückgegeben, statt den fremden Schreibvorgang stillschweigend zu verwerfen.
+
+**2. Anzeige-Bug in `DueDiligencePanel.tsx` (doppeltes "Übernommen ✓").** Der
+`appliedFields`-State (aus dem vorigen Fix, siehe Eintrag oben) war nur nach `field`
+benannt/geschlüsselt. Ein Widerspruch hat aber mehrere `options`, die sich alle dasselbe
+`field` teilen — das Markieren EINER Option als übernommen markierte optisch ALLE
+Geschwister-Optionen desselben Feldes gleich mit, unabhängig vom tatsächlich übernommenen
+Wert. Behoben mit einem zusammengesetzten Schlüssel `` `${field}::${value}` ``
+(`appliedFieldKey`) für sowohl `applying` als auch `appliedFields` — betrifft beide
+Render-Stellen (Widerspruchs-Optionen und einfache Feldvorschläge). Zusätzlich als erste
+Verteidigungslinie gegen die Race Condition selbst: alle Übernehmen-Buttons sind jetzt
+global deaktiviert (`disabled={applying !== null}`), solange IRGENDEIN Übernehmen-Request
+läuft, statt nur den einzeln angeklickten Button zu sperren — verhindert, dass der Nutzer
+die Race Condition über die UI überhaupt erst auslösen kann (die serverseitige
+Versionsprüfung bleibt als zweite Verteidigungslinie, z.B. bei zwei offenen Tabs).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

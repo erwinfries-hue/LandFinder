@@ -26,6 +26,17 @@ const SEVERITY_TONE: Record<DueDiligenceSeverity, ChipTone> = { OK: "good", KLAE
 const SEVERITY_LABEL: Record<DueDiligenceSeverity, string> = { OK: "Unauffällig", KLAERUNGSBEDARF: "Klärungsbedarf", RISIKO: "Wesentliches Risiko" };
 const PRIORITY_LABEL: Record<string, string> = { ZWINGEND: "Zwingend vor Kauf", EMPFOHLEN: "Empfehlenswert", OPTIONAL: "Optional" };
 
+/**
+ * Schlüssel für `appliedFields` aus Feld UND Wert zusammengesetzt (nicht nur dem Feld) —
+ * ein Widerspruch hat mehrere Optionen für DASSELBE Feld (z.B. zwei konkurrierende
+ * Erneuerungsfonds-Salden), nur EINE davon wurde tatsächlich übernommen. Ein Schlüssel
+ * aus dem Feld allein hätte fälschlich BEIDE Optionen als "Übernommen ✓" markiert, sobald
+ * irgendeine davon geklickt wurde (Anzeige-Bug, per Live-Test beobachtet).
+ */
+function appliedFieldKey(field: string, value: string | number): string {
+  return `${field}::${value}`;
+}
+
 /** Datei, die ausgewählt aber noch nicht hochgeladen ist — Dokumenttyp aus dem Dateinamen vorgeschlagen, vor dem Hochladen editierbar. */
 type StagedFile = { file: File; documentType: DueDiligenceDocumentType; guessed: boolean };
 
@@ -158,7 +169,15 @@ export function DueDiligencePanel({
   }
 
   async function handleApplyProposal(field: string, newValue: string | number) {
-    setApplying(field);
+    // Absichtlich EIN globaler "applying"-Zustand statt nur den geklickten Button zu
+    // sperren: zwei nahezu gleichzeitige Übernehmen-Klicks (z.B. zwei
+    // Widerspruchs-Optionen desselben Felds, oder zwei verschiedene Vorschläge) lesen
+    // sonst denselben alten Datenbank-Stand und der zuletzt abgeschlossene Request
+    // überschreibt den anderen komplett — der zuerst übernommene Wert ginge dabei
+    // verloren ("Felder werden gelöscht", per Live-Test beobachtet). Die Server-Route
+    // hat zusätzlich eine eigene Konflikterkennung (zweite Verteidigungslinie).
+    const key = appliedFieldKey(field, newValue);
+    setApplying(key);
     try {
       const res = await fetch(`/api/properties/${propertyId}/due-diligence/apply-proposal`, {
         method: "POST",
@@ -170,7 +189,7 @@ export function DueDiligencePanel({
         window.alert(body.error ?? "Übernehmen fehlgeschlagen.");
         return;
       }
-      setAppliedFields((prev) => new Set(prev).add(field));
+      setAppliedFields((prev) => new Set(prev).add(key));
       router.refresh();
     } catch {
       window.alert("Übernehmen fehlgeschlagen (Netzwerkfehler).");
@@ -515,17 +534,17 @@ export function DueDiligencePanel({
                             {option.sourcePage ? `, Seite ${option.sourcePage}` : ""}
                             {option.sourceQuote ? `: „${option.sourceQuote}“` : ""}
                           </span>
-                          {contradiction.field && appliedFields.has(contradiction.field) ? (
+                          {contradiction.field && appliedFields.has(appliedFieldKey(contradiction.field, option.value)) ? (
                             <Chip tone="good">Übernommen ✓</Chip>
                           ) : contradiction.field ? (
                             <button
                               type="button"
                               className="btn"
                               style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
-                              disabled={applying === contradiction.field}
+                              disabled={applying !== null}
                               onClick={() => handleApplyProposal(contradiction.field!, option.value)}
                             >
-                              {applying === contradiction.field ? "Übernimmt…" : "Das stimmt — übernehmen"}
+                              {applying === appliedFieldKey(contradiction.field, option.value) ? "Übernimmt…" : "Das stimmt — übernehmen"}
                             </button>
                           ) : null}
                         </li>
@@ -634,11 +653,11 @@ export function DueDiligencePanel({
                     {p.currentValue != null ? ` (bisher ${p.currentValue})` : " (bisher nicht erfasst)"} — laut {p.sourceDocumentName}
                     {p.sourcePage ? `, Seite ${p.sourcePage}` : ""}
                   </span>
-                  {appliedFields.has(p.field) ? (
+                  {appliedFields.has(appliedFieldKey(p.field, p.newValue)) ? (
                     <Chip tone="good">Übernommen ✓</Chip>
                   ) : (
-                    <button type="button" className="btn" style={{ width: "auto", padding: ".2rem .6rem", fontSize: ".76rem" }} disabled={applying === p.field} onClick={() => handleApplyProposal(p.field, p.newValue)}>
-                      {applying === p.field ? "Übernimmt…" : "Übernehmen"}
+                    <button type="button" className="btn" style={{ width: "auto", padding: ".2rem .6rem", fontSize: ".76rem" }} disabled={applying !== null} onClick={() => handleApplyProposal(p.field, p.newValue)}>
+                      {applying === appliedFieldKey(p.field, p.newValue) ? "Übernimmt…" : "Übernehmen"}
                     </button>
                   )}
                 </li>
