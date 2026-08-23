@@ -1077,6 +1077,54 @@ Visuell verifiziert über einen statischen HTML-Mock mit dem echten `globals.css
 Supabase-/Anthropic-Zugriff in dieser Sandbox für eine echte Live-Vorschau) — Labels und
 Eingaben bleiben klar unterscheidbar, die Abschnittsüberschriften weiterhin klar abgesetzt.
 
+## Nachgezogen (2026-08-23): Zwei ernste Bugs beim Speichern gefunden und behoben
+
+Zwei unabhängige, per Live-Test gemeldete Fehler in derselben Sitzung — beide betreffen
+"stillschweigend nichts passiert" statt eines sichtbaren Fehlers, was sie besonders
+tückisch machte.
+
+**1. "Übernehmen"-Buttons bei Feldwert-Vorschlägen/Widersprüchen wirkungslos.** Zwei
+zusammenwirkende Ursachen in `DueDiligencePanel.tsx`:
+- `handleApplyProposal` prüfte die Antwort von `POST .../apply-proposal` gar nicht (kein
+  `res.ok`/`body.saved`-Check) — ein serverseitiger Fehler wäre komplett unsichtbar
+  geblieben. Jetzt geprüft, bei Fehlschlag `window.alert` statt stillem Nichtstun.
+- Selbst bei erfolgreichem Schreiben in die DB zeigte das Bestandsrendite-Formular
+  (`BestandsrenditeVertiefungForm` → `BestandsrenditeFactsFields`) den neuen Wert NICHT
+  an: die Formularfelder sind bewusst unkontrollierte Inputs mit `defaultValue` (siehe
+  Kommentar dort), und React ignoriert ein geändertes `defaultValue` auf einem bereits
+  gemounteten Input — ein `router.refresh()` allein reicht nicht, die Komponente muss neu
+  gemountet werden. `PropertyCreateForm` löste das bereits für den Neu-Erfassen-Flow
+  (`key={factsFieldsVersion}`), `BestandsrenditeVertiefungForm` auf der Objektseite hatte
+  diesen Mechanismus nie bekommen. Jetzt: neuer Prop `bestandsrenditeUpdatedAt` (aus
+  `properties.bestandsrendite_updated_at`, ändert sich bei jedem erfolgreichen Schreiben)
+  als `key` auf `BestandsrenditeFactsFields` — erzwingt einen frischen Mount mit den
+  aktuellen Werten nach jedem `router.refresh()`. Zusätzlich sofortiges visuelles
+  Feedback ohne auf den Refresh warten zu müssen: übernommene Felder zeigen direkt einen
+  "Übernommen ✓"-Chip statt des Buttons (`appliedFields`-State).
+
+**2. Nach dem Anlegen: 0 von 17 Dokumenten gespeichert, mehrere Fakten-Felder leer.**
+Zwei separate Bugs in `PropertyCreateForm.tsx::handleSubmit`, beide durch denselben
+Live-Test aufgedeckt:
+- **Root Cause für die leeren Felder:** `new FormData(event.currentTarget)` wurde erst
+  NACH dem ersten `await` (dem `POST /api/properties`-Aufruf zum Anlegen) gelesen. React
+  setzt `event.currentTarget` auf `null`, sobald die synchrone Dispatch-Phase des Events
+  endet — bei einem `async`-Handler ist das spätestens beim ersten `await` der Fall.
+  `new FormData(null)` liefert ein leeres FormData-Objekt, `buildBestandsrenditeFactsFromFormData`
+  las daraus praktisch nichts. Behoben: FormData wird jetzt GANZ AM ANFANG von
+  `handleSubmit`, synchron vor jedem `await`, gelesen.
+- **Root Cause für die 0 Dokumente:** der Anhänge-Loop
+  (`POST .../documents/attach` pro Dokument) prüfte die Antwort ebenfalls nicht — ein
+  Fehlschlag jedes einzelnen Requests wäre unsichtbar geblieben, das Objekt stand am Ende
+  mit 0 Dokumenten da, ohne jede Fehlermeldung. Jetzt werden Fehlschläge gezählt und nach
+  dem Speichern als `window.alert` mit Dateinamen gemeldet; dieselbe Prüfung/Meldung auch
+  für das Mitspeichern der Due-Diligence-Synthese (`save-prefilled`) ergänzt.
+
+Ob der zweite Bug (FormData) allein für "0 Dokumente" verantwortlich war, liess sich
+nicht abschliessend klären (er betrifft nur die Fakten, nicht den davon unabhängigen
+Dokumenten-Anhänge-Loop) — die zweite Ursache (ungeprüfte attach-Antwort) deckt diesen
+Fall unabhängig ab. Beide Fixes sind in Kombination die robusteste verfügbare Erklärung
+für das beobachtete Verhalten.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

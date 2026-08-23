@@ -117,7 +117,12 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
           <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>
             Bestandsrendite-Fakten {facts ? "bearbeiten" : "erfassen"}
           </summary>
-          <BestandsrenditeVertiefungForm propertyId={property.id} existing={facts} canton={property.canton} />
+          <BestandsrenditeVertiefungForm
+            propertyId={property.id}
+            existing={facts}
+            canton={property.canton}
+            bestandsrenditeUpdatedAt={property.bestandsrendite_updated_at}
+          />
         </details>
 
         <DueDiligencePanel
