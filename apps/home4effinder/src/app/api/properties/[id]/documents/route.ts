@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import type { DueDiligenceDocumentType } from "@landfinder/domain";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { hasValidSession } from "@/lib/authSession";
@@ -67,6 +68,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // (Leerzeichen, Umlaute/Akzente) mit "InvalidKey" ab, in Produktion beobachtet bei
   // z.B. "PDF Exposé.pdf".
   const storagePath = `${propertyId}/${crypto.randomUUID()}.${isPdf ? "pdf" : "txt"}`;
+  // Byte-exakter Content-Hash für die Dubletten-Erkennung (siehe detect-duplicates-Route) —
+  // am Upload berechnet statt erst nachträglich, damit neue Dokumente sofort vergleichbar sind.
+  const contentHash = createHash("sha256").update(bytes).digest("hex");
 
   const { error: uploadError } = await supabase.storage
     .from("property-documents")
@@ -78,7 +82,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: docRow, error: insertError } = await supabase
     .from("property_documents")
-    .insert({ property_id: propertyId, document_type: documentType, storage_path: storagePath, original_filename: file.name })
+    .insert({ property_id: propertyId, document_type: documentType, storage_path: storagePath, original_filename: file.name, content_hash: contentHash })
     .select("id")
     .single();
   if (insertError) {
@@ -113,7 +117,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { data, error } = await supabase
     .from("property_documents")
-    .select("id, document_type, original_filename, uploaded_at, analysis_status, analysis_error, extraction, analyzed_at, excluded_from_synthesis")
+    .select("id, document_type, original_filename, uploaded_at, analysis_status, analysis_error, extraction, analyzed_at, excluded_from_synthesis, content_hash")
     .eq("property_id", propertyId)
     .order("uploaded_at", { ascending: false });
   if (error) {
