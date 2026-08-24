@@ -65,6 +65,8 @@ export interface SchnellcheckInput {
   parkplatzMieteChfPerMonth: number;
   /** Mehrertrag ggü. unmöbliert, CHF/Monat — 0, wenn möbliert nicht das gewählte Vermietungsmodell ist (Aufrufer entscheidet, siehe bestandsrendite.ts::computeBestandsrenditeAnalysis). Muss mit demselben Wert übereinstimmen, der auch in JahresertragInput.moeblierungsPremiumChfPerMonth einfliesst — sonst würden Ebene A (Schnellcheck) und Ebene B/C (Investment Case) unterschiedliche Szenarien zeigen. */
   moeblierungsPremiumChfPerMonth: number;
+  /** Muss mit demselben Wert übereinstimmen, der auch in JahresertragInput.sonstigeEinnahmenChfPerYear einfliesst — sonst zeigen Ebene A (Schnellcheck) und Ebene B/C (Investment Case) unterschiedliche Bruttorendite-Zahlen für dasselbe Objekt. */
+  sonstigeEinnahmenChfPerYear: number;
   kaufnebenkostenPercent: number;
   /** Grobe Pauschale für den Schnellcheck — die volle Aufschlüsselung folgt erst in Ebene B (`calculateBetriebskosten`). */
   laufendeKostenChfPerYear: number;
@@ -86,7 +88,8 @@ export interface SchnellcheckResult {
 export function calculateSchnellcheck(input: SchnellcheckInput): SchnellcheckResult {
   const kaufpreisChf = input.wohnungskaufpreisChf + input.parkplatzkaufpreisChf;
   const preisProM2Chf = input.wohnflaecheM2 > 0 ? kaufpreisChf / input.wohnflaecheM2 : 0;
-  const jahresnettomieteChf = (input.wohnungsMieteChfPerMonth + input.parkplatzMieteChfPerMonth + input.moeblierungsPremiumChfPerMonth) * 12;
+  const jahresnettomieteChf =
+    (input.wohnungsMieteChfPerMonth + input.parkplatzMieteChfPerMonth + input.moeblierungsPremiumChfPerMonth) * 12 + input.sonstigeEinnahmenChfPerYear;
   const bruttoRenditePercent = kaufpreisChf > 0 ? (jahresnettomieteChf / kaufpreisChf) * 100 : 0;
 
   const kaufnebenkostenChf = kaufpreisChf * (input.kaufnebenkostenPercent / 100);

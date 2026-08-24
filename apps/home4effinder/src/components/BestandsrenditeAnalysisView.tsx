@@ -51,6 +51,7 @@ export function BestandsrenditeAnalysisView({
     breakEven,
     stweg,
     hypothek,
+    schnellcheckKostenBreakdown,
   } = result;
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
   const alt = moeblierungsAlternative;
@@ -104,6 +105,7 @@ export function BestandsrenditeAnalysisView({
             l="Grober Cashflow"
             v={`CHF ${formatChf(Math.round(schnellcheck.groberCashflowChf))}`}
             valueColor={schnellcheck.groberCashflowChf >= 0 ? "var(--good)" : "var(--bad)"}
+            sub={`= CHF ${formatChf(Math.round(schnellcheck.jahresnettomieteChf))} (Miete) − CHF ${formatChf(Math.round(schnellcheckKostenBreakdown.laufendeKostenChfPerYear))} (Kosten) − CHF ${formatChf(Math.round(schnellcheckKostenBreakdown.zinsChf))} (Zins)`}
             hint="= Jahresnettomiete − pauschale laufende Kosten − Hypothekarzins. Grobe Schnellcheck-Schätzung ohne Amortisation/Steuer/Reserven — die volle Aufschlüsselung folgt in Ebene B."
           />
         </div>
@@ -192,8 +194,14 @@ export function BestandsrenditeAnalysisView({
           />
           <Metric
             l="Cash-on-Cash"
-            v={`${investmentCase.cashOnCashPercent.toFixed(2)}%`}
-            sub={alt ? `${altLabel}: ${alt.analysis.investmentCase.cashOnCashPercent.toFixed(2)}%` : undefined}
+            v={result.eigenkapitalChf > 0 ? `${investmentCase.cashOnCashPercent.toFixed(2)}%` : "n/a"}
+            sub={
+              result.eigenkapitalChf <= 0
+                ? "Eigenkapital ≤ 0 (Belehnung insgesamt über 100%?) — nicht berechenbar"
+                : alt
+                  ? `${altLabel}: ${alt.analysis.investmentCase.cashOnCashPercent.toFixed(2)}%`
+                  : undefined
+            }
             hint="= nachhaltiger Cashflow Jahr 1 (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) ÷ eingesetztes Eigenkapital × 100."
           />
           <Metric
@@ -309,7 +317,7 @@ export function BestandsrenditeAnalysisView({
         <div className="metricgrid">
           <Metric
             l="Break-even-Miete"
-            v={breakEven.mieteChfPerMonth !== undefined ? `CHF ${formatChf(Math.round(breakEven.mieteChfPerMonth))}/Monat` : "—"}
+            v={breakEven.mieteChfPerMonth !== undefined ? `CHF ${formatChf(Math.round(breakEven.mieteChfPerMonth))}/Mt.` : "—"}
             hint="Monatsmiete Wohnung, bei der der nachhaltige Cashflow (Jahr 1) genau 0 erreicht — alle anderen Annahmen bleiben unverändert. Numerisch ermittelt (Bisektion), keine geschlossene Formel."
           />
           <Metric

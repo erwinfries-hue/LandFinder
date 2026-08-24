@@ -117,17 +117,7 @@ export default async function VergleichPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: ".6rem" }}>
               {sortedRows.map((row) => (
                 <details key={row.property.id} className="panel" style={{ padding: 0 }}>
-                  <summary
-                    style={{
-                      cursor: "pointer",
-                      listStyle: "none",
-                      padding: ".9rem 1.1rem",
-                      display: "grid",
-                      gridTemplateColumns: "1.8fr 1fr 1fr 1fr 1fr 1.3fr",
-                      gap: ".8rem",
-                      alignItems: "center",
-                    }}
-                  >
+                  <summary className="compare-row-summary">
                     <div>
                       <div style={{ fontWeight: 600, fontSize: ".875rem" }}>{row.property.title || row.property.address_text}</div>
                       <div style={{ color: "var(--ink-faint)", fontSize: ".74rem" }}>

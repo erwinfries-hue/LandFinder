@@ -1613,3 +1613,26 @@ table.sortable th {
 .savefeedback-warn {
   color: var(--warn);
 }
+
+/* ================= VERGLEICHSSEITE ================= */
+/* War vorher ein Inline-`grid-template-columns: 1.8fr 1fr 1fr 1fr 1fr 1.3fr` ohne
+   `minmax(0, ...)` — feste `fr`-Spalten können ohne `minmax(0, ...)` breiter werden als
+   ihr Anteil, wenn der Inhalt (z.B. lange Adressen, "CHF 1'234'567") nicht umbricht; das
+   Ergebnis war horizontales Überlaufen der ganzen Zeile auf schmalen Screens statt eines
+   sauberen Zeilenumbruchs. Auf Mobile (<=980px, siehe Media-Query unten) zusätzlich auf
+   zwei Spalten reduziert (Review-Fund: "Vergleichsseite auf Mobile prüfen").
+ */
+.compare-row-summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.9rem 1.1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 0.8rem;
+  align-items: center;
+}
+@media (max-width: 980px) {
+  .compare-row-summary {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}

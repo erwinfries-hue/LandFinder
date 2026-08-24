@@ -82,52 +82,54 @@ export default async function HomePage() {
             <div className="eyebrow">
               {properties.length} Objekt{properties.length === 1 ? "" : "e"}
             </div>
-            <table style={{ marginTop: "1rem" }}>
-              <thead>
-                <tr>
-                  <th title="Investment-Score (0-100) — Due Diligence, Dokumentation, Rendite. Grau, solange Bestandsrendite-Fakten und/oder Due-Diligence-Synthese fehlen.">
-                    Ampel
-                  </th>
-                  <th>Adresse</th>
-                  <th>Kanton</th>
-                  <th className="num">Kaufpreis</th>
-                  <th className="num">Wohnfläche</th>
-                  <th>Erfasst</th>
-                  <th>Bestandsrendite</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {properties.map((p, i) => (
-                  <tr key={p.id}>
-                    <td>
-                      {ampelScores[i] !== undefined ? (
-                        <Chip tone={scoreTone(ampelScores[i]!)} title={`Investment-Score ${ampelScores[i]}/100`}>
-                          {ampelScores[i]}
-                        </Chip>
-                      ) : (
-                        <Chip tone="neutral" title="Noch nicht bewertet — Bestandsrendite-Fakten und/oder Due-Diligence-Synthese fehlen.">
-                          –
-                        </Chip>
-                      )}
-                    </td>
-                    <td>
-                      <Link href={`/objekte/${p.id}`} className="maplink">
-                        {p.title || p.address_text}
-                      </Link>
-                    </td>
-                    <td>{p.canton}</td>
-                    <td className="num mono">CHF {formatChf(p.asking_price_chf)}</td>
-                    <td className="num mono">{formatChf(p.wohnflaeche_m2)} m²</td>
-                    <td>{formatDateTime(p.created_at)}</td>
-                    <td>{p.bestandsrendite_updated_at ? `erfasst (${formatDateTime(p.bestandsrendite_updated_at)})` : "—"}</td>
-                    <td>
-                      <DeletePropertyButton propertyId={p.id} label={p.title || p.address_text} />
-                    </td>
+            <div className="twrap">
+              <table style={{ marginTop: "1rem" }}>
+                <thead>
+                  <tr>
+                    <th title="Investment-Score (0-100) — Due Diligence, Dokumentation, Rendite. Grau, solange Bestandsrendite-Fakten und/oder Due-Diligence-Synthese fehlen.">
+                      Ampel
+                    </th>
+                    <th>Adresse</th>
+                    <th>Kanton</th>
+                    <th className="num">Kaufpreis</th>
+                    <th className="num">Wohnfläche</th>
+                    <th>Erfasst</th>
+                    <th>Bestandsrendite</th>
+                    <th />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {properties.map((p, i) => (
+                    <tr key={p.id}>
+                      <td>
+                        {ampelScores[i] !== undefined ? (
+                          <Chip tone={scoreTone(ampelScores[i]!)} title={`Investment-Score ${ampelScores[i]}/100`}>
+                            {ampelScores[i]}
+                          </Chip>
+                        ) : (
+                          <Chip tone="neutral" title="Noch nicht bewertet — Bestandsrendite-Fakten und/oder Due-Diligence-Synthese fehlen.">
+                            –
+                          </Chip>
+                        )}
+                      </td>
+                      <td>
+                        <Link href={`/objekte/${p.id}`} className="maplink">
+                          {p.title || p.address_text}
+                        </Link>
+                      </td>
+                      <td>{p.canton}</td>
+                      <td className="num mono">CHF {formatChf(p.asking_price_chf)}</td>
+                      <td className="num mono">{formatChf(p.wohnflaeche_m2)} m²</td>
+                      <td>{formatDateTime(p.created_at)}</td>
+                      <td>{p.bestandsrendite_updated_at ? `erfasst (${formatDateTime(p.bestandsrendite_updated_at)})` : "—"}</td>
+                      <td>
+                        <DeletePropertyButton propertyId={p.id} label={p.title || p.address_text} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </Panel>
         )}
       </main>

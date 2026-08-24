@@ -51,7 +51,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .upsert({ property_id: propertyId, status: "DONE", result, error_message: null, generated_at: new Date().toISOString() });
   if (upsertError) {
     console.error(`[api/properties/${propertyId}/due-diligence/save-prefilled] Speichern fehlgeschlagen`, upsertError);
-    return NextResponse.json({ saved: false, error: "write failed" }, { status: 500 });
+    return NextResponse.json({ saved: false, error: `write failed: ${upsertError.message} (${upsertError.code})` }, { status: 500 });
   }
 
   return NextResponse.json({ saved: true });
