@@ -1,6 +1,6 @@
 import { Document, Page, View, Text, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import type { DueDiligenceResult, DueDiligenceSeverity } from "@landfinder/domain";
-import type { BestandsrenditeAnalysisResult, Verhandlungskorridor } from "./bestandsrendite";
+import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, MoeblierungsAlternative } from "./bestandsrendite";
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "./dueDiligenceCategories";
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
 import { formatChf } from "./format";
@@ -33,6 +33,7 @@ const styles = StyleSheet.create({
   metric: { width: "33%", marginBottom: 8, paddingRight: 8 },
   metricLabel: { fontSize: 7.5, color: "#4a574e", textTransform: "uppercase", letterSpacing: 0.3 },
   metricValue: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 1 },
+  metricSub: { fontSize: 7, color: "#7c8880", marginTop: 1 },
   row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
   categoryRow: { flexDirection: "row", marginBottom: 2, alignItems: "flex-start" },
   categoryDot: { width: 6, height: 6, borderRadius: 3, marginTop: 2.5, marginRight: 5 },
@@ -55,12 +56,25 @@ export interface ManagementSummaryInput {
   verhandlungskorridor: Verhandlungskorridor | null;
   dueDiligence: DueDiligenceResult | null;
   investmentScore: number | undefined;
+  /** Schattenrechnung des jeweils anderen Szenarios (möbliert/unmöbliert) — siehe computeMoeblierungsAlternative. */
+  moeblierungsAlternative: MoeblierungsAlternative | null;
 }
 
-function ManagementSummaryDocument({ addressText, canton, generatedAt, analysis, verhandlungskorridor, dueDiligence, investmentScore }: ManagementSummaryInput) {
+function ManagementSummaryDocument({
+  addressText,
+  canton,
+  generatedAt,
+  analysis,
+  verhandlungskorridor,
+  dueDiligence,
+  investmentScore,
+  moeblierungsAlternative,
+}: ManagementSummaryInput) {
   const { schnellcheck, investmentCase } = analysis;
   const missingZwingend = dueDiligence?.missingDocuments.filter((m) => m.priority === "ZWINGEND") ?? [];
   const topQuestions = dueDiligence?.sellerQuestions.slice(0, 5) ?? [];
+  const alt = moeblierungsAlternative;
+  const altLabel = alt ? `Alt. (${alt.label})` : "";
 
   return (
     <Document title={`Management Summary — ${addressText}`}>
@@ -94,6 +108,7 @@ function ManagementSummaryDocument({ addressText, canton, generatedAt, analysis,
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Bruttorendite</Text>
             <Text style={styles.metricValue}>{schnellcheck.bruttoRenditePercent.toFixed(2)}%</Text>
+            {alt ? <Text style={styles.metricSub}>{altLabel}: {alt.analysis.schnellcheck.bruttoRenditePercent.toFixed(2)}%</Text> : null}
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Eigenkapitalbedarf</Text>
@@ -102,6 +117,7 @@ function ManagementSummaryDocument({ addressText, canton, generatedAt, analysis,
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Cash-on-Cash</Text>
             <Text style={styles.metricValue}>{investmentCase.cashOnCashPercent.toFixed(2)}%</Text>
+            {alt ? <Text style={styles.metricSub}>{altLabel}: {alt.analysis.investmentCase.cashOnCashPercent.toFixed(2)}%</Text> : null}
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Nachhaltiger Cashflow p.a.</Text>
@@ -126,6 +142,9 @@ function ManagementSummaryDocument({ addressText, canton, generatedAt, analysis,
               <View style={styles.metric}>
                 <Text style={styles.metricLabel}>Maximum</Text>
                 <Text style={styles.metricValue}>CHF {formatChf(Math.round(verhandlungskorridor.maximumChf))}</Text>
+                {alt && alt.verhandlungskorridor.maximumChf !== undefined ? (
+                  <Text style={styles.metricSub}>{altLabel}: CHF {formatChf(Math.round(alt.verhandlungskorridor.maximumChf))}</Text>
+                ) : null}
               </View>
             </View>
           </>

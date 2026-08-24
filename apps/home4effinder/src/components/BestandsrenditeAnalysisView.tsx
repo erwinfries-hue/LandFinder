@@ -1,7 +1,7 @@
 import { Panel, Chip, InfoHint } from "@landfinder/ui";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
-import type { BestandsrenditeAnalysisResult, Verhandlungskorridor } from "@/lib/bestandsrendite";
+import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, MoeblierungsAlternative } from "@/lib/bestandsrendite";
 
 /**
  * Reine Anzeige der drei Ebenen — die Berechnung selbst
@@ -12,10 +12,18 @@ import type { BestandsrenditeAnalysisResult, Verhandlungskorridor } from "@/lib/
 export function BestandsrenditeAnalysisView({
   result,
   verhandlungskorridor,
+  moeblierungsAlternative,
 }: {
   result: BestandsrenditeAnalysisResult;
   /** `undefined`/`null`, wenn `computeVerhandlungskorridor` keine Bisektionslösung fand (Objekt trägt sich unter keinen Umständen). */
   verhandlungskorridor?: Verhandlungskorridor | null;
+  /**
+   * Für die "Schattenrechnung" (Rückmeldung: "wo dieser Vergleich überall durchschlägt")
+   * — das jeweils andere Szenario (möbliert/unmöbliert), komplett durchgerechnet.
+   * `null`, wenn kein Alternativszenario existiert (SHORT_STAY oder keine Möblierungsdaten
+   * erfasst), siehe `computeMoeblierungsAlternative`.
+   */
+  moeblierungsAlternative?: MoeblierungsAlternative | null;
 }) {
   const {
     schnellcheck,
@@ -34,6 +42,8 @@ export function BestandsrenditeAnalysisView({
     hypothek,
   } = result;
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
+  const alt = moeblierungsAlternative;
+  const altLabel = alt ? `Alternative (${alt.label})` : "";
 
   // Nur die Parkierungsarten nennen, die tatsächlich zusätzlich zum Basis-Kaufpreis
   // dazugerechnet wurden (nicht die, die bereits im Basis-Kaufpreis enthalten sind).
@@ -58,7 +68,12 @@ export function BestandsrenditeAnalysisView({
           />
           <Metric l="Preis/m²" v={`CHF ${formatChf(Math.round(schnellcheck.preisProM2Chf))}`} hint="= Kaufpreis ÷ Wohnfläche (m²)." />
           <Metric l="Jahresnettomiete" v={`CHF ${formatChf(schnellcheck.jahresnettomieteChf)}`} hint="= (Nettomiete Wohnung + Miete Parkplatz) × 12." />
-          <Metric l="Bruttorendite (Kaufpreis)" v={`${schnellcheck.bruttoRenditePercent.toFixed(2)}%`} hint="= Jahresnettomiete ÷ Kaufpreis × 100." />
+          <Metric
+            l="Bruttorendite (Kaufpreis)"
+            v={`${schnellcheck.bruttoRenditePercent.toFixed(2)}%`}
+            sub={alt ? `${altLabel}: ${alt.analysis.schnellcheck.bruttoRenditePercent.toFixed(2)}%` : undefined}
+            hint="= Jahresnettomiete ÷ Kaufpreis × 100."
+          />
           <Metric
             l="Eigenkapitalbedarf"
             v={`CHF ${formatChf(Math.round(schnellcheck.eigenkapitalbedarfChf))}`}
@@ -112,6 +127,7 @@ export function BestandsrenditeAnalysisView({
             <Metric
               l="Maximum"
               v={`CHF ${formatChf(Math.round(verhandlungskorridor.maximumChf))}`}
+              sub={alt?.verhandlungskorridor.maximumChf !== undefined ? `${altLabel}: CHF ${formatChf(Math.round(alt.verhandlungskorridor.maximumChf))}` : undefined}
               hint="Kaufpreis, bei dem der nachhaltige Cashflow (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) gerade CHF 0 erreicht — mehr zu zahlen ist unter den aktuellen Annahmen rechnerisch nicht mehr cashflow-tragfähig."
             />
           </div>
@@ -127,6 +143,7 @@ export function BestandsrenditeAnalysisView({
           <Metric
             l="Bruttorendite auf Kaufpreis"
             v={`${investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}%`}
+            sub={alt ? `${altLabel}: ${alt.analysis.investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}%` : undefined}
             hint="= potenzieller Jahresertrag (Mieten × 12 + sonstige Einnahmen, OHNE Leerstand-/Auslastungsabzug) ÷ Kaufpreis × 100."
           />
           <Metric
@@ -142,6 +159,7 @@ export function BestandsrenditeAnalysisView({
           <Metric
             l="Cash-on-Cash"
             v={`${investmentCase.cashOnCashPercent.toFixed(2)}%`}
+            sub={alt ? `${altLabel}: ${alt.analysis.investmentCase.cashOnCashPercent.toFixed(2)}%` : undefined}
             hint="= nachhaltiger Cashflow Jahr 1 (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) ÷ eingesetztes Eigenkapital × 100."
           />
           <Metric l="Eigenkapital" v={`CHF ${formatChf(Math.round(result.eigenkapitalChf))}`} hint="= All-in-Investition − Hypothek (1. + 2., je Kaufpreis × Belehnung-%)." />
@@ -391,6 +409,9 @@ export function BestandsrenditeAnalysisView({
           <Metric
             l="Levered IRR"
             v={mehrjahresmodell.leveredIrrPercent !== undefined ? `${mehrjahresmodell.leveredIrrPercent.toFixed(1)}%` : "—"}
+            sub={
+              alt && alt.analysis.mehrjahresmodell.leveredIrrPercent !== undefined ? `${altLabel}: ${alt.analysis.mehrjahresmodell.leveredIrrPercent.toFixed(1)}%` : undefined
+            }
             hint="Interner Zinsfuss auf die Eigenkapital-Cashflows: −Eigenkapital in Jahr 0, jährlicher nachhaltiger Cashflow, plus Exit-Erlös im letzten Jahr. Numerisch ermittelt, keine geschlossene Formel."
           />
           <Metric
@@ -401,6 +422,7 @@ export function BestandsrenditeAnalysisView({
           <Metric
             l="Equity Multiple"
             v={`${mehrjahresmodell.equityMultiple.toFixed(2)}×`}
+            sub={alt ? `${altLabel}: ${alt.analysis.mehrjahresmodell.equityMultiple.toFixed(2)}×` : undefined}
             hint="= (Summe aller jährlichen nachhaltigen Cashflows + Exit-Erlös) ÷ eingesetztes Eigenkapital."
           />
           <Metric

@@ -1742,6 +1742,33 @@ echte Postgres-Fehlermeldung zurück (`updateError.message`/`.code`) statt des g
 Dritte. Zeigt beim nächsten Auftreten die tatsächliche Ursache, statt dass nur Zugriff
 auf Server-Logs weiterhelfen würde.
 
+## Nachgezogen (2026-08-24): Möbliert/Unmöbliert-Inkonsistenz behoben, Schattenrechnung an allen Ebenen (A/B/C) + PDF
+
+Rückmeldung zur Live-Beobachtung fragte, "wo dieser Vergleich [möbliert/unmöbliert]
+überall durchschlägt" — dabei kam ein echter Bug zum Vorschein: `calculateJahresertrag`
+(Ebene B/C) hat den Möblierungsaufschlag/-kosten IMMER eingerechnet, sobald erfasst,
+unabhängig vom gewählten `Vermietungsmodell`; `calculateSchnellcheck` (Ebene A) hatte
+dafür gar keinen Parameter und hat ihn IMMER ausgeschlossen. Ebene A und Ebene B/C
+konnten dadurch gleichzeitig unterschiedliche, inkonsistente Szenarien zeigen.
+
+Per Nachfrage (AskUserQuestion) bestätigt: Das bestehende Feld `Vermietungsmodell`
+steuert jetzt als einzige Quelle der Wahrheit ALLE Berechnungsebenen (Schnellcheck,
+Investment Case, 15-Jahres-Modell, Verhandlungskorridor) — nur bei
+`MITTELFRISTIG_MOEBLIERT` fliessen Möblierungsaufschlag/-kosten ein, sonst nicht.
+Bewusst UNGEGATED bleiben `moeblierungsVergleich` (Value-Add-Vergleichstabelle),
+`furnitureRoi` und `moeblierungReserveChfPerJahr` — das sind explizit
+szenario-unabhängige "was-wäre-wenn"-Kennzahlen, kein Teil der Hauptberechnung.
+
+Zusätzlich, ebenfalls per Nachfrage bestätigt ("An allen Ebenen (A/B/C) + PDF"): eine
+kompakte Schattenrechnung des jeweils anderen Szenarios (`computeMoeblierungsAlternative`)
+wird als grauer `sub`-Hinweis unter 6 Kennzahlen angezeigt (Bruttorendite Schnellcheck,
+Verhandlungskorridor-Maximum, Bruttorendite/Cash-on-Cash Investment Case, Levered IRR/
+Equity Multiple 15-Jahres-Modell) sowie im PDF-Management-Summary (Bruttorendite,
+Cash-on-Cash, Verhandlungskorridor-Maximum) — keine grosse zweite Vergleichsspalte, um
+die Übersicht nicht zu überladen, aber das jeweilige Alternativ-Szenario bleibt auf einen
+Blick sichtbar ("das andere Alternativszenario als Schattenrechnung auf dem High-Level-
+Ergebnis anzeigen").
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
