@@ -4,6 +4,7 @@ import { getPropertyById, getPropertyDueDiligence } from "@/lib/properties";
 import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, computeMoeblierungsAlternative, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
 import { computeInvestmentScore } from "@/lib/investmentScore";
 import { renderManagementSummaryPdf } from "@/lib/managementSummaryPdf";
+import { getParameterOverrides } from "@/lib/parameterOverrides";
 
 export const maxDuration = 30;
 
@@ -25,9 +26,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!facts) return NextResponse.json({ error: "keine Bestandsrendite-Fakten erfasst — Management Summary noch nicht möglich" }, { status: 400 });
 
   const propertyInput = { kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton };
-  const analysis = computeBestandsrenditeAnalysis(propertyInput, facts);
-  const verhandlungskorridor = computeVerhandlungskorridor(propertyInput, facts);
-  const moeblierungsAlternative = computeMoeblierungsAlternative(propertyInput, facts);
+  const parameterOverrides = await getParameterOverrides();
+  const analysis = computeBestandsrenditeAnalysis(propertyInput, facts, parameterOverrides);
+  const verhandlungskorridor = computeVerhandlungskorridor(propertyInput, facts, parameterOverrides);
+  const moeblierungsAlternative = computeMoeblierungsAlternative(propertyInput, facts, parameterOverrides);
   const dueDiligence = await getPropertyDueDiligence(propertyId);
 
   const investmentScore = dueDiligence?.result

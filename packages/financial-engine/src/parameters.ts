@@ -281,6 +281,46 @@ export const BESTANDSRENDITE_PARAMETERS = {
     defaultValue: 7,
     source: "Platzhalter-Annahme, keine empirische Herleitung — bewusst konservativ gewählt und einsehbar/überschreibbar wie alle anderen Parameter hier.",
   }),
+  ersteHypothekBelehnungPercentDefault: describe({
+    key: "ersteHypothekBelehnungPercentDefault",
+    label: "1. Hypothek — Belehnung (Vorschlagswert)",
+    description: "Vorausgefüllter Vorschlagswert im Erfassungsformular für neue Objekte — jedes Objekt kann davon abweichend erfasst werden, ändert diesen globalen Vorschlagswert aber nicht rückwirkend.",
+    unit: "%",
+    defaultValue: 65,
+    source: "Marktüblicher Richtwert für die 1. Hypothek bei Schweizer Wohneigentum — kein kalibrierter Business-Wert, im Annahmen-Reiter überschreibbar.",
+  }),
+  zweiteHypothekBelehnungPercentDefault: describe({
+    key: "zweiteHypothekBelehnungPercentDefault",
+    label: "2. Hypothek — Belehnung (Vorschlagswert)",
+    description: "Vorausgefüllter Vorschlagswert im Erfassungsformular für neue Objekte — jedes Objekt kann davon abweichend erfasst werden, ändert diesen globalen Vorschlagswert aber nicht rückwirkend.",
+    unit: "%",
+    defaultValue: 10,
+    source: "Zusammen mit der 1. Hypothek 75% Gesamtbelehnung als Ausgangspunkt — kein kalibrierter Business-Wert, im Annahmen-Reiter überschreibbar.",
+  }),
+  zinsPercentDefault: describe({
+    key: "zinsPercentDefault",
+    label: "Kalkulatorischer Zinssatz (Vorschlagswert)",
+    description: "Vorausgefüllter Vorschlagswert im Erfassungsformular für neue Objekte — gilt für beide Hypotheken zusammen (kalkulatorisch, kein reales Bankangebot).",
+    unit: "%",
+    defaultValue: 1.5,
+    source: "Konservativer, langfristig kalkulatorischer Zinssatz als Ausgangspunkt — kein kalibrierter Business-Wert, im Annahmen-Reiter überschreibbar.",
+  }),
+  bruttoRenditeZielPercent: describe({
+    key: "bruttoRenditeZielPercent",
+    label: "Bruttorendite-Ziel",
+    description: "Reiner Vergleichswert, der überall neben der tatsächlichen Bruttorendite angezeigt wird — beeinflusst NICHT die Ampel-/Investment-Score-Berechnung.",
+    unit: "%",
+    defaultValue: 4.5,
+    source: "Platzhalter-Zielwert, keine empirische Herleitung — bewusst als reine Referenzgrösse zur Einordnung, im Annahmen-Reiter überschreibbar.",
+  }),
+  nettoRenditeZielPercent: describe({
+    key: "nettoRenditeZielPercent",
+    label: "Nettorendite-Ziel (vor Finanzierung)",
+    description: "Reiner Vergleichswert, der überall neben der tatsächlichen Nettorendite (vor Finanzierung) angezeigt wird — beeinflusst NICHT die Ampel-/Investment-Score-Berechnung.",
+    unit: "%",
+    defaultValue: 3,
+    source: "Platzhalter-Zielwert, keine empirische Herleitung — bewusst als reine Referenzgrösse zur Einordnung, im Annahmen-Reiter überschreibbar.",
+  }),
 } as const;
 
 export type BaupotenzialFactorKey = keyof typeof BAUPOTENZIAL_PARAMETERS;

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Panel } from "@landfinder/ui";
 import type { Vermietungsmodell, RenovationPosition } from "@landfinder/financial-engine";
-import type { BestandsrenditeFacts } from "@/lib/bestandsrendite";
+import type { BestandsrenditeFacts, ParameterOverrides } from "@/lib/bestandsrendite";
 import { BestandsrenditeFactsFields, emptyRenovationPosition } from "./BestandsrenditeFactsFields";
 import { buildBestandsrenditeFactsFromFormData } from "@/lib/bestandsrenditeFormParsing";
 
@@ -21,10 +21,13 @@ export function BestandsrenditeVertiefungForm({
   existing,
   canton,
   bestandsrenditeUpdatedAt,
+  parameterOverrides,
 }: {
   propertyId: string;
   existing: BestandsrenditeFacts | null;
   canton?: string;
+  /** Überschreibungen aus dem "Annahmen"-Reiter — steuert die Vorschlagswerte für neu ausgefüllte Felder. */
+  parameterOverrides?: ParameterOverrides;
   /**
    * Ändert sich, sobald `bestandsrendite` serverseitig neu geschrieben wurde (z.B. durch
    * "Übernehmen" eines Feldwert-Vorschlags/Widerspruchs im Due-Diligence-Panel weiter
@@ -91,6 +94,7 @@ export function BestandsrenditeVertiefungForm({
           key={bestandsrenditeUpdatedAt ?? "new"}
           existing={existing}
           canton={canton}
+          parameterOverrides={parameterOverrides}
           vermietungsmodell={vermietungsmodell}
           onVermietungsmodellChange={setVermietungsmodell}
           renovationPositionen={renovationPositionen}

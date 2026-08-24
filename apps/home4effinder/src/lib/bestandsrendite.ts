@@ -2,6 +2,7 @@ import type { StwegFacts } from "@landfinder/domain";
 import { getCantonDefaults } from "./cantonDefaults";
 import {
   BESTANDSRENDITE_PARAMETERS,
+  defaultsOf,
   calculateNebenkosten,
   calculateAllInInvestition,
   calculateSchnellcheck,
@@ -20,6 +21,7 @@ import {
   type InvestmentCaseResult,
   type AmortisationSpec,
   type AmortisationModus,
+  type BestandsrenditeParameterKey,
 } from "@landfinder/financial-engine";
 import {
   calculateFurnitureRoi,
@@ -142,7 +144,14 @@ export interface BestandsrenditePropertyInput {
   canton?: string;
 }
 
-const P = BESTANDSRENDITE_PARAMETERS;
+/**
+ * Überschreibungen der Registry-Defaults aus dem "Annahmen"-Reiter (`app_settings`,
+ * Migration 0007) — global für alle Objekte, fehlender Schlüssel fällt auf den
+ * Registry-Default zurück. Wird von der aufrufenden Seite/Route geladen
+ * (`parameterOverrides.ts`) und optional an jede der drei Berechnungsfunktionen
+ * durchgereicht; ohne Angabe verhält sich alles wie bisher (reine Registry-Defaults).
+ */
+export type ParameterOverrides = Partial<Record<BestandsrenditeParameterKey, number>>;
 
 /** Aufschlüsselung des NOI (Jahr 1) für den Drill-down in der Cashflow-Wasserfall-Tabelle — dieselben Grössen, aus denen `investmentCase.wasserfall.noiChf` besteht, hier einzeln statt nur als eine Zahl. */
 export interface NoiBreakdown {
@@ -210,17 +219,23 @@ export interface BestandsrenditeAnalysisResult {
  * optionale Annahme wird transparent durch den Platzhalter-Default aus
  * `BESTANDSRENDITE_PARAMETERS` ersetzt und in `assumptionNotes` offen ausgewiesen.
  */
-export function computeBestandsrenditeAnalysis(property: BestandsrenditePropertyInput, facts: BestandsrenditeFacts): BestandsrenditeAnalysisResult {
+export function computeBestandsrenditeAnalysis(
+  property: BestandsrenditePropertyInput,
+  facts: BestandsrenditeFacts,
+  parameterOverrides?: ParameterOverrides,
+): BestandsrenditeAnalysisResult {
+  const P: Record<BestandsrenditeParameterKey, number> = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
+
   const assumptionNotes: string[] = [];
   const note = (label: string, used: boolean, value: number, unit: string) => {
     if (!used) assumptionNotes.push(`${label} nicht erfasst — Platzhalter-Default (${value}${unit}) verwendet, siehe BESTANDSRENDITE_PARAMETERS.`);
   };
 
   const cantonDefaults = getCantonDefaults(property.canton);
-  const handaenderungssteuerPercent = facts.nebenkosten.handaenderungssteuerPercent ?? cantonDefaults?.handaenderungssteuerPercent ?? P.handaenderungssteuerPercent.defaultValue;
+  const handaenderungssteuerPercent = facts.nebenkosten.handaenderungssteuerPercent ?? cantonDefaults?.handaenderungssteuerPercent ?? P.handaenderungssteuerPercent;
   note("Handänderungssteuer", facts.nebenkosten.handaenderungssteuerPercent !== undefined, handaenderungssteuerPercent, "%");
-  const notariatGrundbuchPercent = facts.nebenkosten.notariatGrundbuchPercent ?? P.notariatGrundbuchPercent.defaultValue;
-  const maklerprovisionPercent = facts.nebenkosten.maklerprovisionPercent ?? P.maklerprovisionPercent.defaultValue;
+  const notariatGrundbuchPercent = facts.nebenkosten.notariatGrundbuchPercent ?? P.notariatGrundbuchPercent;
+  const maklerprovisionPercent = facts.nebenkosten.maklerprovisionPercent ?? P.maklerprovisionPercent;
 
   // Ist ein Parkplatz/Garagenplatz laut Nutzer bereits im erfassten Kaufpreis
   // (Objekt-Basisdaten) enthalten, wird sein Kaufpreis NICHT nochmals addiert — sonst
@@ -236,9 +251,9 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
 
   const renovationSummary = summarizeRenovationPositionen(facts.renovation.positionen);
 
-  const jaehrlicherErsatzsatzPercent = facts.moeblierung.jaehrlicherErsatzsatzPercent ?? P.moeblierungErsatzquotePercent.defaultValue;
-  const moeblierungNutzungsdauerJahre = facts.moeblierung.nutzungsdauerJahre ?? P.moeblierungNutzungsdauerJahre.defaultValue;
-  const moeblierungKostensteigerung = facts.moeblierung.kostensteigerungPercentPerYear ?? P.kosteninflationPercentPerYear.defaultValue;
+  const jaehrlicherErsatzsatzPercent = facts.moeblierung.jaehrlicherErsatzsatzPercent ?? P.moeblierungErsatzquotePercent;
+  const moeblierungNutzungsdauerJahre = facts.moeblierung.nutzungsdauerJahre ?? P.moeblierungNutzungsdauerJahre;
+  const moeblierungKostensteigerung = facts.moeblierung.kostensteigerungPercentPerYear ?? P.kosteninflationPercentPerYear;
 
   // "Vermietungsmodell" ist das eigentliche Auswahlfeld für das bevorzugte Szenario
   // (unmöbliert/möbliert, siehe DECISIONS.md) — Möblierungskosten/-mietaufschlag dürfen
@@ -288,17 +303,17 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
 
   const reparaturreserveChf = resolveReserveChf({
     chfPerYear: facts.reserven.reparaturChfPerYear,
-    percentOfKaufpreis: facts.reserven.reparaturPercentOfKaufpreis ?? P.reparaturreservePercentOfKaufpreis.defaultValue,
+    percentOfKaufpreis: facts.reserven.reparaturPercentOfKaufpreis ?? P.reparaturreservePercentOfKaufpreis,
     kaufpreisChf,
   });
   const leerstandsreserveChf = resolveReserveChf({
     chfPerYear: facts.reserven.leerstandChfPerYear,
-    percentOfKaufpreis: facts.reserven.leerstandPercentOfKaufpreis ?? P.leerstandsreservePercentOfKaufpreis.defaultValue,
+    percentOfKaufpreis: facts.reserven.leerstandPercentOfKaufpreis ?? P.leerstandsreservePercentOfKaufpreis,
     kaufpreisChf,
   });
 
-  const leerstandDefaultPercent = facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT" ? P.leerstandMoebliertPercent.defaultValue : P.leerstandLangfristigPercent.defaultValue;
-  const kalkulatorischerSteuersatzPercent = facts.kalkulatorischerSteuersatzPercent ?? cantonDefaults?.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent.defaultValue;
+  const leerstandDefaultPercent = facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT" ? P.leerstandMoebliertPercent : P.leerstandLangfristigPercent;
+  const kalkulatorischerSteuersatzPercent = facts.kalkulatorischerSteuersatzPercent ?? cantonDefaults?.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent;
 
   const investmentCaseInput: InvestmentCaseInput = {
     kaufpreisChf,
@@ -385,7 +400,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   };
 
   const mehrjahresmodellInput = {
-    holdingPeriodYears: facts.mehrjahresmodell.holdingPeriodYears ?? P.holdingPeriodYearsDefault.defaultValue,
+    holdingPeriodYears: facts.mehrjahresmodell.holdingPeriodYears ?? P.holdingPeriodYearsDefault,
     kaufpreisChf,
     allInInvestitionChf,
     eigenkapitalChf,
@@ -393,9 +408,9 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     betriebskostenJahr1: facts.betriebskosten,
     reparaturreserveJahr1Chf: reparaturreserveChf,
     leerstandsreserveJahr1Chf: leerstandsreserveChf,
-    mietsteigerungPercentPerYear: facts.mehrjahresmodell.mietsteigerungPercentPerYear ?? P.mietsteigerungPercentPerYear.defaultValue,
-    kosteninflationPercentPerYear: facts.mehrjahresmodell.kosteninflationPercentPerYear ?? P.kosteninflationPercentPerYear.defaultValue,
-    wertsteigerungPercentPerYear: facts.mehrjahresmodell.wertsteigerungPercentPerYear ?? P.wertsteigerungPercentPerYear.defaultValue,
+    mietsteigerungPercentPerYear: facts.mehrjahresmodell.mietsteigerungPercentPerYear ?? P.mietsteigerungPercentPerYear,
+    kosteninflationPercentPerYear: facts.mehrjahresmodell.kosteninflationPercentPerYear ?? P.kosteninflationPercentPerYear,
+    wertsteigerungPercentPerYear: facts.mehrjahresmodell.wertsteigerungPercentPerYear ?? P.wertsteigerungPercentPerYear,
     wertvermehrendeRenovationChf: renovationSummary.totalByKategorie.WERTVERMEHREND,
     moeblierung: moeblierungLebenszyklusEffective,
     hypothek: {
@@ -405,7 +420,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     },
     kalkulatorischerSteuersatzPercent,
     exit: {
-      sellingCostPercent: facts.mehrjahresmodell.sellingCostPercent ?? P.sellingCostPercent.defaultValue,
+      sellingCostPercent: facts.mehrjahresmodell.sellingCostPercent ?? P.sellingCostPercent,
       grundstueckgewinnsteuerPercent: facts.mehrjahresmodell.grundstueckgewinnsteuerPercent,
     },
   };
@@ -419,8 +434,8 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   }
   if (facts.miete.leerstandPercent === undefined && facts.miete.vermietungsmodell !== "SHORT_STAY") assumptionNotes.push(`Leerstandsquote nicht erfasst — Platzhalter-Default (${leerstandDefaultPercent}%) verwendet.`);
   if (facts.kalkulatorischerSteuersatzPercent === undefined) assumptionNotes.push(`Kalkulatorischer Steuersatz nicht erfasst — Platzhalter-Default (${kalkulatorischerSteuersatzPercent}%) verwendet, kein Steuerberatungsersatz.`);
-  if (facts.reserven.reparaturChfPerYear === undefined && facts.reserven.reparaturPercentOfKaufpreis === undefined) assumptionNotes.push(`Eigene Reparaturreserve nicht erfasst — Platzhalter-Default (${P.reparaturreservePercentOfKaufpreis.defaultValue}% des Kaufpreises) verwendet.`);
-  if (facts.reserven.leerstandChfPerYear === undefined && facts.reserven.leerstandPercentOfKaufpreis === undefined) assumptionNotes.push(`Eigene Leerstandsreserve nicht erfasst — Platzhalter-Default (${P.leerstandsreservePercentOfKaufpreis.defaultValue}% des Kaufpreises) verwendet.`);
+  if (facts.reserven.reparaturChfPerYear === undefined && facts.reserven.reparaturPercentOfKaufpreis === undefined) assumptionNotes.push(`Eigene Reparaturreserve nicht erfasst — Platzhalter-Default (${P.reparaturreservePercentOfKaufpreis}% des Kaufpreises) verwendet.`);
+  if (facts.reserven.leerstandChfPerYear === undefined && facts.reserven.leerstandPercentOfKaufpreis === undefined) assumptionNotes.push(`Eigene Leerstandsreserve nicht erfasst — Platzhalter-Default (${P.leerstandsreservePercentOfKaufpreis}% des Kaufpreises) verwendet.`);
   if (facts.notes) assumptionNotes.push(facts.notes);
 
   return {
@@ -470,15 +485,20 @@ export interface Verhandlungskorridor {
  * Garage/Möblierung/alle übrigen Fakten bleiben fix, das ist der Teil des Pakets, über den
  * tatsächlich verhandelt wird.
  */
-export function computeVerhandlungskorridor(property: BestandsrenditePropertyInput, facts: BestandsrenditeFacts): Verhandlungskorridor {
+export function computeVerhandlungskorridor(
+  property: BestandsrenditePropertyInput,
+  facts: BestandsrenditeFacts,
+  parameterOverrides?: ParameterOverrides,
+): Verhandlungskorridor {
+  const P: Record<BestandsrenditeParameterKey, number> = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
   const nachhaltigerCashflowFuerKaufpreis = (kaufpreisChf: number): number =>
-    computeBestandsrenditeAnalysis({ ...property, kaufpreisChf }, facts).investmentCase.wasserfall.nachhaltigerCashflowChf;
+    computeBestandsrenditeAnalysis({ ...property, kaufpreisChf }, facts, parameterOverrides).investmentCase.wasserfall.nachhaltigerCashflowChf;
 
   const maximumChf = bisectRoot(nachhaltigerCashflowFuerKaufpreis, 1_000, property.kaufpreisChf * 5 + 500_000);
   if (maximumChf === undefined) return { maximumChf: undefined, zielChf: undefined, eroeffnungChf: undefined };
 
-  const zielChf = maximumChf * (1 - P.verhandlungsmargeZielPercent.defaultValue / 100);
-  const eroeffnungChf = maximumChf * (1 - P.verhandlungsmargeEroeffnungPercent.defaultValue / 100);
+  const zielChf = maximumChf * (1 - P.verhandlungsmargeZielPercent / 100);
+  const eroeffnungChf = maximumChf * (1 - P.verhandlungsmargeEroeffnungPercent / 100);
   return { maximumChf, zielChf, eroeffnungChf };
 }
 
@@ -501,7 +521,11 @@ export interface MoeblierungsAlternative {
  * unmöbliert/möbliert-Unterscheidung, und ohne erfasste Möblierungsdaten (weder Kosten
  * noch Mietaufschlag) wäre das Alternativszenario ohnehin identisch mit dem Hauptszenario.
  */
-export function computeMoeblierungsAlternative(property: BestandsrenditePropertyInput, facts: BestandsrenditeFacts): MoeblierungsAlternative | null {
+export function computeMoeblierungsAlternative(
+  property: BestandsrenditePropertyInput,
+  facts: BestandsrenditeFacts,
+  parameterOverrides?: ParameterOverrides,
+): MoeblierungsAlternative | null {
   const aktuell = facts.miete.vermietungsmodell;
   if (aktuell !== "LANGFRISTIG_UNMOEBLIERT" && aktuell !== "MITTELFRISTIG_MOEBLIERT") return null;
   if (facts.moeblierung.initialCostChf <= 0 && facts.moeblierung.mietPremiumChfPerMonth <= 0) return null;
@@ -510,8 +534,8 @@ export function computeMoeblierungsAlternative(property: BestandsrenditeProperty
   const alternativeFacts: BestandsrenditeFacts = { ...facts, miete: { ...facts.miete, vermietungsmodell: alternativesModell } };
   return {
     label: alternativesModell === "MITTELFRISTIG_MOEBLIERT" ? "möbliert" : "unmöbliert",
-    analysis: computeBestandsrenditeAnalysis(property, alternativeFacts),
-    verhandlungskorridor: computeVerhandlungskorridor(property, alternativeFacts),
+    analysis: computeBestandsrenditeAnalysis(property, alternativeFacts, parameterOverrides),
+    verhandlungskorridor: computeVerhandlungskorridor(property, alternativeFacts, parameterOverrides),
   };
 }
 

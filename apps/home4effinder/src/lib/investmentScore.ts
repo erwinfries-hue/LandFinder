@@ -73,3 +73,18 @@ export function scoreTone(totalScore: number): ChipTone {
   if (totalScore >= 40) return "warn";
   return "bad";
 }
+
+/**
+ * Ampel-Farbe für eine einzelne Kennzahl gegenüber ihrem gespeicherten Zielwert
+ * (Rückmeldung: "die ampel auch auf der objektdetailseite einbauen, überall dort, wo
+ * werte und/oder informationen vom soll abweichen") — bewusst als CSS-Custom-Property
+ * statt `ChipTone`, damit sie direkt als `valueColor`/`subColor` auf `Metric` passt statt
+ * einen eigenen Chip neben jede Kennzahl zu setzen. Erreicht/übertrifft der Ist-Wert das
+ * Ziel: grün. Bis zu 1 Prozentpunkt darunter: gelb (knapp verfehlt). Mehr als 1
+ * Prozentpunkt darunter: rot.
+ */
+export function renditeAmpelColor(istPercent: number, zielPercent: number): string {
+  if (istPercent >= zielPercent) return "var(--good)";
+  if (istPercent >= zielPercent - 1) return "var(--warn)";
+  return "var(--bad)";
+}
