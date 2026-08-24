@@ -1572,6 +1572,29 @@ Auslastungsfaktor des aktiv gewählten Vermietungsmodells — nur der Möblierun
 unterscheidet die beiden Szenarien. Bisherige ROI/Payback/Ersatzreserve-Kennzahlen
 (Furniture ROI) bleiben als ergänzende Metriken unterhalb der neuen Tabelle erhalten.
 
+## Nachgezogen (2026-08-24): Belehnungs-Default gesenkt, STWEG-Protokoll-/Jahresrechnungs-Extraktion um Zahlungsrückstände erweitert
+
+Zwei kleine, unabhängige Folgekorrekturen aus dem ChatGPT-Vergleich (Bollmoosweg 18):
+
+**Belehnungs-Default**: die Kombination aus 1. Hypothek (65%, unverändert) + 2. Hypothek
+(bisher 15%) ergab einen impliziten Gesamt-Default von 80% — auf Wunsch ("belehnung auf
+75% default setzen") die 2. Hypothek auf 10% gesenkt, ergibt neu 75% Gesamt-Default. Nur
+der Formular-Default für neue Objekte, bestehende Werte unverändert.
+
+**Fehlender Fund "Zahlungsrückstände eines Eigentümers"**: ChatGPTs unabhängige Analyse
+fand diesen Punkt, meine Extraktion nicht — Ursache identifiziert: die
+Extraktionsanleitungen für STWEG_PROTOKOLL und JAHRESRECHNUNG (documentTypes.ts) fragten
+nie explizit nach offenen Debitoren/Zahlungsausständen einzelner Eigentümer, nur allgemein
+nach "Konflikten" bzw. Kostenzusammensetzung — ein reines Prompt-Lücken-Problem, kein
+Bug in der Verarbeitung selbst. Beide Anleitungen jetzt um eine explizite,
+eigenständige Prüfung ergänzt ("wird erwähnt, dass ein Eigentümer im Rückstand ist?").
+Zusätzlich STWEG_PROTOKOLL präzisiert: "Leitungen/Wasser" → "Wasserleitungen,
+Elektro-/Stromleitungen", inkl. Hinweis, dass eine über den Erneuerungsfonds geplante
+(noch nicht ausgeführte) Sanierung ebenfalls ein Fund ist. Kann nicht rückwirkend auf
+bereits hochgeladene Dokumente wirken, ohne diese neu zu analysieren — für Bollmoosweg
+würde "Neu analysieren" (pro Dokument, DueDiligencePanel) die verbesserte Anleitung
+anwenden.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
