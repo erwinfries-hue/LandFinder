@@ -1472,6 +1472,65 @@ Feldwert-Übernahmevorschläge (`bestandsrenditeKnownFields.ts`/`ALLOWED_UPDATE_
 kennen jetzt beide Schlüssel — ein aus Dokumenten erkannter Garagenplatz-Kaufpreis kann
 genauso automatisch vorgeschlagen werden wie bisher schon der Parkplatz-Kaufpreis.
 
+## Nachgezogen (2026-08-24): Feldwert-Übernahmevorschläge ablehnbar, mit Quelle als Hovertext
+
+Wunsch: "die werte kann ich nur stehen lassen oder übernehmen - baue noch die funktion
+ablehnen ein." — bisher gab es bei "Erkannte Werte zur Übernahme" nur "Übernehmen" oder
+Ignorieren; ein ignorierter Vorschlag tauchte nach der nächsten "Due-Diligence
+aktualisieren"-Synthese (die `fieldUpdateProposals` komplett neu aus den Dokumenten
+generiert) unverändert wieder auf, auch wenn bewusst verworfen.
+
+Umsetzung: neue Spalte `dismissed_field_proposals` (jsonb, Migration 0005) auf
+`property_due_diligence` — dauerhaft je Objekt gespeicherte Liste abgelehnter
+(Feld, Wert)-Paare. Neue Route `POST .../due-diligence/dismiss-proposal` hängt ein Paar
+an, idempotent bei Doppelklick. `DueDiligencePanel` filtert beim Rendern alle Vorschläge
+heraus, deren (Feld, Wert) in dieser Liste steht — sowohl die initial vom Server
+geladenen als auch neu in der Sitzung abgelehnte (`dismissedFields`-State, analog zu
+`appliedFields`). "Übernehmen" und "Ablehnen" teilen sich eine Button-Sperre während
+eines laufenden Requests, damit keine zwei Aktionen auf demselben Vorschlag gleichzeitig
+laufen.
+
+Zusatzfrage beantwortet: "sollte bei den werten jeweils mit hover text zb die quelle
+angegeben werden?" — ja, umgesetzt als `title`-Attribut auf der Vorschlagszeile
+("Quelle: Dateiname, Seite X"), zusätzlich zum bereits vorhandenen sichtbaren Text
+("— laut ..."), da der Quellentext bei langen Dateinamen auf schmalen Handybildschirmen
+umbricht und ein Hover die Quelle auch ohne Scrollen/Umbruch nochmals kompakt zeigt.
+
+## Nachgezogen (2026-08-24): Erneuerungsfonds-Gesamtsaldo und Wohnungsanteil als getrennte Felder
+
+Hintergrund: beim Vergleich der Bollmoosweg-18-Analyse mit einer unabhängig erstellten
+ChatGPT-Analyse (gleiche Unterlagen) fiel ein Feldwert-Übernahmevorschlag auf, der den
+Erneuerungsfonds-GESAMTsaldo der STWEG (CHF 238'701.66) durch den nach Wertquote
+anteiligen Betrag NUR der geprüften Wohnung (CHF 10'135.30) ersetzen wollte — beide
+Beträge stehen im selben Kapital-/Zinsausweis-Dokument, die Stufe-2-Synthese (Cross-
+Dokument-Vorschläge) kannte anders als die Stufe-1-Extraktion keine Warnung vor dieser
+Verwechslung. Hätte der Nutzer "Übernehmen" geklickt, wäre der Fonds fälschlich als
+23x kleiner erschienen, als er ist — ein stiller Datenkorruptions-Bug, kein Rechenfehler.
+
+Umsetzung (strukturelle statt nur textuelle Korrektur, analog zum
+Parkplatz/Garage-Muster): neues, zu `erneuerungsfondsSaldoChf` PARALLELES Feld
+`erneuerungsfondsWohnungsanteilChf` in `StwegFacts` (packages/domain/src/stweg.ts) statt
+nur einer Prompt-Ermahnung — verhindert strukturell, dass ein Wert den anderen je
+überschreiben kann, unabhängig davon, ob ein zukünftiger Prompt die Warnung befolgt.
+Beide Felder jetzt in `ALLOWED_UPDATE_FIELDS`/`BESTANDSRENDITE_KNOWN_FIELD_LABELS` mit
+explizit disambiguierenden Labels ("GESAMT der STWEG" bzw. "NUR Anteil der geprüften
+Wohnung, NICHT der Gesamtsaldo") — diese Labels erscheinen wortwörtlich im
+Synthese-Prompt (`dueDiligenceSynthesis.ts::fieldsBlock`), wo der eigentliche Bug
+auftrat. `documentTypes.ts::ERNEUERUNGSFONDS`-Extraktionsanleitung ebenfalls verschärft:
+beide Beträge müssen künftig in ZWEI getrennte strukturierte Fakten, nie in denselben
+Schlüssel. Neues Formularfeld "Erneuerungsfonds-Wohnungsanteil" in
+`BestandsrenditeFactsFields.tsx`, bestehendes Feld zu "... (CHF, GESAMT der STWEG)"
+umbenannt.
+
+## Nachgezogen (2026-08-24): Kalkulatorischer Zinssatz-Default auf 1.5% gesenkt
+
+Auf Wunsch ("zins: 1,5% als kalkulatorisch annehmen. bitte so einbauen.") den
+Vorschlagswert für "Zinssatz (%, für beide Hypotheken)" im Bestandsrendite-Erfassungs-
+formular von 2% auf 1.5% gesenkt (nur der Default für neue/noch nicht erfasste Objekte —
+bereits erfasste Werte bleiben unverändert). Label um "kalkulatorisch" ergänzt, um klar
+zu machen, dass es sich um eine bewusste Modellannahme handelt, nicht um einen konkreten
+Hypothekarofferten-Zins.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

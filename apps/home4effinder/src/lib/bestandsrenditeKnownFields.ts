@@ -17,7 +17,8 @@ export const BESTANDSRENDITE_KNOWN_FIELD_LABELS: { field: AllowedUpdateField; la
   { field: "miete.sonstigeEinnahmenChfPerYear", label: "Sonstige Einnahmen (CHF/Jahr)" },
   { field: "miete.leerstandPercent", label: "Leerstand (%)" },
   { field: "betriebskosten.stwegAkontobeitragChfPerYear", label: "STWEG-Akontobeitrag (CHF/Jahr)" },
-  { field: "stweg.erneuerungsfondsSaldoChf", label: "Erneuerungsfonds-Saldo (CHF)" },
+  { field: "stweg.erneuerungsfondsSaldoChf", label: "Erneuerungsfonds-Saldo (CHF, GESAMT der STWEG — NICHT der Wohnungsanteil, dafür siehe unten)" },
+  { field: "stweg.erneuerungsfondsWohnungsanteilChf", label: "Erneuerungsfonds-Wohnungsanteil (CHF, NUR Anteil der geprüften Wohnung — NICHT der Gesamtsaldo der STWEG)" },
   { field: "stweg.erneuerungsfondsZielwertChf", label: "Erneuerungsfonds-Zielwert (CHF)" },
   { field: "stweg.wertquotePromille", label: "Wertquote (Promille)" },
 ];

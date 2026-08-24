@@ -148,6 +148,7 @@ export function BestandsrenditeFactsFields({
   const leerstand = resolved("miete.leerstandPercent", defaultLeerstandPercent);
   const stwegAkonto = resolved("betriebskosten.stwegAkontobeitragChfPerYear", 0);
   const erneuerungsfondsSaldo = resolved("stweg.erneuerungsfondsSaldoChf", undefined);
+  const erneuerungsfondsWohnungsanteil = resolved("stweg.erneuerungsfondsWohnungsanteilChf", undefined);
   const erneuerungsfondsZielwert = resolved("stweg.erneuerungsfondsZielwertChf", undefined);
   const wertquote = resolved("stweg.wertquotePromille", undefined);
 
@@ -654,8 +655,8 @@ export function BestandsrenditeFactsFields({
           </div>
         )}
         <div className="field">
-          <label htmlFor="interestRatePercent">Zinssatz (%, für beide Hypotheken)</label>
-          <input id="interestRatePercent" name="interestRatePercent" type="number" step="0.1" list="dl-zinssatz" required defaultValue={existing?.hypothek.interestRatePercent ?? 2} />
+          <label htmlFor="interestRatePercent">Zinssatz (%, für beide Hypotheken, kalkulatorisch)</label>
+          <input id="interestRatePercent" name="interestRatePercent" type="number" step="0.1" list="dl-zinssatz" required defaultValue={existing?.hypothek.interestRatePercent ?? 1.5} />
         </div>
         <div className="field">
           <label htmlFor="kalkulatorischerSteuersatzPercent">
@@ -745,7 +746,7 @@ export function BestandsrenditeFactsFields({
         </div>
         <div className="field">
           <label htmlFor="erneuerungsfondsSaldoChf">
-            Erneuerungsfonds-Saldo (CHF){erneuerungsfondsSaldo.fromDoc ? ` (aus Dokument: ${erneuerungsfondsSaldo.value})` : ""}
+            Erneuerungsfonds-Saldo (CHF, GESAMT der STWEG){erneuerungsfondsSaldo.fromDoc ? ` (aus Dokument: ${erneuerungsfondsSaldo.value})` : ""}
           </label>
           <input
             id="erneuerungsfondsSaldoChf"
@@ -753,6 +754,18 @@ export function BestandsrenditeFactsFields({
             type="number"
             step="1000"
             defaultValue={existing?.stweg.erneuerungsfondsSaldoChf ?? erneuerungsfondsSaldo.value}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="erneuerungsfondsWohnungsanteilChf">
+            Erneuerungsfonds-Wohnungsanteil (CHF, nur diese Wohnung, falls bekannt){erneuerungsfondsWohnungsanteil.fromDoc ? ` (aus Dokument: ${erneuerungsfondsWohnungsanteil.value})` : ""}
+          </label>
+          <input
+            id="erneuerungsfondsWohnungsanteilChf"
+            name="erneuerungsfondsWohnungsanteilChf"
+            type="number"
+            step="100"
+            defaultValue={existing?.stweg.erneuerungsfondsWohnungsanteilChf ?? erneuerungsfondsWohnungsanteil.value}
           />
         </div>
         <div className="field">

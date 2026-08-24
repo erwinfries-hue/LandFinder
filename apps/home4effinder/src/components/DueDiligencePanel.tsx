@@ -55,7 +55,15 @@ export function DueDiligencePanel({
   /** Adresse/Titel des Objekts — für den Betreff des E-Mail-Entwurfs der Rückfragen. */
   objectLabel: string;
   initialDocuments: DueDiligenceDocumentRow[];
-  initialDueDiligence: { status: string; result: DueDiligenceResult | null; error_message: string | null; generated_at: string | null } | null;
+  initialDueDiligence:
+    | {
+        status: string;
+        result: DueDiligenceResult | null;
+        error_message: string | null;
+        generated_at: string | null;
+        dismissed_field_proposals?: { field: string; value: string | number }[];
+      }
+    | null;
 }) {
   const router = useRouter();
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
@@ -69,6 +77,16 @@ export function DueDiligencePanel({
   const [applying, setApplying] = useState<string | null>(null);
   /** Felder, die in dieser Sitzung bereits erfolgreich übernommen wurden — sofortiges "Übernommen ✓" statt Button, ohne auf den nächsten `router.refresh()` warten zu müssen (der die Formularfelder erst nach dem Neuladen aktualisiert). */
   const [appliedFields, setAppliedFields] = useState<Set<string>>(new Set());
+  const [dismissing, setDismissing] = useState<string | null>(null);
+  /**
+   * Abgelehnte Vorschläge — initial aus `dismissed_field_proposals` (Migration 0005, serverseitig
+   * dauerhaft je Objekt gespeichert), sonst würde derselbe Vorschlag nach der nächsten Synthese
+   * (die fieldUpdateProposals komplett neu generiert) wieder auftauchen. Neu abgelehnte kommen
+   * sofort dazu, analog zu `appliedFields`.
+   */
+  const [dismissedFields, setDismissedFields] = useState<Set<string>>(
+    () => new Set((initialDueDiligence?.dismissed_field_proposals ?? []).map((d) => appliedFieldKey(d.field, d.value))),
+  );
   const [deleting, setDeleting] = useState<string | null>(null);
   const [reanalyzing, setReanalyzing] = useState<string | null>(null);
   const [togglingExcluded, setTogglingExcluded] = useState<string | null>(null);
@@ -204,6 +222,29 @@ export function DueDiligencePanel({
       window.alert("Übernehmen fehlgeschlagen (Netzwerkfehler).");
     } finally {
       setApplying(null);
+    }
+  }
+
+  /** Lehnt einen Vorschlag dauerhaft ab — bleibt danach auch nach der nächsten Synthese verborgen (siehe `dismissedFields`-Kommentar oben). */
+  async function handleDismissProposal(field: string, newValue: string | number) {
+    const key = appliedFieldKey(field, newValue);
+    setDismissing(key);
+    try {
+      const res = await fetch(`/api/properties/${propertyId}/due-diligence/dismiss-proposal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field, newValue }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { saved?: boolean; error?: string };
+      if (!res.ok || !body.saved) {
+        window.alert(body.error ?? "Ablehnen fehlgeschlagen.");
+        return;
+      }
+      setDismissedFields((prev) => new Set(prev).add(key));
+    } catch {
+      window.alert("Ablehnen fehlgeschlagen (Netzwerkfehler).");
+    } finally {
+      setDismissing(null);
     }
   }
 
@@ -651,28 +692,51 @@ export function DueDiligencePanel({
           <div className="sectionhead">
             <h2 style={{ fontSize: ".85rem" }}>Erkannte Werte zur Übernahme</h2>
           </div>
-          {result.fieldUpdateProposals.length === 0 ? (
-            <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Keine.</p>
-          ) : (
-            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: ".5rem" }}>
-              {result.fieldUpdateProposals.map((p) => (
-                <li key={p.field} style={{ fontSize: ".8125rem", display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
-                  <span>
-                    <strong>{p.label}</strong>: neuer Wert <strong>{p.newValue}</strong>
-                    {p.currentValue != null ? ` (bisher ${p.currentValue})` : " (bisher nicht erfasst)"} — laut {p.sourceDocumentName}
-                    {p.sourcePage ? `, Seite ${p.sourcePage}` : ""}
-                  </span>
-                  {appliedFields.has(appliedFieldKey(p.field, p.newValue)) ? (
-                    <Chip tone="good">Übernommen ✓</Chip>
-                  ) : (
-                    <button type="button" className="btn" style={{ width: "auto", padding: ".2rem .6rem", fontSize: ".76rem" }} disabled={applying !== null} onClick={() => handleApplyProposal(p.field, p.newValue)}>
-                      {applying === appliedFieldKey(p.field, p.newValue) ? "Übernimmt…" : "Übernehmen"}
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+          {(() => {
+            const visibleProposals = result.fieldUpdateProposals.filter((p) => !dismissedFields.has(appliedFieldKey(p.field, p.newValue)));
+            return visibleProposals.length === 0 ? (
+              <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Keine.</p>
+            ) : (
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: ".5rem" }}>
+                {visibleProposals.map((p) => {
+                  const key = appliedFieldKey(p.field, p.newValue);
+                  const source = `${p.sourceDocumentName}${p.sourcePage ? `, Seite ${p.sourcePage}` : ""}`;
+                  return (
+                    <li key={p.field} style={{ fontSize: ".8125rem", display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
+                      <span title={`Quelle: ${source}`}>
+                        <strong>{p.label}</strong>: neuer Wert <strong>{p.newValue}</strong>
+                        {p.currentValue != null ? ` (bisher ${p.currentValue})` : " (bisher nicht erfasst)"} — laut {source}
+                      </span>
+                      {appliedFields.has(key) ? (
+                        <Chip tone="good">Übernommen ✓</Chip>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{ width: "auto", padding: ".2rem .6rem", fontSize: ".76rem" }}
+                            disabled={applying !== null || dismissing !== null}
+                            onClick={() => handleApplyProposal(p.field, p.newValue)}
+                          >
+                            {applying === key ? "Übernimmt…" : "Übernehmen"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{ width: "auto", padding: ".2rem .6rem", fontSize: ".76rem", color: "var(--ink-soft)" }}
+                            disabled={applying !== null || dismissing !== null}
+                            onClick={() => handleDismissProposal(p.field, p.newValue)}
+                          >
+                            {dismissing === key ? "Lehnt ab…" : "Ablehnen"}
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            );
+          })()}
         </>
       ) : null}
     </Panel>

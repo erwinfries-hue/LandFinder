@@ -64,7 +64,7 @@ export async function getPropertyDueDiligence(propertyId: string) {
   if (!supabase) return null;
   const { data, error } = await supabase
     .from("property_due_diligence")
-    .select("status, error_message, result, generated_at")
+    .select("status, error_message, result, generated_at, dismissed_field_proposals")
     .eq("property_id", propertyId)
     .maybeSingle();
   if (error) {
