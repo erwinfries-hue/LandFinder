@@ -957,6 +957,43 @@ table.sortable th {
   max-width: 1520px;
   min-width: 0;
 }
+
+/* Sprungmarken-Navigation auf der Objekt-Detailseite (ObjectSectionNav.tsx) — sticky,
+   horizontal scrollbar für schmale/mobile Bildschirme statt Umbruch. `.anchor-target`
+   markiert die per Link angesprungenen Panels, damit sie beim Springen nicht unter der
+   Nav (bzw. auf Mobile zusätzlich unter dem fixed Burger-Menü) verschwinden. */
+.section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  padding: 0.6rem 0;
+  margin-bottom: 1.2rem;
+}
+.section-nav a {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.section-nav a:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+.anchor-target {
+  scroll-margin-top: 4rem;
+}
+
 .pagehead {
   display: flex;
   align-items: flex-end;
@@ -1296,6 +1333,14 @@ table.sortable th {
      eigenen Abstand, damit der Inhalt nicht darunter startet. */
   .main {
     padding-top: 5rem;
+  }
+  /* .section-nav ist innerhalb von .main sticky, muss auf Mobile also unterhalb des
+     fixed .mobilenav-burger einrasten statt ihn zu überdecken. */
+  .section-nav {
+    top: 3rem;
+  }
+  .anchor-target {
+    scroll-margin-top: 7rem;
   }
   .empf-wrap {
     flex: 1 0 100%;

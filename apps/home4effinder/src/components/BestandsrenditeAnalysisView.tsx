@@ -45,7 +45,7 @@ export function BestandsrenditeAnalysisView({
 
   return (
     <>
-      <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
+      <Panel id="schnellcheck" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
         <div className="sectionhead">
           <h2>Ebene A — Schnellcheck</h2>
         </div>
@@ -94,7 +94,7 @@ export function BestandsrenditeAnalysisView({
       </Panel>
 
       {verhandlungskorridor?.maximumChf !== undefined ? (
-        <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
+        <Panel id="verhandlungskorridor" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
           <div className="sectionhead">
             <h2>Verhandlungskorridor</h2>
           </div>
@@ -118,7 +118,7 @@ export function BestandsrenditeAnalysisView({
         </Panel>
       ) : null}
 
-      <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
+      <Panel id="investment-case" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
         <div className="sectionhead">
           <h2>Ebene B — Investment Case</h2>
         </div>
@@ -270,7 +270,7 @@ export function BestandsrenditeAnalysisView({
         </div>
       </Panel>
 
-      <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
+      <Panel id="value-add-moeblierung" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
         <div className="sectionhead">
           <h2>Value-Add — Möblierung</h2>
         </div>
@@ -381,7 +381,7 @@ export function BestandsrenditeAnalysisView({
         </Panel>
       ) : null}
 
-      <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
+      <Panel id="mehrjahresmodell" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
         <div className="sectionhead">
           <h2>
             Ebene C — {mehrjahresmodell.years.length}-Jahres-Modell <InfoHint text="Default 15 Jahre, 5–30 wählbar über die Bestandsrendite-Fakten." />
