@@ -237,7 +237,18 @@ export function DueDiligencePanel({
         window.alert(body.error ?? "Übernehmen fehlgeschlagen.");
         return;
       }
-      setAppliedFields((prev) => new Set(prev).add(key));
+      // Andere, bereits optimistisch als "übernommen" markierte Werte DESSELBEN Felds
+      // hier entfernen (nicht nur hinzufügen) — sonst bliebe bei einem Widerspruch mit
+      // mehreren Optionen die zuerst gewählte Option fälschlich weiter als "Übernommen ✓"
+      // stehen, nachdem später eine ANDERE Option für dasselbe Feld übernommen wurde
+      // (Review-Fund: `appliedFields` wuchs bisher nur, wurde nie bereinigt — konnte dem
+      // tatsächlich gespeicherten Wert nach einem zweiten Klick widersprechen, bis zum
+      // nächsten vollständigen Neuladen der Seite).
+      setAppliedFields((prev) => {
+        const next = new Set([...prev].filter((k) => !k.startsWith(`${field}::`)));
+        next.add(key);
+        return next;
+      });
       router.refresh();
     } catch {
       window.alert("Übernehmen fehlgeschlagen (Netzwerkfehler).");

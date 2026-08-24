@@ -1877,6 +1877,31 @@ Sieben Rückmeldungen aus einem weiteren Live-Test-Durchgang, alle in einer PR g
    kumulierter Cashflow) ergänzt. Ausserdem Wohnfläche (m²) als Sub-Zeile bei Preis/m²
    ergänzt.
 
+## Nachgezogen (2026-08-24): Veraltete "Übernommen ✓"-Markierung bei Widerspruchs-Optionen bereinigt
+
+Selbst-Review des letzten Sammel-Fixes (PR #50) per Subagent fand einen echten, aber
+schmalen Nachfolgebug in dessen eigener Lösung: `appliedFields` (der client-seitige,
+optimistische Zustand für sofortiges "Übernommen ✓"-Feedback) wurde nur ERGÄNZT, nie
+bereinigt. Wählt man bei einem Widerspruch zuerst Option A, dann später Option B
+für DASSELBE Feld, blieb Option A optisch weiter als "Übernommen ✓" markiert — obwohl
+der tatsächlich gespeicherte Wert (und der aus den echten Daten hergeleitete
+`groundTruthAppliedKeys`, siehe letzter Eintrag) längst B ist. Erst ein vollständiges
+Neuladen der Seite (nicht nur `router.refresh()`) korrigierte das wieder.
+
+Fix: `handleApplyProposal` entfernt jetzt vor dem Hinzufügen des neuen Schlüssels alle
+anderen optimistischen Einträge DESSELBEN Feldes aus `appliedFields`
+(`!k.startsWith(\`${field}::\`)`) — pro Feld bleibt im optimistischen Zustand immer
+höchstens ein "Übernommen ✓" gleichzeitig sichtbar, konsistent mit der
+Entweder-oder-Semantik der eigentlichen Datenhaltung.
+
+Zusätzlich, per Live-Test-Rückmeldung: "CHF 500/Jahr" wurde durch das neue
+Mobile-`nowrap`+`ellipsis` (siehe vorheriger Eintrag) auf schmalen Bildschirmen zu
+"CHF 500/Ja…" abgeschnitten. Statt die Kennzahlen-Box noch enger zu kürzen: die
+Einheit selbst gekürzt — "/Jahr" → "p.a." an allen drei betroffenen Stellen
+(Geglättete Ersatzreserve, Amortisation 1./2. Hypothek in `BestandsrenditeAnalysisView.tsx`).
+Reine Anzeige, keine Formularlabels betroffen (die stehen in mehrzeiligen `<label>`s,
+nicht im schmalen `.metric .v`, und sind von der Kürzung nicht betroffen).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
