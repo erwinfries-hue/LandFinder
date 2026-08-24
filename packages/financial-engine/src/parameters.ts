@@ -264,6 +264,23 @@ export const BESTANDSRENDITE_PARAMETERS = {
     defaultValue: 15,
     source: "Mittlere, praxisnahe Haltedauer für ein Buy-to-let-Investment — der volle Bereich 5–30 Jahre bleibt pro Objekt frei wählbar.",
   }),
+  verhandlungsmargeZielPercent: describe({
+    key: "verhandlungsmargeZielPercent",
+    label: "Verhandlungskorridor — Sicherheitsmarge Zielpreis",
+    description:
+      "Abschlag vom rechnerischen Maximalpreis (= Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht) für den Zielpreis des Verhandlungskorridors — eine Sicherheitsmarge statt am absoluten Limit zu verhandeln.",
+    unit: "% vom Maximalpreis",
+    defaultValue: 3,
+    source: "Platzhalter-Annahme, keine empirische Herleitung — bewusst konservativ gewählt und einsehbar/überschreibbar wie alle anderen Parameter hier.",
+  }),
+  verhandlungsmargeEroeffnungPercent: describe({
+    key: "verhandlungsmargeEroeffnungPercent",
+    label: "Verhandlungskorridor — Sicherheitsmarge Eröffnungsangebot",
+    description: "Abschlag vom rechnerischen Maximalpreis für das Eröffnungsangebot des Verhandlungskorridors — mehr Marge als der Zielpreis, um Verhandlungsspielraum nach oben zu lassen.",
+    unit: "% vom Maximalpreis",
+    defaultValue: 7,
+    source: "Platzhalter-Annahme, keine empirische Herleitung — bewusst konservativ gewählt und einsehbar/überschreibbar wie alle anderen Parameter hier.",
+  }),
 } as const;
 
 export type BaupotenzialFactorKey = keyof typeof BAUPOTENZIAL_PARAMETERS;

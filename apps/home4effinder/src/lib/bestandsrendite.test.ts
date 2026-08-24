@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts, applyFieldUpdate, isAllowedUpdateField, type BestandsrenditeFacts } from "./bestandsrendite";
+import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, parseBestandsrenditeFacts, applyFieldUpdate, isAllowedUpdateField, type BestandsrenditeFacts } from "./bestandsrendite";
 
 const minimalValidInput = {
   miete: { wohnungsMieteChfPerMonth: 1450, vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT" },
@@ -221,6 +221,32 @@ describe("computeBestandsrenditeAnalysis", () => {
     };
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, wertvermehrend);
     expect(result.mehrjahresmodell.years[0].immobilienwertChf).toBeGreaterThan(werterhaltend.mehrjahresmodell.years[0].immobilienwertChf);
+  });
+});
+
+describe("computeVerhandlungskorridor", () => {
+  it("Maximum ist der Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht — Eröffnung < Ziel < Maximum", () => {
+    const korridor = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    expect(korridor.maximumChf).toBeDefined();
+    expect(korridor.zielChf).toBeDefined();
+    expect(korridor.eroeffnungChf).toBeDefined();
+    expect(korridor.eroeffnungChf!).toBeLessThan(korridor.zielChf!);
+    expect(korridor.zielChf!).toBeLessThan(korridor.maximumChf!);
+
+    // Am gefundenen Maximum ist der nachhaltige Cashflow tatsächlich ~CHF 0.
+    const amMaximum = computeBestandsrenditeAnalysis({ kaufpreisChf: korridor.maximumChf!, wohnflaecheM2: 75 }, fullFacts);
+    expect(amMaximum.investmentCase.wasserfall.nachhaltigerCashflowChf).toBeCloseTo(0, 0);
+
+    // Ziel = Maximum × 0.97, Eröffnung = Maximum × 0.93 (Standard-Sicherheitsmargen 3%/7%).
+    expect(korridor.zielChf!).toBeCloseTo(korridor.maximumChf! * 0.97, 0);
+    expect(korridor.eroeffnungChf!).toBeCloseTo(korridor.maximumChf! * 0.93, 0);
+  });
+
+  it("ein höherer Zinssatz senkt das rechnerische Maximum (weniger Preis bei teurerer Finanzierung tragbar)", () => {
+    const guenstig = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    const teuer: BestandsrenditeFacts = { ...fullFacts, hypothek: { ...fullFacts.hypothek, interestRatePercent: 4 } };
+    const teurerZins = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, teuer);
+    expect(teurerZins.maximumChf!).toBeLessThan(guenstig.maximumChf!);
   });
 });
 

@@ -5,7 +5,7 @@ import { SideNav } from "@/components/SideNav";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
 import { getPropertyById, getPropertyDocuments, getPropertyDueDiligence, formatDateTime } from "@/lib/properties";
-import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
+import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
 import { computeInvestmentScore } from "@/lib/investmentScore";
 import { BestandsrenditeVertiefungForm } from "@/components/BestandsrenditeVertiefungForm";
 import { BestandsrenditeAnalysisView } from "@/components/BestandsrenditeAnalysisView";
@@ -49,6 +49,9 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
 
   const analysis = facts
     ? computeBestandsrenditeAnalysis({ kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton }, facts)
+    : null;
+  const verhandlungskorridor = facts
+    ? computeVerhandlungskorridor({ kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton }, facts)
     : null;
 
   const investmentScore =
@@ -120,7 +123,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
           <PropertyEditForm property={property} />
         </details>
 
-        {analysis ? <BestandsrenditeAnalysisView result={analysis} /> : null}
+        {analysis ? <BestandsrenditeAnalysisView result={analysis} verhandlungskorridor={verhandlungskorridor} /> : null}
         <details style={{ marginTop: "0.9rem" }} open={!facts}>
           <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>
             Bestandsrendite-Fakten {facts ? "bearbeiten" : "erfassen"}

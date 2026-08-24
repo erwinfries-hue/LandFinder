@@ -1595,6 +1595,29 @@ bereits hochgeladene Dokumente wirken, ohne diese neu zu analysieren — für Bo
 würde "Neu analysieren" (pro Dokument, DueDiligencePanel) die verbesserte Anleitung
 anwenden.
 
+## Nachgezogen (2026-08-24): Verhandlungskorridor (Eröffnung/Ziel/Maximum)
+
+Wunsch aus dem ChatGPT-Vergleich: ChatGPTs Analyse lieferte einen Verhandlungskorridor
+(Eröffnungsangebot/Zielbereich/Maximum), HOME4efFINDER bisher nicht — "6. einbauen".
+
+Bewusst NICHT als frei gewählte Prozentsätze vom Inseratspreis umgesetzt (das wäre
+"erfunden" und nicht nachvollziehbar), sondern rechnerisch hergeleitet: neue Funktion
+`computeVerhandlungskorridor` (bestandsrendite.ts) findet per Bisektion (wie die
+bestehenden `breakEvenMieteChfPerMonth`/`breakEvenZinsPercent`) den Kaufpreis, bei dem
+der bereits vorhandene "nachhaltige Cashflow" (Cashflow-Wasserfall) gerade CHF 0
+erreicht — das ist das "Maximum". Ziel/Eröffnung sind Sicherheitsmargen darunter (neue
+Parameter `verhandlungsmargeZielPercent`/`verhandlungsmargeEroeffnungPercent` in
+BESTANDSRENDITE_PARAMETERS, Default 3%/7% — wie alle anderen Annahmen im Register
+einsehbar/überschreibbar, ehrlich als Platzhalter gekennzeichnet statt versteckt in der
+Formel).
+
+Technisch bewusst als SEPARATE, eigene Funktion statt als Teil von
+`computeBestandsrenditeAnalysis` — sie ruft `computeBestandsrenditeAnalysis` selbst
+wiederholt mit unterschiedlichen Kaufpreisen auf (Bisektion), eine Einbettung in deren
+eigenes Ergebnis hätte eine Rekursion erzeugt. Wird auf der Objektseite separat
+berechnet und der Analyse-Ansicht als zusätzliche Prop übergeben. Neues Panel
+"Verhandlungskorridor" direkt nach dem Schnellcheck.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

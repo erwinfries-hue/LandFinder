@@ -11,6 +11,7 @@ import {
   breakEvenMieteChfPerMonth,
   breakEvenZinsPercent,
   breakEvenAuslastungPercent,
+  bisectRoot,
   resolveReserveChf,
   resolveAmortisationChfPerYear,
   type Vermietungsmodell,
@@ -426,6 +427,40 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     stweg: facts.stweg,
     assumptionNotes,
   };
+}
+
+export interface Verhandlungskorridor {
+  /** Rechnerisches Maximum — Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht (alles darüber ist rechnerisch nicht mehr cashflow-tragfähig unter den aktuellen Annahmen). `undefined`, wenn selbst ein Kaufpreis nahe CHF 0 keinen positiven Cashflow ergibt (Objekt trägt sich unter keinen Umständen). */
+  maximumChf: number | undefined;
+  /** = Maximum × (1 − Sicherheitsmarge Ziel), siehe BESTANDSRENDITE_PARAMETERS.verhandlungsmargeZielPercent. */
+  zielChf: number | undefined;
+  /** = Maximum × (1 − Sicherheitsmarge Eröffnung), siehe BESTANDSRENDITE_PARAMETERS.verhandlungsmargeEroeffnungPercent. */
+  eroeffnungChf: number | undefined;
+}
+
+/**
+ * Preisverhandlungsspanne (Eröffnungsangebot/Ziel/Maximum) — Wunsch aus dem ChatGPT-
+ * Analysenvergleich: eine dort mitgelieferte Verhandlungsstrategie, die es bei HOME4efFINDER
+ * noch nicht gab. Bewusst NICHT als frei erfundene Prozentzahlen vom Inseratspreis (das wäre
+ * "erfunden"), sondern rechnerisch hergeleitet: das Maximum ist der Kaufpreis, bei dem der
+ * bereits an anderer Stelle verwendete "nachhaltige Cashflow" (siehe Cashflow-Wasserfall)
+ * gerade CHF 0 erreicht — mit numerischer Bisektion wie bei den bestehenden
+ * `breakEvenMieteChfPerMonth`/`breakEvenZinsPercent`. Ziel/Eröffnung sind Sicherheitsmargen
+ * darunter (Platzhalter-Defaults, einsehbar/überschreibbar wie alle anderen Parameter).
+ * Variiert bewusst nur den Basis-Kaufpreis der Wohnung (property.kaufpreisChf) — Parkplatz/
+ * Garage/Möblierung/alle übrigen Fakten bleiben fix, das ist der Teil des Pakets, über den
+ * tatsächlich verhandelt wird.
+ */
+export function computeVerhandlungskorridor(property: BestandsrenditePropertyInput, facts: BestandsrenditeFacts): Verhandlungskorridor {
+  const nachhaltigerCashflowFuerKaufpreis = (kaufpreisChf: number): number =>
+    computeBestandsrenditeAnalysis({ ...property, kaufpreisChf }, facts).investmentCase.wasserfall.nachhaltigerCashflowChf;
+
+  const maximumChf = bisectRoot(nachhaltigerCashflowFuerKaufpreis, 1_000, property.kaufpreisChf * 5 + 500_000);
+  if (maximumChf === undefined) return { maximumChf: undefined, zielChf: undefined, eroeffnungChf: undefined };
+
+  const zielChf = maximumChf * (1 - P.verhandlungsmargeZielPercent.defaultValue / 100);
+  const eroeffnungChf = maximumChf * (1 - P.verhandlungsmargeEroeffnungPercent.defaultValue / 100);
+  return { maximumChf, zielChf, eroeffnungChf };
 }
 
 const VERMIETUNGSMODELL_VALUES: Vermietungsmodell[] = ["LANGFRISTIG_UNMOEBLIERT", "MITTELFRISTIG_MOEBLIERT", "SHORT_STAY"];
