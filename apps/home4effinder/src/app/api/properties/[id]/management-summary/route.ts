@@ -5,6 +5,7 @@ import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, computeMoe
 import { computeInvestmentScore } from "@/lib/investmentScore";
 import { renderManagementSummaryPdf } from "@/lib/managementSummaryPdf";
 import { getParameterOverrides } from "@/lib/parameterOverrides";
+import { BESTANDSRENDITE_PARAMETERS, defaultsOf } from "@landfinder/financial-engine";
 
 export const maxDuration = 30;
 
@@ -27,6 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const propertyInput = { kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton };
   const parameterOverrides = await getParameterOverrides();
+  const effectiveParams = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
   const analysis = computeBestandsrenditeAnalysis(propertyInput, facts, parameterOverrides);
   const verhandlungskorridor = computeVerhandlungskorridor(propertyInput, facts, parameterOverrides);
   const moeblierungsAlternative = computeMoeblierungsAlternative(propertyInput, facts, parameterOverrides);
@@ -51,6 +53,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     dueDiligence: dueDiligence?.result ?? null,
     investmentScore,
     moeblierungsAlternative,
+    bruttoRenditeZielPercent: effectiveParams.bruttoRenditeZielPercent,
+    nettoRenditeZielPercent: effectiveParams.nettoRenditeZielPercent,
   });
 
   const safeFilename = (property.title || property.address_text).replace(/[^a-zA-Z0-9äöüÄÖÜ_.-]+/g, "_");

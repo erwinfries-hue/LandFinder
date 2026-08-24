@@ -7,6 +7,14 @@ import { hasValidSession } from "@/lib/authSession";
  * ohne das würde derselbe Vorschlag nach der nächsten "Due-Diligence aktualisieren"-Synthese
  * (die fieldUpdateProposals komplett neu aus den Dokumenten generiert) unverändert wieder
  * auftauchen, obwohl der Nutzer ihn bereits bewusst verworfen hat.
+ *
+ * Read-modify-write mit optimistischer Nebenläufigkeitskontrolle, analog zu
+ * apply-proposal/route.ts (Review-Fund: hier fehlte dieselbe Absicherung, die dort schon
+ * gegen "zwei Übernehmen-Klicks kurz hintereinander" eingebaut ist — ohne sie könnte eine
+ * Ablehnung bei zwei nahezu gleichzeitigen Schreibvorgängen kommentarlos verloren gehen).
+ * `property_due_diligence` hat keinen eigenen `updated_at` für dieses Feld — bedingt daher
+ * direkt auf dem gelesenen `dismissed_field_proposals`-Wert selbst statt auf einem
+ * Zeitstempel.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   if (!(await hasValidSession(request))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -44,10 +52,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const alreadyDismissed = existing.some((d) => d.field === field && d.value === newValue);
   const updated = alreadyDismissed ? existing : [...existing, { field, value: newValue }];
 
-  const { error: updateError } = await supabase.from("property_due_diligence").update({ dismissed_field_proposals: updated }).eq("property_id", propertyId);
+  const { data: updatedRows, error: updateError } = await supabase
+    .from("property_due_diligence")
+    .update({ dismissed_field_proposals: updated })
+    .eq("property_id", propertyId)
+    .eq("dismissed_field_proposals", existing)
+    .select("property_id");
   if (updateError) {
     console.error(`[api/properties/${propertyId}/due-diligence/dismiss-proposal] Speichern fehlgeschlagen`, updateError);
-    return NextResponse.json({ saved: false, error: "write failed" }, { status: 500 });
+    return NextResponse.json({ saved: false, error: `write failed: ${updateError.message} (${updateError.code})` }, { status: 500 });
+  }
+  if (!updatedRows || updatedRows.length === 0) {
+    // Zwischenzeitlich hat ein anderer Request bereits geschrieben (Konflikt) — nicht
+    // überschreiben, Client kann mit dem aktuellen Stand neu versuchen.
+    return NextResponse.json({ saved: false, error: "Eine andere Änderung lief gleichzeitig — bitte nochmals versuchen." }, { status: 409 });
   }
 
   return NextResponse.json({ saved: true });

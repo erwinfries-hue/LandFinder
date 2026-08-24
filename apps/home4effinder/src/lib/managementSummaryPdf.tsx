@@ -48,6 +48,17 @@ function scoreColor(totalScore: number): string {
   return "#9b3b30";
 }
 
+/**
+ * PDF-Variante von `renditeAmpelColor` (lib/investmentScore.ts) — react-pdf kann keine
+ * CSS-Variablen auflösen, daher hier dieselben Schwellenwerte mit den bereits im PDF
+ * verwendeten Hex-Farben (siehe scoreColor/SEVERITY_COLOR oben).
+ */
+function renditeAmpelColorPdf(istPercent: number, zielPercent: number): string {
+  if (istPercent >= zielPercent) return "#4f6e38";
+  if (istPercent >= zielPercent - 1) return "#93641a";
+  return "#9b3b30";
+}
+
 export interface ManagementSummaryInput {
   addressText: string;
   canton: string;
@@ -59,6 +70,9 @@ export interface ManagementSummaryInput {
   investmentScore: number | undefined;
   /** Schattenrechnung des jeweils anderen Szenarios (möbliert/unmöbliert) — siehe computeMoeblierungsAlternative. */
   moeblierungsAlternative: MoeblierungsAlternative | null;
+  /** Referenzwerte aus dem "Annahmen"-Reiter, wie bereits auf der Objektseite (BestandsrenditeAnalysisView) verwendet — färbt die Rendite-Kennzahlen unten relativ zum Ziel (Review-Fund: PDF hatte bisher keine Ampel/Ziel-Anzeige, obwohl die Objektseite selbst schon eine hat). */
+  bruttoRenditeZielPercent: number;
+  nettoRenditeZielPercent: number;
 }
 
 function ManagementSummaryDocument({
@@ -71,6 +85,8 @@ function ManagementSummaryDocument({
   dueDiligence,
   investmentScore,
   moeblierungsAlternative,
+  bruttoRenditeZielPercent,
+  nettoRenditeZielPercent,
 }: ManagementSummaryInput) {
   const { schnellcheck, investmentCase, noiBreakdown, mehrjahresmodell, hypothek } = analysis;
   const missingZwingend = dueDiligence?.missingDocuments.filter((m) => m.priority === "ZWINGEND") ?? [];
@@ -111,8 +127,12 @@ function ManagementSummaryDocument({
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Bruttorendite</Text>
-            <Text style={styles.metricValue}>{schnellcheck.bruttoRenditePercent.toFixed(2)}%</Text>
-            {alt ? <Text style={styles.metricSub}>{altLabel}: {alt.analysis.schnellcheck.bruttoRenditePercent.toFixed(2)}%</Text> : null}
+            <Text style={[styles.metricValue, { color: renditeAmpelColorPdf(schnellcheck.bruttoRenditePercent, bruttoRenditeZielPercent) }]}>
+              {schnellcheck.bruttoRenditePercent.toFixed(2)}%
+            </Text>
+            <Text style={styles.metricSub}>
+              {alt ? `${altLabel}: ${alt.analysis.schnellcheck.bruttoRenditePercent.toFixed(2)}% · ` : ""}Ziel: {bruttoRenditeZielPercent}%
+            </Text>
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Eigenkapitalbedarf</Text>
@@ -145,11 +165,17 @@ function ManagementSummaryDocument({
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Bruttorendite All-in</Text>
-            <Text style={styles.metricValue}>{investmentCase.bruttoRenditeAllInPercent.toFixed(2)}%</Text>
+            <Text style={[styles.metricValue, { color: renditeAmpelColorPdf(investmentCase.bruttoRenditeAllInPercent, bruttoRenditeZielPercent) }]}>
+              {investmentCase.bruttoRenditeAllInPercent.toFixed(2)}%
+            </Text>
+            <Text style={styles.metricSub}>Ziel: {bruttoRenditeZielPercent}%</Text>
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Nettorendite vor Finanzierung</Text>
-            <Text style={styles.metricValue}>{investmentCase.nettoRenditeVorFinanzierungPercent.toFixed(2)}%</Text>
+            <Text style={[styles.metricValue, { color: renditeAmpelColorPdf(investmentCase.nettoRenditeVorFinanzierungPercent, nettoRenditeZielPercent) }]}>
+              {investmentCase.nettoRenditeVorFinanzierungPercent.toFixed(2)}%
+            </Text>
+            <Text style={styles.metricSub}>Ziel: {nettoRenditeZielPercent}%</Text>
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Eigenkapital</Text>

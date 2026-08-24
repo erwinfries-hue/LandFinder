@@ -39,6 +39,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (typeof field !== "string" || !isAllowedUpdateField(field)) return NextResponse.json({ error: "field fehlt oder nicht erlaubt" }, { status: 400 });
   if (typeof newValue !== "string" && typeof newValue !== "number") return NextResponse.json({ error: "newValue fehlt oder ungültig" }, { status: 400 });
 
+  // ALLE aktuell erlaubten Update-Felder (ALLOWED_UPDATE_FIELDS) sind numerische
+  // Bestandsrendite-Facts-Felder — die Due-Diligence-Synthese darf `newValue` aber
+  // technisch auch als String liefern (Claude-Tool-Schema erlaubt string|number, siehe
+  // dueDiligenceSynthesis.ts). Ohne diese Prüfung könnte ein nicht-numerischer String
+  // unverändert in ein Zahlenfeld geschrieben werden — jede Berechnung, die dieses Feld
+  // danach verwendet, würde stillschweigend zu NaN, ohne dass irgendwo eine Fehlermeldung
+  // erscheint (Review-Fund).
+  const numericValue = typeof newValue === "number" ? newValue : Number(newValue);
+  if (!Number.isFinite(numericValue)) return NextResponse.json({ error: "newValue ist keine gültige Zahl" }, { status: 400 });
+
   const supabase = createSupabaseServerClient();
   if (!supabase) return NextResponse.json({ saved: false, configured: false }, { status: 200 });
 
@@ -53,7 +63,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   if (!property) return NextResponse.json({ error: "property not found" }, { status: 404 });
 
-  const updatedFacts = applyFieldUpdate((property.bestandsrendite as Record<string, unknown>) ?? {}, field, newValue);
+  const updatedFacts = applyFieldUpdate((property.bestandsrendite as Record<string, unknown>) ?? {}, field, numericValue);
 
   let updateQuery = supabase
     .from("properties")
@@ -64,7 +74,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: updatedRows, error: updateError } = await updateQuery.select("id");
   if (updateError) {
     console.error(`[api/properties/${propertyId}/due-diligence/apply-proposal] Speichern fehlgeschlagen`, updateError);
-    return NextResponse.json({ saved: false, error: "write failed" }, { status: 500 });
+    return NextResponse.json({ saved: false, error: `write failed: ${updateError.message} (${updateError.code})` }, { status: 500 });
   }
   if (!updatedRows || updatedRows.length === 0) {
     // Zwischenzeitlich hat ein anderer Request bereits geschrieben (Konflikt) — nicht

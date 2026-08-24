@@ -216,6 +216,8 @@ export interface BestandsrenditeAnalysisResult {
   mehrjahresmodell: MehrjahresmodellResult;
   investmentTreiber: InvestmentTreiberResult;
   hypothek: { ersteHypothekChf: number; zweiteHypothekChf: number; ersteAmortisationChfPerYear: number; zweiteAmortisationChfPerYear: number };
+  /** Für den Herleitungs-Sub-Text unter "Grober Cashflow" (Ebene A) — dieselben zwei Abzugsposten, die bereits in `schnellcheck.groberCashflowChf` verrechnet sind, hier nur zur Anzeige separat ausgewiesen. */
+  schnellcheckKostenBreakdown: { laufendeKostenChfPerYear: number; zinsChf: number };
   /** Wie viel vom Gesamt-Kaufpreis (`schnellcheck.kaufpreisChf`) zusätzlich zum Basis-Kaufpreis (Objekt-Basisdaten) aus Parkplatz/Garage stammt — 0, wenn keiner erfasst ist oder beide bereits im Basis-Kaufpreis enthalten sind. */
   parkierung: { parkplatzZusatzChf: number; garagenplatzZusatzChf: number; totalZusatzChf: number };
   /** Unveränderte STWEG-Fakten aus den Facts — reine Datenhaltung ohne Scoring/Formel, siehe StwegFacts. */
@@ -297,6 +299,8 @@ export function computeBestandsrenditeAnalysis(
   const eigenkapitalChf = allInInvestitionChf - hypothekChf;
 
   const kaufnebenkostenPercent = handaenderungssteuerPercent + notariatGrundbuchPercent + maklerprovisionPercent;
+  const schnellcheckLaufendeKostenChfPerYear =
+    facts.betriebskosten.stwegAkontobeitragChfPerYear + facts.betriebskosten.eigentuemerkostenChfPerYear + facts.betriebskosten.vermietungskostenChfPerYear;
   const schnellcheck = calculateSchnellcheck({
     wohnungskaufpreisChf: property.kaufpreisChf,
     parkplatzkaufpreisChf: parkierungKaufpreisZusatzChf,
@@ -304,12 +308,17 @@ export function computeBestandsrenditeAnalysis(
     wohnungsMieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth,
     parkplatzMieteChfPerMonth: facts.miete.parkplatzMieteChfPerMonth,
     moeblierungsPremiumChfPerMonth,
+    sonstigeEinnahmenChfPerYear: facts.miete.sonstigeEinnahmenChfPerYear,
     kaufnebenkostenPercent,
-    laufendeKostenChfPerYear:
-      facts.betriebskosten.stwegAkontobeitragChfPerYear + facts.betriebskosten.eigentuemerkostenChfPerYear + facts.betriebskosten.vermietungskostenChfPerYear,
+    laufendeKostenChfPerYear: schnellcheckLaufendeKostenChfPerYear,
     loanToValuePercent: belehnungPercent,
     interestRatePercent: facts.hypothek.interestRatePercent,
   });
+  // Für den Herleitungs-Sub-Text unter "Grober Cashflow" (Rückmeldung: "in kleiner Schrift
+  // ergänzend [...] herleiten") — dieselbe Formel wie calculateSchnellcheck intern nutzt
+  // (hypothekChf dort = kaufpreisChf × Belehnung-%, identisch zu schnellcheck.kaufpreisChf
+  // × schnellcheck.belehnungPercent / 100), hier nur zur Anzeige separat berechnet.
+  const schnellcheckZinsChf = schnellcheck.kaufpreisChf * (belehnungPercent / 100) * (facts.hypothek.interestRatePercent / 100);
 
   const reparaturreserveChf = resolveReserveChf({
     chfPerYear: facts.reserven.reparaturChfPerYear,
@@ -367,10 +376,25 @@ export function computeBestandsrenditeAnalysis(
 
   // "ich möchte zwei Szenarien sehen: unmöbliert vs. möbliert" — beide vollständig
   // nebeneinander gerechnet, statt nur den Mehrertrag/ROI der Möblierung isoliert zu
-  // zeigen (siehe DECISIONS.md). Nutzt denselben Leerstand/Auslastung-Faktor wie das
-  // aktive Vermietungsmodell, nur der Möblierungs-Mietaufschlag unterscheidet sich.
-  const ertragUnmoebliert = calculateJahresertrag({ ...investmentCaseInput.ertrag, moeblierungsPremiumChfPerMonth: 0 });
-  const ertragMoebliert = calculateJahresertrag({ ...investmentCaseInput.ertrag, moeblierungsPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth });
+  // zeigen (siehe DECISIONS.md). Jedes Szenario nutzt seinen EIGENEN Leerstand-Default
+  // (möbliert/mittelfristig hat empirisch höheren Leerstand als unmöbliert/langfristig,
+  // siehe BESTANDSRENDITE_PARAMETERS.leerstandMoebliertPercent vs. .leerstandLangfristigPercent)
+  // statt für beide denselben Wert des aktuell gewählten Vermietungsmodells zu übernehmen
+  // — sonst hätte das jeweils NICHT gewählte Szenario einen unrealistischen Leerstand
+  // gezeigt (Review-Fund). Nur relevant, wenn ein manueller Leerstand-Wert NICHT erfasst
+  // ist — ist er erfasst, gilt er bewusst für beide Szenarien (eine einzelne manuelle
+  // Einschätzung, kein separates Feld je Szenario). Bei SHORT_STAY wirkungslos (dort
+  // zählt `auslastungPercent`, nicht `leerstandPercent`).
+  const ertragUnmoebliert = calculateJahresertrag({
+    ...investmentCaseInput.ertrag,
+    moeblierungsPremiumChfPerMonth: 0,
+    leerstandPercent: facts.miete.leerstandPercent ?? P.leerstandLangfristigPercent,
+  });
+  const ertragMoebliert = calculateJahresertrag({
+    ...investmentCaseInput.ertrag,
+    moeblierungsPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth,
+    leerstandPercent: facts.miete.leerstandPercent ?? P.leerstandMoebliertPercent,
+  });
   // "Miete vor Renovation" fällt, wenn nicht explizit abweichend erfasst, auf die
   // bereits oben erfasste "Nettomiete Wohnung" zurück — Rückmeldung: separates
   // Doppelt-Erfassen derselben Ist-Miete "aus meiner Sicht überflüssig". Weiterhin
@@ -451,6 +475,11 @@ export function computeBestandsrenditeAnalysis(
   if (facts.reserven.reparaturChfPerYear === undefined && facts.reserven.reparaturPercentOfKaufpreis === undefined) assumptionNotes.push(`Eigene Reparaturreserve nicht erfasst — Platzhalter-Default (${P.reparaturreservePercentOfKaufpreis}% des Kaufpreises) verwendet.`);
   if (facts.reserven.leerstandChfPerYear === undefined && facts.reserven.leerstandPercentOfKaufpreis === undefined) assumptionNotes.push(`Eigene Leerstandsreserve nicht erfasst — Platzhalter-Default (${P.leerstandsreservePercentOfKaufpreis}% des Kaufpreises) verwendet.`);
   if (facts.notes) assumptionNotes.push(facts.notes);
+  // Keine harte Fehlermeldung (die Engine liefert bewusst immer eine Zahl, nie einen
+  // Wurf) — aber ein deutlicher Hinweis, da Eigenkapitalbedarf sonst negativ würde und
+  // Cash-on-Cash rechnerisch auf 0.00% fiele, statt als unplausibel erkennbar zu sein
+  // (Review-Fund: sähe wie ein echtes Ergebnis aus, ist aber ein Eingabefehler).
+  if (belehnungPercent > 100) assumptionNotes.push(`Belehnung insgesamt über 100% (${belehnungPercent}%) — Eingabe prüfen, Kennzahlen unten sind unter dieser Annahme nicht aussagekräftig.`);
 
   return {
     schnellcheck,
@@ -471,6 +500,7 @@ export function computeBestandsrenditeAnalysis(
     mehrjahresmodell,
     investmentTreiber,
     hypothek: { ersteHypothekChf, zweiteHypothekChf, ersteAmortisationChfPerYear, zweiteAmortisationChfPerYear },
+    schnellcheckKostenBreakdown: { laufendeKostenChfPerYear: schnellcheckLaufendeKostenChfPerYear, zinsChf: schnellcheckZinsChf },
     parkierung: { parkplatzZusatzChf: parkplatzKaufpreisZusatzChf, garagenplatzZusatzChf: garagenplatzKaufpreisZusatzChf, totalZusatzChf: parkierungKaufpreisZusatzChf },
     stweg: facts.stweg,
     assumptionNotes,
@@ -611,7 +641,7 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
   const mehrjahresmodell = (body.mehrjahresmodell as Record<string, unknown>) ?? {};
   const stweg = (body.stweg as StwegFacts) ?? {};
 
-  const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
+  const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 
   return {
     facts: {

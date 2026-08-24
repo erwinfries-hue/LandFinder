@@ -1902,6 +1902,84 @@ Einheit selbst gekürzt — "/Jahr" → "p.a." an allen drei betroffenen Stellen
 Reine Anzeige, keine Formularlabels betroffen (die stehen in mehrzeiligen `<label>`s,
 nicht im schmalen `.metric .v`, und sind von der Kürzung nicht betroffen).
 
+## Nachgezogen (2026-08-24): Tiefe Review-Runde — 10 Punkte aus drei parallelen Subagent-Reviews
+
+Auf explizite Anfrage ("überprüfe tief, was noch zu verbessern ist" → "alles bitte
+umsetzen") liefen drei parallele Review-Subagenten je über einen Ausschnitt der App
+(Finanz-Engine-Korrektheit / UI-UX-Konsistenz / Daten-API-Sicherheit), ohne
+Live-Verifikation (keine Supabase-Credentials in dieser Remote-Session — Absicherung
+ausschliesslich über `vitest`/`lint`/`build` sowie für das PDF zusätzlich per
+temporärem `vitest`-Test → `pdftoppm` → Bildkontrolle). Alle 10 gefundenen Punkte
+umgesetzt:
+
+1. **`sonstigeEinnahmenChfPerYear` fehlte im Schnellcheck**: floss in Ebene B/C (via
+   `JahresertragInput.sonstigeEinnahmenChfPerYear`) ein, aber nicht in Ebene A
+   (`calculateSchnellcheck`) — dasselbe Objekt zeigte je nach Ebene unterschiedliche
+   Bruttorendite-Zahlen. `SchnellcheckInput` um das Feld ergänzt, am App-seitigen
+   Aufrufer verdrahtet, Regressionstest ergänzt (`bestandsrendite.test.ts`,
+   Financial-Engine-Paket).
+2. **Möblierungsvergleich nutzte einen einzigen Leerstand-Default für beide
+   Szenarien**: `moeblierungsVergleich` (Schattenrechnung unmöbliert vs. möbliert)
+   verwendete für BEIDE Szenarien denselben Leerstand-Prozentsatz des jeweils AKTIV
+   gewählten Vermietungsmodells — obwohl `BESTANDSRENDITE_PARAMETERS` bewusst
+   unterschiedliche Defaults für langfristig-unmöbliert (2%) und
+   mittelfristig-möbliert (6%) vorsieht. Jetzt verwendet jedes Szenario seinen
+   EIGENEN Default (nur wenn kein manueller Override erfasst ist; ohne Effekt bei
+   SHORT_STAY).
+3. **Belehnung > 100% ohne Warnung**: eine Eingabe, bei der 1./2. Hypothek zusammen
+   über 100% Belehnung ergeben, liess Eigenkapitalbedarf rechnerisch negativ werden
+   und Cash-on-Cash unauffällig auf 0.00% fallen — sah wie ein echtes Ergebnis aus,
+   war aber ein Eingabefehler. Neue `assumptionNotes`-Warnung ab > 100%.
+4. **Cash-on-Cash bei Eigenkapital ≤ 0 zeigte irreführend "0.00%"**: jetzt "n/a" mit
+   erklärendem Sub-Text statt einer Zahl, die einen echten (schlechten, aber
+   endlichen) Wert vortäuscht.
+5. **`num()`-Parser akzeptierte `NaN`/`Infinity`**: `parseBestandsrenditeFacts` prüfte
+   nur `typeof v === "number"`, nicht `Number.isFinite(v)` — ein durchgerutschter
+   `NaN`/`Infinity`-Wert hätte sich unbemerkt durch alle Berechnungen gezogen. Jetzt
+   mit `Number.isFinite`-Guard.
+6. **Race Condition beim Vorschlag-Ablehnen**: `dismiss-proposal` hatte (anders als
+   `apply-proposal`) keine optimistische Nebenläufigkeitskontrolle — bei zwei
+   nahezu gleichzeitigen Schreibvorgängen konnte eine Ablehnung kommentarlos
+   verloren gehen. Jetzt analog zu `apply-proposal`: bedingtes Update auf den
+   gelesenen `dismissed_field_proposals`-Wert, 409 bei erkanntem Konflikt.
+7. **`apply-proposal` akzeptierte nicht-numerische Strings ungeprüft**: `newValue`
+   darf laut Tool-Schema `string | number` sein, alle aktuell erlaubten Zielfelder
+   sind aber numerisch — ein nicht-numerischer String wäre unverändert in ein
+   Zahlenfeld geschrieben worden und hätte jede nachgelagerte Berechnung
+   stillschweigend zu `NaN` werden lassen. Jetzt mit `Number.isFinite`-Validierung
+   vor dem Schreiben (400 bei ungültigem Wert).
+8. **Generische `"write failed"`-Fehlermeldungen**: vier API-Routen
+   (`bestandsrendite`, `due-diligence/save-prefilled`, `due-diligence/apply-proposal`,
+   `due-diligence/dismiss-proposal`) gaben bei einem fehlgeschlagenen Schreibvorgang
+   nur `"write failed"` zurück statt der echten Postgres-Fehlermeldung — ohne Zugriff
+   auf die Server-Logs war ein fehlgeschlagenes Speichern nicht diagnostizierbar. Auf
+   dasselbe Muster wie `properties/[id]/route.ts` vereinheitlicht (Single-User-Tool
+   ohne Mandantentrennung, kein Informationsleck an Dritte).
+9. **Objektliste/Vergleichsseite ohne Mobile-Absicherung**: die Objektliste
+   (`app/page.tsx`) hatte ihre `<table>` nicht in `.twrap` (das bereits global
+   existierende `overflow-x: auto`-Muster) gewrappt — auf schmalen Bildschirmen lief
+   die Tabelle über den Viewport hinaus statt sauber zu scrollen. Die
+   Vergleichsseite (`app/vergleich/page.tsx`) nutzte ein Inline-Grid
+   (`gridTemplateColumns: "1.8fr 1fr 1fr 1fr 1fr 1.3fr"`) ohne `minmax(0, ...)` —
+   feste `fr`-Spalten ohne `minmax(0, ...)` können breiter werden als ihr Anteil,
+   wenn der Inhalt (lange Adressen, "CHF 1'234'567") nicht umbricht, was zu
+   horizontalem Überlaufen statt Zeilenumbruch führte. Beides behoben: Objektliste
+   in `.twrap`; Vergleichszeile in neue CSS-Klasse `.compare-row-summary`
+   extrahiert (mit `minmax(0, ...)` auf allen Spalten) plus Mobile-Media-Query
+   (≤980px: zwei statt sechs Spalten).
+10. **Weitere Metrik-Sub-Texte/Kürzungen für Mobile**: "Grober Cashflow" bekam
+    (analog zu Eigenkapitalbedarf/Eigenkapital) einen Herleitungs-Sub-Text
+    ("= Miete − Kosten − Zins", neues `schnellcheckKostenBreakdown`-Feld am
+    Analyse-Ergebnis). "Break-even-Miete" von "/Monat" auf "/Mt." gekürzt
+    (dieselbe Abschneide-Gefahr wie beim vorherigen "/Jahr"→"p.a."-Fix). Zusätzlich,
+    da bereits am selben Renditeziel-Mechanismus gearbeitet wurde: der PDF-One-Pager
+    zeigt jetzt dieselbe Ziel-Ampel (grün/gelb/rot relativ zum gespeicherten
+    Renditeziel aus dem Annahmen-Reiter) wie die Objektseite bei Bruttorendite,
+    Bruttorendite All-in und Nettorendite vor Finanzierung, inkl. "Ziel: X%"-Text
+    (`ManagementSummaryInput` um `bruttoRenditeZielPercent`/`nettoRenditeZielPercent`
+    ergänzt, von der Route aus `effectiveParams` befüllt — analog zum bestehenden
+    Muster auf der Objektseite).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

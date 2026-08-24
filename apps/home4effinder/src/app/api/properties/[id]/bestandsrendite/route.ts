@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq("id", id);
   if (updateError) {
     console.error(`[api/properties/${id}/bestandsrendite] Speichern fehlgeschlagen`, updateError);
-    return NextResponse.json({ saved: false, error: "write failed" }, { status: 500 });
+    return NextResponse.json({ saved: false, error: `write failed: ${updateError.message} (${updateError.code})` }, { status: 500 });
   }
 
   return NextResponse.json({ saved: true }, { status: 200 });

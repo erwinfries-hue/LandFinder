@@ -36,6 +36,7 @@ describe("calculateSchnellcheck (Ebene A)", () => {
       wohnungsMieteChfPerMonth: 1_450,
       parkplatzMieteChfPerMonth: 150,
       moeblierungsPremiumChfPerMonth: 0,
+      sonstigeEinnahmenChfPerYear: 0,
       kaufnebenkostenPercent: 2.5,
       laufendeKostenChfPerYear: 4_000,
       loanToValuePercent: 70,
@@ -60,12 +61,30 @@ describe("calculateSchnellcheck (Ebene A)", () => {
       wohnungsMieteChfPerMonth: 1_450,
       parkplatzMieteChfPerMonth: 150,
       moeblierungsPremiumChfPerMonth: 300,
+      sonstigeEinnahmenChfPerYear: 0,
       kaufnebenkostenPercent: 2.5,
       laufendeKostenChfPerYear: 4_000,
       loanToValuePercent: 70,
       interestRatePercent: 2,
     });
     expect(result.jahresnettomieteChf).toBe((1_450 + 150 + 300) * 12);
+  });
+
+  it("bezieht sonstigeEinnahmenChfPerYear in die Jahresnettomiete/Bruttorendite ein — sonst zeigen Ebene A und Ebene B/C unterschiedliche Zahlen für dasselbe Objekt (Regressionstest)", () => {
+    const result = calculateSchnellcheck({
+      wohnungskaufpreisChf: 850_000,
+      parkplatzkaufpreisChf: 50_000,
+      wohnflaecheM2: 75,
+      wohnungsMieteChfPerMonth: 1_450,
+      parkplatzMieteChfPerMonth: 150,
+      moeblierungsPremiumChfPerMonth: 0,
+      sonstigeEinnahmenChfPerYear: 2_400,
+      kaufnebenkostenPercent: 2.5,
+      laufendeKostenChfPerYear: 4_000,
+      loanToValuePercent: 70,
+      interestRatePercent: 2,
+    });
+    expect(result.jahresnettomieteChf).toBe((1_450 + 150) * 12 + 2_400);
   });
 });
 
