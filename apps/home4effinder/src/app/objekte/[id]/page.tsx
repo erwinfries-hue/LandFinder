@@ -1,24 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Panel, Chip, type ChipTone } from "@landfinder/ui";
+import { Panel, Chip } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
 import { getPropertyById, getPropertyDocuments, getPropertyDueDiligence, formatDateTime } from "@/lib/properties";
 import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
-import { computeInvestmentScore } from "@/lib/investmentScore";
+import { computeInvestmentScore, scoreTone } from "@/lib/investmentScore";
 import { BestandsrenditeVertiefungForm } from "@/components/BestandsrenditeVertiefungForm";
 import { BestandsrenditeAnalysisView } from "@/components/BestandsrenditeAnalysisView";
 import { DueDiligencePanel, type DueDiligenceDocumentRow } from "@/components/DueDiligencePanel";
 import { PropertyDeleteButton } from "@/components/PropertyDeleteButton";
 import { PropertyEditForm } from "@/components/PropertyEditForm";
 import { ObjectSectionNav } from "@/components/ObjectSectionNav";
-
-function scoreTone(totalScore: number): ChipTone {
-  if (totalScore >= 70) return "good";
-  if (totalScore >= 40) return "warn";
-  return "bad";
-}
 
 export const dynamic = "force-dynamic";
 

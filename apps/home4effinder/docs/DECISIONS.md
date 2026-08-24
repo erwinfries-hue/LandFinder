@@ -1662,6 +1662,28 @@ Anspringen nicht unter der sticky Nav (und auf Mobile zusätzlich unter dem fixe
 Burger-Menü) verschwinden — zwei unterschiedliche Werte für Desktop/Mobile, da dort die
 Fixed-Elemente unterschiedlich hoch sind.
 
+## Nachgezogen (2026-08-24): Ampelsystem für die Objektliste
+
+Rückmeldung: "überlege, wo du mit einem ergänzenden ampelsystem eine einfache uebersicht
+der bewertung machen kannst".
+
+Analyse: auf der Objekt-Detailseite gab es faktisch schon ein Ampelsystem — der
+Investment-Score-Chip nutzt bereits `tone` good/warn/bad (grün ≥70, gelb ≥40, sonst rot).
+Die eigentliche Lücke war die **Objektliste** (Startseite `/`): dort gab es bislang gar
+keine Einschätzung, nur Rohdaten (Adresse/Kaufpreis/Fläche) — man musste jedes Objekt
+einzeln öffnen, um zu sehen, ob es sich lohnt, genauer hinzuschauen. Das ist der Ort mit
+dem grössten Nutzen für eine Ampel: mehrere Objekte auf einen Blick vergleichen, statt
+nacheinander zu öffnen.
+
+Umsetzung: `scoreTone` aus der Objekt-Detailseite in `investmentScore.ts` verschoben
+(Single Source of Truth, beide Seiten nutzen jetzt dieselbe Funktion). Neue erste Spalte
+"Ampel" in der Objektliste — pro Zeile derselbe deterministische Investment-Score wie auf
+der Detailseite (`computeInvestmentScore`), kompakt als farbiger Chip mit der Zahl (volle
+Aufschlüsselung bleibt der Detailseite vorbehalten, hier bewusst "einfache Übersicht" wie
+gewünscht). Grauer "–"-Chip, solange Bestandsrendite-Fakten und/oder Due-Diligence-
+Synthese fehlen — ein Score ohne jede Grundlage wäre irreführend präzise für "noch nicht
+geprüft".
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
