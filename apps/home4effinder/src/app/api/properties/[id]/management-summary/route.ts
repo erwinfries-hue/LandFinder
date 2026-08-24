@@ -44,6 +44,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const pdfBuffer = await renderManagementSummaryPdf({
     addressText: property.title || property.address_text,
     canton: property.canton,
+    wohnflaecheM2: property.wohnflaeche_m2,
     generatedAt: new Date(),
     analysis,
     verhandlungskorridor,

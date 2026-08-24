@@ -53,6 +53,7 @@ export function DueDiligencePanel({
   objectLabel,
   initialDocuments,
   initialDueDiligence,
+  alreadyAppliedProposalKeys,
 }: {
   propertyId: string;
   /** Adresse/Titel des Objekts — für den Betreff des E-Mail-Entwurfs der Rückfragen. */
@@ -67,6 +68,17 @@ export function DueDiligencePanel({
         dismissed_field_proposals?: { field: string; value: string | number }[];
       }
     | null;
+  /**
+   * Server-hergeleitet aus dem TATSÄCHLICH gespeicherten Feldwert (siehe
+   * `isProposalAlreadyApplied` in bestandsrendite.ts) — Schlüssel im selben Format wie
+   * `appliedFieldKey`. Bleibt über einen Reload hinweg korrekt (anders als der rein
+   * client-seitige `appliedFields`-Zustand unten, der nur für sofortiges optisches
+   * Feedback direkt nach einem Klick dient, bevor `router.refresh()` durch ist) und löst
+   * bei Widerspruchs-Optionen automatisch die Entweder-oder-Logik: nur die Option, deren
+   * Wert wirklich im Feld steht, gilt als übernommen — ändert sich der tatsächliche Wert,
+   * "entübernimmt" sich die vorher gewählte Option von selbst.
+   */
+  alreadyAppliedProposalKeys: string[];
 }) {
   const router = useRouter();
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
@@ -78,8 +90,10 @@ export function DueDiligencePanel({
   const [synthesizing, setSynthesizing] = useState(false);
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [applying, setApplying] = useState<string | null>(null);
-  /** Felder, die in dieser Sitzung bereits erfolgreich übernommen wurden — sofortiges "Übernommen ✓" statt Button, ohne auf den nächsten `router.refresh()` warten zu müssen (der die Formularfelder erst nach dem Neuladen aktualisiert). */
+  /** Felder, die in dieser Sitzung bereits erfolgreich übernommen wurden — sofortiges "Übernommen ✓" statt Button, ohne auf den nächsten `router.refresh()` warten zu müssen (der die Formularfelder erst nach dem Neuladen aktualisiert). Ergänzt (nicht ersetzt) durch `groundTruthAppliedKeys` unten, das aus jedem Server-Render frisch neu berechnet wird und deshalb auch einen kompletten Seitenreload übersteht. */
   const [appliedFields, setAppliedFields] = useState<Set<string>>(new Set());
+  /** Neu aus `alreadyAppliedProposalKeys` gebaut bei jedem Render — bewusst kein `useState`, damit ein aktualisierter Prop (z.B. nach `router.refresh()`) sofort wirkt, statt an einem nur einmal initialisierten Zustand vorbeizulaufen. */
+  const groundTruthAppliedKeys = new Set(alreadyAppliedProposalKeys);
   const [dismissing, setDismissing] = useState<string | null>(null);
   /**
    * Abgelehnte Vorschläge — initial aus `dismissed_field_proposals` (Migration 0005, serverseitig
@@ -657,7 +671,8 @@ export function DueDiligencePanel({
                             {option.sourcePage ? `, Seite ${option.sourcePage}` : ""}
                             {option.sourceQuote ? `: „${option.sourceQuote}“` : ""}
                           </span>
-                          {contradiction.field && appliedFields.has(appliedFieldKey(contradiction.field, option.value)) ? (
+                          {contradiction.field &&
+                          (groundTruthAppliedKeys.has(appliedFieldKey(contradiction.field, option.value)) || appliedFields.has(appliedFieldKey(contradiction.field, option.value))) ? (
                             <Chip tone="good">Übernommen ✓</Chip>
                           ) : contradiction.field ? (
                             <button
@@ -780,7 +795,7 @@ export function DueDiligencePanel({
                         <strong>{p.label}</strong>: neuer Wert <strong>{p.newValue}</strong>
                         {p.currentValue != null ? ` (bisher ${p.currentValue})` : " (bisher nicht erfasst)"} — laut {source}
                       </span>
-                      {appliedFields.has(key) ? (
+                      {groundTruthAppliedKeys.has(key) || appliedFields.has(key) ? (
                         <Chip tone="good">Übernommen ✓</Chip>
                       ) : (
                         <>

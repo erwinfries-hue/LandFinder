@@ -113,6 +113,16 @@ export interface BestandsrenditeFacts {
 
   kalkulatorischerSteuersatzPercent?: number;
 
+  /**
+   * Eigene, per Marktrecherche bestimmte Eröffnungsangebot-Einschätzung für den
+   * Verhandlungskorridor (Rückmeldung: "eröffnungspreis vom markt her (research)
+   * bestimmt" — bewusst NICHT rechnerisch aus dem Maximum hergeleitet wie zuvor, das war
+   * frei erfunden ohne Marktbezug). `undefined`, solange nicht erfasst — der
+   * Verhandlungskorridor zeigt dann kein Eröffnungsangebot an, statt einen Platzhalterwert
+   * vorzutäuschen.
+   */
+  eroeffnungsangebotChf?: number;
+
   mehrjahresmodell: {
     holdingPeriodYears?: number;
     mietsteigerungPercentPerYear?: number;
@@ -361,13 +371,17 @@ export function computeBestandsrenditeAnalysis(
   // aktive Vermietungsmodell, nur der Möblierungs-Mietaufschlag unterscheidet sich.
   const ertragUnmoebliert = calculateJahresertrag({ ...investmentCaseInput.ertrag, moeblierungsPremiumChfPerMonth: 0 });
   const ertragMoebliert = calculateJahresertrag({ ...investmentCaseInput.ertrag, moeblierungsPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth });
+  // "Miete vor Renovation" fällt, wenn nicht explizit abweichend erfasst, auf die
+  // bereits oben erfasste "Nettomiete Wohnung" zurück — Rückmeldung: separates
+  // Doppelt-Erfassen derselben Ist-Miete "aus meiner Sicht überflüssig". Weiterhin
+  // überschreibbar für den Sonderfall, dass die aktuelle Miete unterhalb des
+  // eigentlich erzielbaren Marktniveaus liegt (z.B. Altmietvertrag).
+  const mieteVorRenovationChfPerMonth = facts.renovation.mieteVorRenovationChfPerMonth ?? facts.miete.wohnungsMieteChfPerMonth;
   const renovationRoi =
-    facts.renovation.initialRenovationCostChf > 0 &&
-    facts.renovation.mieteVorRenovationChfPerMonth !== undefined &&
-    facts.renovation.mieteNachRenovationChfPerMonth !== undefined
+    facts.renovation.initialRenovationCostChf > 0 && facts.renovation.mieteNachRenovationChfPerMonth !== undefined
       ? calculateRenovationRoi({
           renovationCostChf: facts.renovation.initialRenovationCostChf,
-          mieteVorherChfPerMonth: facts.renovation.mieteVorRenovationChfPerMonth,
+          mieteVorherChfPerMonth: mieteVorRenovationChfPerMonth,
           mieteNachherChfPerMonth: facts.renovation.mieteNachRenovationChfPerMonth,
         })
       : undefined;
@@ -466,24 +480,21 @@ export function computeBestandsrenditeAnalysis(
 export interface Verhandlungskorridor {
   /** Rechnerisches Maximum — Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht (alles darüber ist rechnerisch nicht mehr cashflow-tragfähig unter den aktuellen Annahmen). `undefined`, wenn selbst ein Kaufpreis nahe CHF 0 keinen positiven Cashflow ergibt (Objekt trägt sich unter keinen Umständen). */
   maximumChf: number | undefined;
-  /** = Maximum × (1 − Sicherheitsmarge Ziel), siehe BESTANDSRENDITE_PARAMETERS.verhandlungsmargeZielPercent. */
+  /** Kaufpreis, bei dem die Bruttorendite (Kaufpreis) genau das gespeicherte Renditeziel (Annahmen-Reiter, `bruttoRenditeZielPercent`) erreicht — algebraisch hergeleitet aus der ohnehin konstanten Jahresnettomiete, nicht als Sicherheitsmarge vom Maximum. Nach oben durch `maximumChf` gedeckelt (ein Ziel über dem cashflow-neutralen Maximum wäre widersinnig). `undefined`, wenn kein Renditeziel gesetzt ist oder `maximumChf` selbst `undefined` ist. */
   zielChf: number | undefined;
-  /** = Maximum × (1 − Sicherheitsmarge Eröffnung), siehe BESTANDSRENDITE_PARAMETERS.verhandlungsmargeEroeffnungPercent. */
+  /** Eigene, per Marktrecherche bestimmte Einschätzung (`facts.eroeffnungsangebotChf`) — bewusst NICHT rechnerisch hergeleitet (Rückmeldung: "eröffnungspreis vom markt her (research) bestimmt", vorher waren das frei erfundene Prozentzahlen ohne Marktbezug). `undefined`, solange nicht erfasst. */
   eroeffnungChf: number | undefined;
 }
 
 /**
  * Preisverhandlungsspanne (Eröffnungsangebot/Ziel/Maximum) — Wunsch aus dem ChatGPT-
  * Analysenvergleich: eine dort mitgelieferte Verhandlungsstrategie, die es bei HOME4efFINDER
- * noch nicht gab. Bewusst NICHT als frei erfundene Prozentzahlen vom Inseratspreis (das wäre
- * "erfunden"), sondern rechnerisch hergeleitet: das Maximum ist der Kaufpreis, bei dem der
- * bereits an anderer Stelle verwendete "nachhaltige Cashflow" (siehe Cashflow-Wasserfall)
- * gerade CHF 0 erreicht — mit numerischer Bisektion wie bei den bestehenden
- * `breakEvenMieteChfPerMonth`/`breakEvenZinsPercent`. Ziel/Eröffnung sind Sicherheitsmargen
- * darunter (Platzhalter-Defaults, einsehbar/überschreibbar wie alle anderen Parameter).
- * Variiert bewusst nur den Basis-Kaufpreis der Wohnung (property.kaufpreisChf) — Parkplatz/
- * Garage/Möblierung/alle übrigen Fakten bleiben fix, das ist der Teil des Pakets, über den
- * tatsächlich verhandelt wird.
+ * noch nicht gab. Das Maximum ist der Kaufpreis, bei dem der bereits an anderer Stelle
+ * verwendete "nachhaltige Cashflow" (siehe Cashflow-Wasserfall) gerade CHF 0 erreicht —
+ * mit numerischer Bisektion wie bei den bestehenden `breakEvenMieteChfPerMonth`/
+ * `breakEvenZinsPercent`. Variiert bewusst nur den Basis-Kaufpreis der Wohnung
+ * (property.kaufpreisChf) — Parkplatz/Garage/Möblierung/alle übrigen Fakten bleiben fix,
+ * das ist der Teil des Pakets, über den tatsächlich verhandelt wird.
  */
 export function computeVerhandlungskorridor(
   property: BestandsrenditePropertyInput,
@@ -495,10 +506,19 @@ export function computeVerhandlungskorridor(
     computeBestandsrenditeAnalysis({ ...property, kaufpreisChf }, facts, parameterOverrides).investmentCase.wasserfall.nachhaltigerCashflowChf;
 
   const maximumChf = bisectRoot(nachhaltigerCashflowFuerKaufpreis, 1_000, property.kaufpreisChf * 5 + 500_000);
-  if (maximumChf === undefined) return { maximumChf: undefined, zielChf: undefined, eroeffnungChf: undefined };
+  const eroeffnungChf = facts.eroeffnungsangebotChf;
+  if (maximumChf === undefined) return { maximumChf: undefined, zielChf: undefined, eroeffnungChf };
 
-  const zielChf = maximumChf * (1 - P.verhandlungsmargeZielPercent / 100);
-  const eroeffnungChf = maximumChf * (1 - P.verhandlungsmargeEroeffnungPercent / 100);
+  // Bruttorendite (Kaufpreis) = Jahresnettomiete ÷ (Basis-Kaufpreis + Parkplatz/Garage) —
+  // die Jahresnettomiete selbst hängt nicht vom (verhandelbaren) Basis-Kaufpreis ab, daher
+  // lässt sich der Zielpreis direkt algebraisch auflösen statt erneut per Bisektion zu
+  // suchen (schneller und exakt, kein Wurzelfindungs-Toleranzfehler).
+  const referenz = computeBestandsrenditeAnalysis(property, facts, parameterOverrides);
+  const zielRenditePercent = P.bruttoRenditeZielPercent;
+  const zielRenditeKaufpreisChf =
+    zielRenditePercent > 0 ? referenz.schnellcheck.jahresnettomieteChf / (zielRenditePercent / 100) - referenz.parkierung.totalZusatzChf : undefined;
+  const zielChf = zielRenditeKaufpreisChf !== undefined ? Math.min(Math.max(0, zielRenditeKaufpreisChf), maximumChf) : undefined;
+
   return { maximumChf, zielChf, eroeffnungChf };
 }
 
@@ -660,6 +680,7 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
         interestRatePercent: hypothek.interestRatePercent,
       },
       kalkulatorischerSteuersatzPercent: num(body.kalkulatorischerSteuersatzPercent),
+      eroeffnungsangebotChf: num(body.eroeffnungsangebotChf),
       mehrjahresmodell: {
         holdingPeriodYears: num(mehrjahresmodell.holdingPeriodYears),
         mietsteigerungPercentPerYear: num(mehrjahresmodell.mietsteigerungPercentPerYear),
@@ -715,4 +736,21 @@ export function applyFieldUpdate(facts: Record<string, unknown>, field: AllowedU
   const [group, key] = field.split(".") as [string, string];
   const existingGroup = (facts[group] as Record<string, unknown> | undefined) ?? {};
   return { ...facts, [group]: { ...existingGroup, [key]: newValue } };
+}
+
+/** Liest den aktuellen Wert eines `AllowedUpdateField` aus den Facts — die Umkehrung von `applyFieldUpdate`, für den Vergleich "wurde dieser Vorschlag bereits übernommen?" (siehe `alreadyAppliedProposalKeys` in der Objektseite). */
+export function getAllowedFieldValue(facts: Record<string, unknown>, field: AllowedUpdateField): unknown {
+  if (!field.includes(".")) return facts[field];
+  const [group, key] = field.split(".") as [string, string];
+  return (facts[group] as Record<string, unknown> | undefined)?.[key];
+}
+
+/** `true`, wenn der aktuell gespeicherte Wert des Felds bereits exakt dem vorgeschlagenen Wert entspricht (zahlentolerant, da beide Seiten je nach Herkunft number oder numerische Strings sein können). */
+export function isProposalAlreadyApplied(facts: Record<string, unknown>, field: AllowedUpdateField, proposedValue: string | number): boolean {
+  const current = getAllowedFieldValue(facts, field);
+  if (current === undefined || current === null) return false;
+  const currentNum = typeof current === "number" ? current : Number(current);
+  const proposedNum = typeof proposedValue === "number" ? proposedValue : Number(proposedValue);
+  if (Number.isFinite(currentNum) && Number.isFinite(proposedNum)) return currentNum === proposedNum;
+  return String(current) === String(proposedValue);
 }

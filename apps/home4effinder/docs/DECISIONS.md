@@ -1823,6 +1823,60 @@ Referenzwert-Vergleich, kein Eingriff in die Ampel-Score-Berechnung). Der
 Gesamt-Investment-Score-Chip war bereits vorher auf der Objektdetailseite vorhanden
 (sichtbar nur, sobald eine Due-Diligence-Synthese gelaufen ist).
 
+## Nachgezogen (2026-08-24): Sammel-Fixes aus dem zweiten Live-Test-Durchgang
+
+Sieben Rückmeldungen aus einem weiteren Live-Test-Durchgang, alle in einer PR gebündelt:
+
+1. **"Miete vor Renovation" als Doppelerfassung**: fiel bisher als eigenes Pflichtfeld
+   an, obwohl es in der Praxis fast immer identisch mit der bereits oben erfassten
+   "Nettomiete Wohnung" ist. Fällt jetzt, wenn nicht explizit abweichend erfasst, auf
+   diesen Wert zurück (`mieteVorRenovationChfPerMonth ?? wohnungsMieteChfPerMonth`) —
+   weiterhin überschreibbar für den Sonderfall einer unter Marktniveau liegenden
+   Altmiete.
+
+2. **Verhandlungskorridor — Zielpreis/Eröffnung waren beide erfundene Sicherheitsmargen
+   vom Maximum**: Rückmeldung "zielpreis soll mit der Zielrendite hergeleitet werden
+   und der eröffnungspreis vom markt her (research) bestimmt". Zielpreis wird jetzt
+   algebraisch aus dem gespeicherten Bruttorendite-Ziel (Annahmen-Reiter) hergeleitet
+   (Kaufpreis, bei dem Jahresnettomiete ÷ Kaufpreis = Zielrendite), gedeckelt auf das
+   Maximum. Eröffnungsangebot ist jetzt ein neues, rein manuelles Feld
+   (`eroeffnungsangebotChf`, Abschnitt "Verhandlung" im Erfassungsformular) — die
+   eigene, recherchierte Markteinschätzung statt einer erfundenen Prozentzahl. Die
+   dadurch obsoleten Parameter `verhandlungsmargeZielPercent`/
+   `verhandlungsmargeEroeffnungPercent` aus der Registry entfernt.
+
+3. **Eigenkapitalbedarf/Eigenkapital ohne sichtbare Herleitung**: beide Metriken zeigen
+   jetzt als kleine Sub-Zeile die tatsächlichen CHF-Bestandteile (z.B. "= CHF 425'000 −
+   CHF 296'250 (Hypothek) + CHF 12'750 (Nebenkosten)") statt nur eine Formel im
+   Hover-Hinweis, der auf dem Handy nicht sichtbar ist.
+
+4. **CHF und Zahl brachen auf dem Handy in zwei Zeilen um**: `.metric .v` bekommt auf
+   Mobile `white-space: nowrap` (mit `text-overflow: ellipsis` als Fallback für
+   seltene, sehr lange Werte) plus `minmax(0, 1fr)` auf `.metricgrid`, damit die
+   Spalten dabei nicht über den Bildschirmrand hinauswachsen (dieselbe Lehre wie beim
+   Sprungmarken-Navigation-Fix: `1fr` allein reicht nicht, `minmax(0, 1fr)` schon).
+
+5. **Widerspruchs-Optionen: "übernimmt beide"** und
+6. **Übernommene Vorschläge erscheinen nach Reload wieder aktiv**: beide Symptome
+   derselben Ursache — `appliedFields` war ein rein client-seitiger, nie
+   persistierter React-Zustand, der bei jedem Neuladen leer startete. Neue Lösung:
+   `isProposalAlreadyApplied` (bestandsrendite.ts) vergleicht den TATSÄCHLICH
+   gespeicherten Feldwert mit dem Vorschlag — serverseitig auf der Objektseite für
+   jeden Vorschlag/jede Widerspruchs-Option berechnet und als
+   `alreadyAppliedProposalKeys` an `DueDiligencePanel` durchgereicht. Das behebt
+   beides zugleich: bleibt über jeden Reload korrekt (da aus echten Daten
+   hergeleitet, nicht aus flüchtigem State) und löst die Widerspruchs-Optionen
+   sauber im Entweder-oder-Sinn auf (nur die Option, deren Wert wirklich im Feld
+   steht, gilt als übernommen — stimmen zwei Quellen zufällig überein, gelten
+   beide korrekterweise als erfüllt, das ist kein Bug).
+
+7. **PDF-One-Pager mit zu wenig Finanzdetails**: neue Abschnitte "Investment Case
+   (Ebene B)" (All-in-Investition, Bruttorendite All-in, Nettorendite vor
+   Finanzierung, Eigenkapital, NOI, 1./2. Hypothek, Cashflow-Wasserfall-Zwischenschritte)
+   und "15-Jahres-Modell (Ebene C)" (Levered/Unlevered IRR, Equity Multiple, Exit-Erlös,
+   kumulierter Cashflow) ergänzt. Ausserdem Wohnfläche (m²) als Sub-Zeile bei Preis/m²
+   ergänzt.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

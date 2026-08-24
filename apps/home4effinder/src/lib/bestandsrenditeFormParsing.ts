@@ -106,6 +106,7 @@ export function buildBestandsrenditeFactsFromFormData(
       interestRatePercent: req("interestRatePercent"),
     },
     kalkulatorischerSteuersatzPercent: num("kalkulatorischerSteuersatzPercent"),
+    eroeffnungsangebotChf: num("eroeffnungsangebotChf"),
     mehrjahresmodell: {
       holdingPeriodYears: num("holdingPeriodYears"),
       mietsteigerungPercentPerYear: num("mietsteigerungPercentPerYear"),

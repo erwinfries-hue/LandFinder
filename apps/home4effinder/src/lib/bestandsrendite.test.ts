@@ -242,21 +242,29 @@ describe("computeBestandsrenditeAnalysis", () => {
 });
 
 describe("computeVerhandlungskorridor", () => {
-  it("Maximum ist der Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht — Eröffnung < Ziel < Maximum", () => {
+  it("Maximum ist der Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht; Zielpreis leitet sich aus dem Renditeziel her; Eröffnung bleibt ohne manuelle Eingabe undefined", () => {
     const korridor = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
     expect(korridor.maximumChf).toBeDefined();
     expect(korridor.zielChf).toBeDefined();
-    expect(korridor.eroeffnungChf).toBeDefined();
-    expect(korridor.eroeffnungChf!).toBeLessThan(korridor.zielChf!);
-    expect(korridor.zielChf!).toBeLessThan(korridor.maximumChf!);
+    expect(korridor.eroeffnungChf).toBeUndefined();
+    expect(korridor.zielChf!).toBeLessThanOrEqual(korridor.maximumChf!);
 
     // Am gefundenen Maximum ist der nachhaltige Cashflow tatsächlich ~CHF 0.
     const amMaximum = computeBestandsrenditeAnalysis({ kaufpreisChf: korridor.maximumChf!, wohnflaecheM2: 75 }, fullFacts);
     expect(amMaximum.investmentCase.wasserfall.nachhaltigerCashflowChf).toBeCloseTo(0, 0);
 
-    // Ziel = Maximum × 0.97, Eröffnung = Maximum × 0.93 (Standard-Sicherheitsmargen 3%/7%).
-    expect(korridor.zielChf!).toBeCloseTo(korridor.maximumChf! * 0.97, 0);
-    expect(korridor.eroeffnungChf!).toBeCloseTo(korridor.maximumChf! * 0.93, 0);
+    // Am Zielpreis erreicht die Bruttorendite (Kaufpreis) exakt das Renditeziel (Default 4.5%).
+    const amZiel = computeBestandsrenditeAnalysis({ kaufpreisChf: korridor.zielChf!, wohnflaecheM2: 75 }, fullFacts);
+    expect(amZiel.schnellcheck.bruttoRenditePercent).toBeCloseTo(4.5, 1);
+  });
+
+  it("eigenes Eröffnungsangebot (Marktrecherche) wird unverändert durchgereicht, nicht mehr rechnerisch aus dem Maximum hergeleitet", () => {
+    const ohneAngebot = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    expect(ohneAngebot.eroeffnungChf).toBeUndefined();
+
+    const mitAngebot: BestandsrenditeFacts = { ...fullFacts, eroeffnungsangebotChf: 800_000 };
+    const korridor = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, mitAngebot);
+    expect(korridor.eroeffnungChf).toBe(800_000);
   });
 
   it("ein höherer Zinssatz senkt das rechnerische Maximum (weniger Preis bei teurerer Finanzierung tragbar)", () => {
@@ -264,6 +272,12 @@ describe("computeVerhandlungskorridor", () => {
     const teuer: BestandsrenditeFacts = { ...fullFacts, hypothek: { ...fullFacts.hypothek, interestRatePercent: 4 } };
     const teurerZins = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, teuer);
     expect(teurerZins.maximumChf!).toBeLessThan(guenstig.maximumChf!);
+  });
+
+  it("ein höheres Renditeziel senkt den Zielpreis (strengeres Ziel verlangt mehr Rendite bei tieferem Preis)", () => {
+    const tiefesZiel = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts, { bruttoRenditeZielPercent: 4.5 });
+    const hohesZiel = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts, { bruttoRenditeZielPercent: 6 });
+    expect(hohesZiel.zielChf!).toBeLessThan(tiefesZiel.zielChf!);
   });
 });
 
