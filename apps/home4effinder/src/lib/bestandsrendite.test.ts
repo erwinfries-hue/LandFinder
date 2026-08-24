@@ -212,8 +212,15 @@ describe("isAllowedUpdateField / applyFieldUpdate", () => {
   it("erlaubt nur die explizit gelisteten Feldpfade", () => {
     expect(isAllowedUpdateField("miete.wohnungsMieteChfPerMonth")).toBe(true);
     expect(isAllowedUpdateField("stweg.erneuerungsfondsSaldoChf")).toBe(true);
+    expect(isAllowedUpdateField("stweg.erneuerungsfondsWohnungsanteilChf")).toBe(true);
     expect(isAllowedUpdateField("erfundenes.feld")).toBe(false);
     expect(isAllowedUpdateField("miete.wohnungsMieteChfPerMonth.zuTief")).toBe(false);
+  });
+
+  it("hält Erneuerungsfonds-Gesamtsaldo und -Wohnungsanteil als getrennte Felder auseinander, keins überschreibt das andere", () => {
+    const facts = { stweg: { erneuerungsfondsSaldoChf: 238_701.66 } };
+    const updated = applyFieldUpdate(facts, "stweg.erneuerungsfondsWohnungsanteilChf", 10_135.3);
+    expect(updated.stweg).toEqual({ erneuerungsfondsSaldoChf: 238_701.66, erneuerungsfondsWohnungsanteilChf: 10_135.3 });
   });
 
   it("setzt nur das eine Blattfeld, andere Felder in derselben Gruppe bleiben unverändert", () => {

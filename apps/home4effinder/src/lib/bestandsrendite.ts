@@ -531,6 +531,7 @@ const ALLOWED_UPDATE_FIELDS = [
   "miete.leerstandPercent",
   "betriebskosten.stwegAkontobeitragChfPerYear",
   "stweg.erneuerungsfondsSaldoChf",
+  "stweg.erneuerungsfondsWohnungsanteilChf",
   "stweg.erneuerungsfondsZielwertChf",
   "stweg.wertquotePromille",
 ] as const;

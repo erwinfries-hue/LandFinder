@@ -30,6 +30,7 @@ export function buildBestandsrenditeFactsFromFormData(
     stweg: {
       wertquotePromille: num("wertquotePromille"),
       erneuerungsfondsSaldoChf: num("erneuerungsfondsSaldoChf"),
+      erneuerungsfondsWohnungsanteilChf: num("erneuerungsfondsWohnungsanteilChf"),
       erneuerungsfondsZielwertChf: num("erneuerungsfondsZielwertChf"),
       naechsteGrossaSanierungGeplant: form.get("naechsteGrossaSanierungGeplant") === "on",
       naechsteGrossaSanierungNotes: String(form.get("naechsteGrossaSanierungNotes") ?? "") || undefined,

@@ -13,9 +13,12 @@
 export interface StwegFacts {
   /** Miteigentumsanteil in Promille (z.B. 85/1000) — bestimmt Stimmrecht und Kostenanteil. */
   wertquotePromille?: number;
+  /** GESAMTSaldo des Erneuerungsfonds der ganzen STWEG — NICHT der anteilige Betrag der geprüften Wohnung (dafür: erneuerungsfondsWohnungsanteilChf). Kapital-/Zinsausweise nennen oft beide Beträge, siehe documentTypes.ts::ERNEUERUNGSFONDS. */
   erneuerungsfondsSaldoChf?: number;
   /** Vom Protokoll/der Verwaltung genannter Zielwert, falls vorhanden — für sich allein kein "gut/schlecht"-Urteil. */
   erneuerungsfondsZielwertChf?: number;
+  /** Nach Wertquote anteiliger Betrag NUR der geprüften Wohnung am Erneuerungsfonds (nicht der Gesamtsaldo der STWEG) — separates Feld, damit eine KI-Extraktion die beiden Beträge nie versehentlich verwechselt/überschreibt (siehe DECISIONS.md). */
+  erneuerungsfondsWohnungsanteilChf?: number;
   naechsteGrossaSanierungGeplant?: boolean;
   naechsteGrossaSanierungNotes?: string;
   /** Freitext statt Kategorien — Sanierungsstau ist selten sauber klassifizierbar ohne das Protokoll selbst gelesen zu haben. */
