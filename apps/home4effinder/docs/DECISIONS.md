@@ -1788,6 +1788,41 @@ Blöcke: "Paket 1 — unmöbliert vermieten" (Nettomiete-Feld hierher verschoben
 möbliert vermieten". Feldname/-id von `wohnungsMieteChfPerMonth` unverändert — reine
 Anordnung, kein Eingriff in Speicherformat oder Berechnung.
 
+## Nachgezogen (2026-08-24): "Annahmen"-Reiter (globale, überschreibbare Parameter) + Ampel bei Soll-Abweichung
+
+Rückmeldung: "einen Reiter machen, welcher alle Variablen enthält wie zB Belehnungshöhe,
+Zins, Brutto- und Nettorenditeziele etc. — diese Werte sollen da auch anpassbar sein und
+entsprechend für die Berechnungen gezogen werden." Genau das war bereits im Kommentar zu
+`BESTANDSRENDITE_PARAMETERS` (parameters.ts) als künftiges Ziel angelegt — jetzt gebaut:
+
+- Neue Migration 0007 (`app_settings`, `key text primary key, value numeric`) speichert
+  Überschreibungen einzelner Registry-Parameter — global für alle Objekte. Fehlt ein
+  Schlüssel, gilt unverändert der Registry-Default.
+- `computeBestandsrenditeAnalysis`/`computeVerhandlungskorridor`/
+  `computeMoeblierungsAlternative` (bestandsrendite.ts) nehmen jetzt einen optionalen
+  dritten Parameter `parameterOverrides` entgegen und verwenden ihn statt der reinen
+  Registry-Defaults für JEDE Berechnung — nicht nur für die Anzeige. Alle Aufrufstellen
+  (Objektseite, Vergleich, Objektliste/Ampel, Management-Summary-PDF) laden die
+  Überschreibungen serverseitig und reichen sie durch.
+- Neu in der Registry (packages/financial-engine/src/parameters.ts): Belehnung-
+  Vorschlagswerte für 1./2. Hypothek und Zinssatz-Vorschlagswert (bisher als feste
+  Zahlen 65/10/1.5 direkt im Formular verdrahtet, jetzt zentral) sowie Brutto-/
+  Nettorendite-Ziel (neu, reine Referenzwerte).
+- Neuer Reiter `/annahmen` (`AnnahmenForm.tsx`) listet ALLE ~22 Registry-Parameter
+  gruppiert nach Thema, mit aktuellem Wert (Standard oder Überschreibung), editierbar;
+  leer gelassen + gespeichert setzt zurück auf den Registry-Default.
+
+Zusätzlich, aus derselben Rückmeldung: "die ampel auch auf der objektdetailseite
+einbauen, überall dort, wo werte und/oder informationen vom soll abweichen." Neue
+Funktion `renditeAmpelColor` (investmentScore.ts) färbt Bruttorendite (Schnellcheck +
+Investment Case) und Nettorendite (Investment Case) grün/gelb/rot relativ zum
+gespeicherten Renditeziel — rein informativ per `valueColor`/`sub`-Hinweis auf den
+bestehenden `Metric`-Komponenten, ohne die Werte selbst oder die (unveränderte)
+Investment-Score-Formel zu beeinflussen (per Rückfrage bestätigt: reiner
+Referenzwert-Vergleich, kein Eingriff in die Ampel-Score-Berechnung). Der
+Gesamt-Investment-Score-Chip war bereits vorher auf der Objektdetailseite vorhanden
+(sichtbar nur, sobald eine Due-Diligence-Synthese gelaufen ist).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

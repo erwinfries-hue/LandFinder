@@ -5,6 +5,7 @@ import { SideNav } from "@/components/SideNav";
 import { getProperties, getPropertyDueDiligence, type PropertyRow } from "@/lib/properties";
 import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
 import { computeInvestmentScore, type InvestmentScoreBreakdown } from "@/lib/investmentScore";
+import { getParameterOverrides } from "@/lib/parameterOverrides";
 import { formatChf } from "@/lib/format";
 import type { DueDiligenceResult, DueDiligenceSeverity } from "@landfinder/domain";
 
@@ -33,6 +34,7 @@ interface CompareRow {
 export default async function VergleichPage() {
   const properties = await getProperties();
   const configured = properties !== null;
+  const parameterOverrides = configured ? await getParameterOverrides() : {};
 
   const rows: CompareRow[] = configured
     ? await Promise.all(
@@ -40,7 +42,11 @@ export default async function VergleichPage() {
           const factsParsed = property.bestandsrendite ? parseBestandsrenditeFacts(property.bestandsrendite) : null;
           const facts = factsParsed && "facts" in factsParsed ? factsParsed.facts : null;
           const analysis = facts
-            ? computeBestandsrenditeAnalysis({ kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton }, facts)
+            ? computeBestandsrenditeAnalysis(
+                { kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton },
+                facts,
+                parameterOverrides,
+              )
             : null;
 
           const dueDiligence = await getPropertyDueDiligence(property.id);

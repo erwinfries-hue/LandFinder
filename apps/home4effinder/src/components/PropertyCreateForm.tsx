@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Panel, Chip } from "@landfinder/ui";
 import type { DocumentExtractionResult, DueDiligenceDocumentType, DueDiligenceResult } from "@landfinder/domain";
 import type { RenovationPosition, Vermietungsmodell } from "@landfinder/financial-engine";
+import type { ParameterOverrides } from "@/lib/bestandsrendite";
 import { AVAILABLE_CANTONS } from "@/lib/cantons";
 import { DOCUMENT_TYPE_CATALOG } from "@/lib/documentTypes";
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/dueDiligenceCategories";
@@ -59,7 +60,7 @@ type SynthesisDoc = { id: string; filename: string; documentType: DueDiligenceDo
  * diesen Feldern zurück — darum zuerst alle Dokumente hochladen, danach die restlichen
  * Lücken von Hand ergänzen, nicht umgekehrt.
  */
-export function PropertyCreateForm() {
+export function PropertyCreateForm({ parameterOverrides }: { parameterOverrides?: ParameterOverrides }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -681,6 +682,7 @@ export function PropertyCreateForm() {
           existing={null}
           canton={canton || undefined}
           docProposals={docFieldProposals}
+          parameterOverrides={parameterOverrides}
           vermietungsmodell={vermietungsmodell}
           onVermietungsmodellChange={setVermietungsmodell}
           renovationPositionen={renovationPositionen}

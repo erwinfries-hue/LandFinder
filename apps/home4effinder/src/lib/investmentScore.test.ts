@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DueDiligenceCategoryResult, DueDiligenceMissingDocument } from "@landfinder/domain";
-import { computeInvestmentScore, scoreTone } from "./investmentScore";
+import { computeInvestmentScore, scoreTone, renditeAmpelColor } from "./investmentScore";
 
 function category(status: DueDiligenceCategoryResult["status"]): DueDiligenceCategoryResult {
   return { category: "STWEG", status, findings: [] };
@@ -51,5 +51,20 @@ describe("scoreTone", () => {
     expect(scoreTone(40)).toBe("warn");
     expect(scoreTone(39)).toBe("bad");
     expect(scoreTone(0)).toBe("bad");
+  });
+});
+
+describe("renditeAmpelColor", () => {
+  it("ist grün, wenn der Ist-Wert das Ziel erreicht oder übertrifft", () => {
+    expect(renditeAmpelColor(5, 4.5)).toBe("var(--good)");
+    expect(renditeAmpelColor(4.5, 4.5)).toBe("var(--good)");
+  });
+  it("ist gelb bis zu 1 Prozentpunkt unter dem Ziel", () => {
+    expect(renditeAmpelColor(4, 4.5)).toBe("var(--warn)");
+    expect(renditeAmpelColor(3.5, 4.5)).toBe("var(--warn)");
+  });
+  it("ist rot bei mehr als 1 Prozentpunkt unter dem Ziel", () => {
+    expect(renditeAmpelColor(3.4, 4.5)).toBe("var(--bad)");
+    expect(renditeAmpelColor(0, 4.5)).toBe("var(--bad)");
   });
 });

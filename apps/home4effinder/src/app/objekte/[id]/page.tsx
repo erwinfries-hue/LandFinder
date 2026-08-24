@@ -5,8 +5,10 @@ import { SideNav } from "@/components/SideNav";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
 import { getPropertyById, getPropertyDocuments, getPropertyDueDiligence, formatDateTime } from "@/lib/properties";
+import { BESTANDSRENDITE_PARAMETERS, defaultsOf } from "@landfinder/financial-engine";
 import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, computeMoeblierungsAlternative, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
 import { computeInvestmentScore, scoreTone } from "@/lib/investmentScore";
+import { getParameterOverrides } from "@/lib/parameterOverrides";
 import { BestandsrenditeVertiefungForm } from "@/components/BestandsrenditeVertiefungForm";
 import { BestandsrenditeAnalysisView } from "@/components/BestandsrenditeAnalysisView";
 import { DueDiligencePanel, type DueDiligenceDocumentRow } from "@/components/DueDiligencePanel";
@@ -40,12 +42,17 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
   const factsParsed = property.bestandsrendite ? parseBestandsrenditeFacts(property.bestandsrendite) : null;
   const facts = factsParsed && "facts" in factsParsed ? factsParsed.facts : null;
 
-  const [documents, dueDiligence] = await Promise.all([getPropertyDocuments(property.id), getPropertyDueDiligence(property.id)]);
+  const [documents, dueDiligence, parameterOverrides] = await Promise.all([
+    getPropertyDocuments(property.id),
+    getPropertyDueDiligence(property.id),
+    getParameterOverrides(),
+  ]);
 
   const propertyInput = { kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton };
-  const analysis = facts ? computeBestandsrenditeAnalysis(propertyInput, facts) : null;
-  const verhandlungskorridor = facts ? computeVerhandlungskorridor(propertyInput, facts) : null;
-  const moeblierungsAlternative = facts ? computeMoeblierungsAlternative(propertyInput, facts) : null;
+  const analysis = facts ? computeBestandsrenditeAnalysis(propertyInput, facts, parameterOverrides) : null;
+  const verhandlungskorridor = facts ? computeVerhandlungskorridor(propertyInput, facts, parameterOverrides) : null;
+  const moeblierungsAlternative = facts ? computeMoeblierungsAlternative(propertyInput, facts, parameterOverrides) : null;
+  const effectiveParams = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
 
   const investmentScore =
     analysis && dueDiligence?.result
@@ -141,7 +148,13 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
         </details>
 
         {analysis ? (
-          <BestandsrenditeAnalysisView result={analysis} verhandlungskorridor={verhandlungskorridor} moeblierungsAlternative={moeblierungsAlternative} />
+          <BestandsrenditeAnalysisView
+            result={analysis}
+            verhandlungskorridor={verhandlungskorridor}
+            moeblierungsAlternative={moeblierungsAlternative}
+            bruttoRenditeZielPercent={effectiveParams.bruttoRenditeZielPercent}
+            nettoRenditeZielPercent={effectiveParams.nettoRenditeZielPercent}
+          />
         ) : null}
         <details style={{ marginTop: "0.9rem" }} open={!facts}>
           <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>
@@ -152,6 +165,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             existing={facts}
             canton={property.canton}
             bestandsrenditeUpdatedAt={property.bestandsrendite_updated_at}
+            parameterOverrides={parameterOverrides}
           />
         </details>
 

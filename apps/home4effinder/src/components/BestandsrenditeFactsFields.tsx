@@ -1,8 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { BESTANDSRENDITE_PARAMETERS, type Vermietungsmodell, type RenovationPosition, type RenovationKategorie, type SteuerlicheAbzugsfaehigkeit, type AmortisationModus } from "@landfinder/financial-engine";
-import type { BestandsrenditeFacts } from "@/lib/bestandsrendite";
+import {
+  BESTANDSRENDITE_PARAMETERS,
+  defaultsOf,
+  type BestandsrenditeParameterKey,
+  type Vermietungsmodell,
+  type RenovationPosition,
+  type RenovationKategorie,
+  type SteuerlicheAbzugsfaehigkeit,
+  type AmortisationModus,
+} from "@landfinder/financial-engine";
+import type { BestandsrenditeFacts, ParameterOverrides } from "@/lib/bestandsrendite";
 import { getCantonDefaults } from "@/lib/cantonDefaults";
 
 export const RENOVATION_KATEGORIE_LABEL: Record<RenovationKategorie, string> = {
@@ -66,6 +75,7 @@ export function BestandsrenditeFactsFields({
   onAddRenovationPosition,
   onUpdateRenovationPosition,
   onRemoveRenovationPosition,
+  parameterOverrides,
 }: {
   existing: BestandsrenditeFacts | null;
   canton?: string;
@@ -76,8 +86,10 @@ export function BestandsrenditeFactsFields({
   onAddRenovationPosition: () => void;
   onUpdateRenovationPosition: (index: number, patch: Partial<RenovationPosition>) => void;
   onRemoveRenovationPosition: (index: number) => void;
+  /** Überschreibungen aus dem "Annahmen"-Reiter (`app_settings`, Migration 0007) — fehlt ein Schlüssel, gilt der Registry-Default aus BESTANDSRENDITE_PARAMETERS. */
+  parameterOverrides?: ParameterOverrides;
 }) {
-  const P = BESTANDSRENDITE_PARAMETERS;
+  const P: Record<BestandsrenditeParameterKey, number> = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
   const [ersteAmortisationModus, setErsteAmortisationModus] = useState<AmortisationModus>(existing?.hypothek.ersteHypothek.amortisation.modus ?? "PROZENT_PRO_JAHR");
   const [zweiteAmortisationModus, setZweiteAmortisationModus] = useState<AmortisationModus>(existing?.hypothek.zweiteHypothek.amortisation.modus ?? "DAUER_JAHRE");
   const zimmerzahlInputRef = useRef<HTMLInputElement>(null);
@@ -122,9 +134,9 @@ export function BestandsrenditeFactsFields({
   }
 
   const cantonDefaults = getCantonDefaults(canton);
-  const defaultHandaenderungssteuerPercent = cantonDefaults?.handaenderungssteuerPercent ?? P.handaenderungssteuerPercent.defaultValue;
-  const defaultKalkulatorischerSteuersatzPercent = cantonDefaults?.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent.defaultValue;
-  const defaultLeerstandPercent = vermietungsmodell === "MITTELFRISTIG_MOEBLIERT" ? P.leerstandMoebliertPercent.defaultValue : P.leerstandLangfristigPercent.defaultValue;
+  const defaultHandaenderungssteuerPercent = cantonDefaults?.handaenderungssteuerPercent ?? P.handaenderungssteuerPercent;
+  const defaultKalkulatorischerSteuersatzPercent = cantonDefaults?.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent;
+  const defaultLeerstandPercent = vermietungsmodell === "MITTELFRISTIG_MOEBLIERT" ? P.leerstandMoebliertPercent : P.leerstandLangfristigPercent;
 
   // Liefert für ein Feld aus ALLOWED_UPDATE_FIELDS den effektiven Vorschlagswert
   // (Dokument sticht Engine-/Kanton-Default) plus, ob er aus einem Dokument stammt.
@@ -241,23 +253,23 @@ export function BestandsrenditeFactsFields({
           />
         </div>
         <div className="field">
-          <label htmlFor="notariatGrundbuchPercent">Notariat/Grundbuch (%, Standard: {P.notariatGrundbuchPercent.defaultValue})</label>
+          <label htmlFor="notariatGrundbuchPercent">Notariat/Grundbuch (%, Standard: {P.notariatGrundbuchPercent})</label>
           <input
             id="notariatGrundbuchPercent"
             name="notariatGrundbuchPercent"
             type="number"
             step="0.1"
-            defaultValue={existing?.nebenkosten.notariatGrundbuchPercent ?? P.notariatGrundbuchPercent.defaultValue}
+            defaultValue={existing?.nebenkosten.notariatGrundbuchPercent ?? P.notariatGrundbuchPercent}
           />
         </div>
         <div className="field">
-          <label htmlFor="maklerprovisionPercent">Maklerprovision (%, Standard: {P.maklerprovisionPercent.defaultValue})</label>
+          <label htmlFor="maklerprovisionPercent">Maklerprovision (%, Standard: {P.maklerprovisionPercent})</label>
           <input
             id="maklerprovisionPercent"
             name="maklerprovisionPercent"
             type="number"
             step="0.1"
-            defaultValue={existing?.nebenkosten.maklerprovisionPercent ?? P.maklerprovisionPercent.defaultValue}
+            defaultValue={existing?.nebenkosten.maklerprovisionPercent ?? P.maklerprovisionPercent}
           />
         </div>
       </div>
@@ -372,23 +384,23 @@ export function BestandsrenditeFactsFields({
           <input id="moeblierungInitialCostChf" name="moeblierungInitialCostChf" type="number" step="500" defaultValue={existing?.moeblierung.initialCostChf ?? 0} />
         </div>
         <div className="field">
-          <label htmlFor="moeblierungNutzungsdauerJahre">Nutzungsdauer (Jahre, Standard: {P.moeblierungNutzungsdauerJahre.defaultValue})</label>
+          <label htmlFor="moeblierungNutzungsdauerJahre">Nutzungsdauer (Jahre, Standard: {P.moeblierungNutzungsdauerJahre})</label>
           <input
             id="moeblierungNutzungsdauerJahre"
             name="moeblierungNutzungsdauerJahre"
             type="number"
             step="1"
-            defaultValue={existing?.moeblierung.nutzungsdauerJahre ?? P.moeblierungNutzungsdauerJahre.defaultValue}
+            defaultValue={existing?.moeblierung.nutzungsdauerJahre ?? P.moeblierungNutzungsdauerJahre}
           />
         </div>
         <div className="field">
-          <label htmlFor="jaehrlicherErsatzsatzPercent">Jährliche Ersatzquote (%, Standard: {P.moeblierungErsatzquotePercent.defaultValue})</label>
+          <label htmlFor="jaehrlicherErsatzsatzPercent">Jährliche Ersatzquote (%, Standard: {P.moeblierungErsatzquotePercent})</label>
           <input
             id="jaehrlicherErsatzsatzPercent"
             name="jaehrlicherErsatzsatzPercent"
             type="number"
             step="1"
-            defaultValue={existing?.moeblierung.jaehrlicherErsatzsatzPercent ?? P.moeblierungErsatzquotePercent.defaultValue}
+            defaultValue={existing?.moeblierung.jaehrlicherErsatzsatzPercent ?? P.moeblierungErsatzquotePercent}
           />
         </div>
         <div className="field">
@@ -545,13 +557,13 @@ export function BestandsrenditeFactsFields({
           <input id="reparaturChfPerYear" name="reparaturChfPerYear" type="number" step="100" defaultValue={existing?.reserven.reparaturChfPerYear} />
         </div>
         <div className="field">
-          <label htmlFor="reparaturPercentOfKaufpreis">Reparaturreserve (% Kaufpreis, Standard: {P.reparaturreservePercentOfKaufpreis.defaultValue})</label>
+          <label htmlFor="reparaturPercentOfKaufpreis">Reparaturreserve (% Kaufpreis, Standard: {P.reparaturreservePercentOfKaufpreis})</label>
           <input
             id="reparaturPercentOfKaufpreis"
             name="reparaturPercentOfKaufpreis"
             type="number"
             step="0.05"
-            defaultValue={existing?.reserven.reparaturPercentOfKaufpreis ?? (existing?.reserven.reparaturChfPerYear ? undefined : P.reparaturreservePercentOfKaufpreis.defaultValue)}
+            defaultValue={existing?.reserven.reparaturPercentOfKaufpreis ?? (existing?.reserven.reparaturChfPerYear ? undefined : P.reparaturreservePercentOfKaufpreis)}
           />
         </div>
         <div className="field">
@@ -559,13 +571,13 @@ export function BestandsrenditeFactsFields({
           <input id="leerstandReserveChfPerYear" name="leerstandReserveChfPerYear" type="number" step="100" defaultValue={existing?.reserven.leerstandChfPerYear} />
         </div>
         <div className="field">
-          <label htmlFor="leerstandReservePercentOfKaufpreis">Leerstandsreserve (% Kaufpreis, Standard: {P.leerstandsreservePercentOfKaufpreis.defaultValue})</label>
+          <label htmlFor="leerstandReservePercentOfKaufpreis">Leerstandsreserve (% Kaufpreis, Standard: {P.leerstandsreservePercentOfKaufpreis})</label>
           <input
             id="leerstandReservePercentOfKaufpreis"
             name="leerstandReservePercentOfKaufpreis"
             type="number"
             step="0.05"
-            defaultValue={existing?.reserven.leerstandPercentOfKaufpreis ?? (existing?.reserven.leerstandChfPerYear ? undefined : P.leerstandsreservePercentOfKaufpreis.defaultValue)}
+            defaultValue={existing?.reserven.leerstandPercentOfKaufpreis ?? (existing?.reserven.leerstandChfPerYear ? undefined : P.leerstandsreservePercentOfKaufpreis)}
           />
         </div>
       </div>
@@ -581,7 +593,7 @@ export function BestandsrenditeFactsFields({
       </p>
       <div className="fieldgrid">
         <div className="field">
-          <label htmlFor="ersteHypothekBelehnungPercent">1. Hypothek — Belehnung (%)</label>
+          <label htmlFor="ersteHypothekBelehnungPercent">1. Hypothek — Belehnung (%, Standard: {P.ersteHypothekBelehnungPercentDefault})</label>
           <input
             id="ersteHypothekBelehnungPercent"
             name="ersteHypothekBelehnungPercent"
@@ -589,7 +601,7 @@ export function BestandsrenditeFactsFields({
             step="1"
             list="dl-erste-belehnung"
             required
-            defaultValue={existing?.hypothek.ersteHypothek.belehnungPercent ?? 65}
+            defaultValue={existing?.hypothek.ersteHypothek.belehnungPercent ?? P.ersteHypothekBelehnungPercentDefault}
           />
         </div>
         <div className="field">
@@ -628,7 +640,7 @@ export function BestandsrenditeFactsFields({
           </div>
         )}
         <div className="field">
-          <label htmlFor="zweiteHypothekBelehnungPercent">2. Hypothek — Belehnung (%)</label>
+          <label htmlFor="zweiteHypothekBelehnungPercent">2. Hypothek — Belehnung (%, Standard: {P.zweiteHypothekBelehnungPercentDefault})</label>
           <input
             id="zweiteHypothekBelehnungPercent"
             name="zweiteHypothekBelehnungPercent"
@@ -636,7 +648,7 @@ export function BestandsrenditeFactsFields({
             step="1"
             list="dl-zweite-belehnung"
             required
-            defaultValue={existing?.hypothek.zweiteHypothek.belehnungPercent ?? 10}
+            defaultValue={existing?.hypothek.zweiteHypothek.belehnungPercent ?? P.zweiteHypothekBelehnungPercentDefault}
           />
         </div>
         <div className="field">
@@ -676,8 +688,16 @@ export function BestandsrenditeFactsFields({
           </div>
         )}
         <div className="field">
-          <label htmlFor="interestRatePercent">Zinssatz (%, für beide Hypotheken, kalkulatorisch)</label>
-          <input id="interestRatePercent" name="interestRatePercent" type="number" step="0.1" list="dl-zinssatz" required defaultValue={existing?.hypothek.interestRatePercent ?? 1.5} />
+          <label htmlFor="interestRatePercent">Zinssatz (%, für beide Hypotheken, kalkulatorisch, Standard: {P.zinsPercentDefault})</label>
+          <input
+            id="interestRatePercent"
+            name="interestRatePercent"
+            type="number"
+            step="0.1"
+            list="dl-zinssatz"
+            required
+            defaultValue={existing?.hypothek.interestRatePercent ?? P.zinsPercentDefault}
+          />
         </div>
         <div className="field">
           <label htmlFor="kalkulatorischerSteuersatzPercent">
@@ -699,7 +719,7 @@ export function BestandsrenditeFactsFields({
       </div>
       <div className="fieldgrid">
         <div className="field">
-          <label htmlFor="holdingPeriodYears">Haltedauer (5–30 Jahre, Standard: {P.holdingPeriodYearsDefault.defaultValue})</label>
+          <label htmlFor="holdingPeriodYears">Haltedauer (5–30 Jahre, Standard: {P.holdingPeriodYearsDefault})</label>
           <input
             id="holdingPeriodYears"
             name="holdingPeriodYears"
@@ -708,47 +728,47 @@ export function BestandsrenditeFactsFields({
             min="5"
             max="30"
             list="dl-holding-period"
-            defaultValue={existing?.mehrjahresmodell.holdingPeriodYears ?? P.holdingPeriodYearsDefault.defaultValue}
+            defaultValue={existing?.mehrjahresmodell.holdingPeriodYears ?? P.holdingPeriodYearsDefault}
           />
         </div>
         <div className="field">
-          <label htmlFor="mietsteigerungPercentPerYear">Mietsteigerung (%/Jahr, Standard: {P.mietsteigerungPercentPerYear.defaultValue})</label>
+          <label htmlFor="mietsteigerungPercentPerYear">Mietsteigerung (%/Jahr, Standard: {P.mietsteigerungPercentPerYear})</label>
           <input
             id="mietsteigerungPercentPerYear"
             name="mietsteigerungPercentPerYear"
             type="number"
             step="0.1"
-            defaultValue={existing?.mehrjahresmodell.mietsteigerungPercentPerYear ?? P.mietsteigerungPercentPerYear.defaultValue}
+            defaultValue={existing?.mehrjahresmodell.mietsteigerungPercentPerYear ?? P.mietsteigerungPercentPerYear}
           />
         </div>
         <div className="field">
-          <label htmlFor="kosteninflationPercentPerYear">Kosteninflation (%/Jahr, Standard: {P.kosteninflationPercentPerYear.defaultValue})</label>
+          <label htmlFor="kosteninflationPercentPerYear">Kosteninflation (%/Jahr, Standard: {P.kosteninflationPercentPerYear})</label>
           <input
             id="kosteninflationPercentPerYear"
             name="kosteninflationPercentPerYear"
             type="number"
             step="0.1"
-            defaultValue={existing?.mehrjahresmodell.kosteninflationPercentPerYear ?? P.kosteninflationPercentPerYear.defaultValue}
+            defaultValue={existing?.mehrjahresmodell.kosteninflationPercentPerYear ?? P.kosteninflationPercentPerYear}
           />
         </div>
         <div className="field">
-          <label htmlFor="wertsteigerungPercentPerYear">Wertsteigerung (%/Jahr, Standard: {P.wertsteigerungPercentPerYear.defaultValue})</label>
+          <label htmlFor="wertsteigerungPercentPerYear">Wertsteigerung (%/Jahr, Standard: {P.wertsteigerungPercentPerYear})</label>
           <input
             id="wertsteigerungPercentPerYear"
             name="wertsteigerungPercentPerYear"
             type="number"
             step="0.1"
-            defaultValue={existing?.mehrjahresmodell.wertsteigerungPercentPerYear ?? P.wertsteigerungPercentPerYear.defaultValue}
+            defaultValue={existing?.mehrjahresmodell.wertsteigerungPercentPerYear ?? P.wertsteigerungPercentPerYear}
           />
         </div>
         <div className="field">
-          <label htmlFor="sellingCostPercent">Verkaufskosten Exit (%, Standard: {P.sellingCostPercent.defaultValue})</label>
+          <label htmlFor="sellingCostPercent">Verkaufskosten Exit (%, Standard: {P.sellingCostPercent})</label>
           <input
             id="sellingCostPercent"
             name="sellingCostPercent"
             type="number"
             step="0.1"
-            defaultValue={existing?.mehrjahresmodell.sellingCostPercent ?? P.sellingCostPercent.defaultValue}
+            defaultValue={existing?.mehrjahresmodell.sellingCostPercent ?? P.sellingCostPercent}
           />
         </div>
         <div className="field">

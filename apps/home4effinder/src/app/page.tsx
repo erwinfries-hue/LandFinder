@@ -5,8 +5,9 @@ import { SideNav } from "@/components/SideNav";
 import { DeletePropertyButton } from "@/components/DeletePropertyButton";
 import { getProperties, getPropertyDueDiligence, formatDateTime, type PropertyRow } from "@/lib/properties";
 import { formatChf } from "@/lib/format";
-import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
+import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts, type ParameterOverrides } from "@/lib/bestandsrendite";
 import { computeInvestmentScore, scoreTone } from "@/lib/investmentScore";
+import { getParameterOverrides } from "@/lib/parameterOverrides";
 
 export const metadata: Metadata = { title: "Objekte — HOME4efFINDER" };
 
@@ -24,12 +25,16 @@ export const dynamic = "force-dynamic";
  * `undefined` (graue "–"-Chip), solange Bestandsrendite-Fakten und/oder Due-Diligence-
  * Synthese fehlen — ein Score ohne jede Grundlage wäre irreführend präzise.
  */
-async function computeAmpelScore(property: PropertyRow): Promise<number | undefined> {
+async function computeAmpelScore(property: PropertyRow, parameterOverrides: ParameterOverrides): Promise<number | undefined> {
   const factsParsed = property.bestandsrendite ? parseBestandsrenditeFacts(property.bestandsrendite) : null;
   const facts = factsParsed && "facts" in factsParsed ? factsParsed.facts : null;
   if (!facts) return undefined;
 
-  const analysis = computeBestandsrenditeAnalysis({ kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton }, facts);
+  const analysis = computeBestandsrenditeAnalysis(
+    { kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton },
+    facts,
+    parameterOverrides,
+  );
   const dueDiligence = await getPropertyDueDiligence(property.id);
   if (!dueDiligence?.result) return undefined;
 
@@ -45,7 +50,8 @@ async function computeAmpelScore(property: PropertyRow): Promise<number | undefi
 export default async function HomePage() {
   const properties = await getProperties();
   const configured = properties !== null;
-  const ampelScores = configured ? await Promise.all(properties.map((p) => computeAmpelScore(p))) : [];
+  const parameterOverrides = configured ? await getParameterOverrides() : {};
+  const ampelScores = configured ? await Promise.all(properties.map((p) => computeAmpelScore(p, parameterOverrides))) : [];
 
   return (
     <div className="shell">

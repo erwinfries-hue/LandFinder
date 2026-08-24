@@ -1,6 +1,7 @@
 import { Panel, Chip, InfoHint } from "@landfinder/ui";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
+import { renditeAmpelColor } from "@/lib/investmentScore";
 import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, MoeblierungsAlternative } from "@/lib/bestandsrendite";
 
 /**
@@ -13,6 +14,8 @@ export function BestandsrenditeAnalysisView({
   result,
   verhandlungskorridor,
   moeblierungsAlternative,
+  bruttoRenditeZielPercent,
+  nettoRenditeZielPercent,
 }: {
   result: BestandsrenditeAnalysisResult;
   /** `undefined`/`null`, wenn `computeVerhandlungskorridor` keine Bisektionslösung fand (Objekt trägt sich unter keinen Umständen). */
@@ -24,6 +27,14 @@ export function BestandsrenditeAnalysisView({
    * erfasst), siehe `computeMoeblierungsAlternative`.
    */
   moeblierungsAlternative?: MoeblierungsAlternative | null;
+  /**
+   * Referenzwerte aus dem "Annahmen"-Reiter (`BESTANDSRENDITE_PARAMETERS.bruttoRenditeZielPercent`/
+   * `nettoRenditeZielPercent`) — Rückmeldung: "die ampel [...] überall dort [einbauen], wo werte
+   * und/oder informationen vom soll abweichen". Färbt die Rendite-Kennzahlen unten grün/gelb/rot
+   * relativ zum Ziel (siehe `renditeAmpelColor`), rein informativ, ohne die Werte selbst zu ändern.
+   */
+  bruttoRenditeZielPercent: number;
+  nettoRenditeZielPercent: number;
 }) {
   const {
     schnellcheck,
@@ -71,8 +82,9 @@ export function BestandsrenditeAnalysisView({
           <Metric
             l="Bruttorendite (Kaufpreis)"
             v={`${schnellcheck.bruttoRenditePercent.toFixed(2)}%`}
-            sub={alt ? `${altLabel}: ${alt.analysis.schnellcheck.bruttoRenditePercent.toFixed(2)}%` : undefined}
-            hint="= Jahresnettomiete ÷ Kaufpreis × 100."
+            valueColor={renditeAmpelColor(schnellcheck.bruttoRenditePercent, bruttoRenditeZielPercent)}
+            sub={alt ? `${altLabel}: ${alt.analysis.schnellcheck.bruttoRenditePercent.toFixed(2)}% · Ziel: ${bruttoRenditeZielPercent}%` : `Ziel: ${bruttoRenditeZielPercent}%`}
+            hint="= Jahresnettomiete ÷ Kaufpreis × 100. Farbe relativ zum Bruttorendite-Ziel (Annahmen-Reiter)."
           />
           <Metric
             l="Eigenkapitalbedarf"
@@ -143,8 +155,13 @@ export function BestandsrenditeAnalysisView({
           <Metric
             l="Bruttorendite auf Kaufpreis"
             v={`${investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}%`}
-            sub={alt ? `${altLabel}: ${alt.analysis.investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}%` : undefined}
-            hint="= potenzieller Jahresertrag (Mieten × 12 + sonstige Einnahmen, OHNE Leerstand-/Auslastungsabzug) ÷ Kaufpreis × 100."
+            valueColor={renditeAmpelColor(investmentCase.bruttoRenditeKaufpreisPercent, bruttoRenditeZielPercent)}
+            sub={
+              alt
+                ? `${altLabel}: ${alt.analysis.investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}% · Ziel: ${bruttoRenditeZielPercent}%`
+                : `Ziel: ${bruttoRenditeZielPercent}%`
+            }
+            hint="= potenzieller Jahresertrag (Mieten × 12 + sonstige Einnahmen, OHNE Leerstand-/Auslastungsabzug) ÷ Kaufpreis × 100. Farbe relativ zum Bruttorendite-Ziel (Annahmen-Reiter)."
           />
           <Metric
             l="Bruttorendite auf All-in"
@@ -154,7 +171,9 @@ export function BestandsrenditeAnalysisView({
           <Metric
             l="Nettorendite vor Finanzierung"
             v={`${investmentCase.nettoRenditeVorFinanzierungPercent.toFixed(2)}%`}
-            hint="= NOI (effektiver Jahresertrag − Betriebskosten) ÷ All-in-Investition × 100."
+            valueColor={renditeAmpelColor(investmentCase.nettoRenditeVorFinanzierungPercent, nettoRenditeZielPercent)}
+            sub={`Ziel: ${nettoRenditeZielPercent}%`}
+            hint="= NOI (effektiver Jahresertrag − Betriebskosten) ÷ All-in-Investition × 100. Farbe relativ zum Nettorendite-Ziel (Annahmen-Reiter)."
           />
           <Metric
             l="Cash-on-Cash"
