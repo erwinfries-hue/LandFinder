@@ -1980,6 +1980,29 @@ umgesetzt:
     ergänzt, von der Route aus `effectiveParams` befüllt — analog zum bestehenden
     Muster auf der Objektseite).
 
+## Nachgezogen (2026-08-24): PDF-One-Pager lief auf 2 Seiten über — Layout verdichtet
+
+Live-Test-Rückmeldung mit angehängtem PDF: "es soll auf einer Seite Platz haben, ohne
+dass du Inhalte weglässt." Nach der letzten Erweiterung (7 zusätzliche
+Investment-Case-/15-Jahres-Modell-Kennzahlen plus Ziel-Ampel, siehe vorherige zwei
+Einträge) lief der One-Pager bei einem typischen, gut befüllten Objekt (9
+Due-Diligence-Kategorien, mehrere fehlende Pflichtdokumente, 5 offene Fragen an
+Verkäufer/Makler) auf eine zweite Seite über — praktisch nur mit der letzten
+Fragen-Liste, der Rest der Seite blieb leer.
+
+Fix: reine Layout-Verdichtung in `managementSummaryPdf.tsx`, keine Kürzung von
+Inhalten — Seitenrand 32→26pt, Basis-Schriftgrösse 9→8.5pt, `sectionTitle`
+marginTop 12→7pt/marginBottom 5→3pt, `metric`-Zeilen marginBottom 8→5pt,
+`metricLabel`/`metricValue`/`metricSub` je ca. 1pt kleiner, `categoryRow`/`listItem`
+marginBottom leicht reduziert, Fusszeile kompakter. Mit einer Fixture, die dieselbe
+Grössenordnung an Inhalt wie das gemeldete Beispiel abbildet (9 Kategorien, 2 fehlende
+Dokumente, 5 Fragen, mehrzeilige `overallSummary`), per temporärem `vitest`-Test →
+`pdftoppm` → Bildkontrolle verifiziert: jetzt 1 Seite (vorher 2), noch mit spürbarem
+Weissraum am unteren Rand als Puffer für etwas umfangreichere Objekte. Eine harte
+Ein-Seiten-Garantie ist bei variabler Anzahl offener Fragen/fehlender Dokumente und
+KI-generierter `overallSummary`-Länge nicht möglich, ohne echte Inhalte zu kürzen —
+das war explizit nicht gewünscht.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

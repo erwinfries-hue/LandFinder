@@ -22,24 +22,33 @@ import { formatChf } from "./format";
 const SEVERITY_LABEL: Record<DueDiligenceSeverity, string> = { OK: "Unauffällig", KLAERUNGSBEDARF: "Klärungsbedarf", RISIKO: "Risiko" };
 const SEVERITY_COLOR: Record<DueDiligenceSeverity, string> = { OK: "#4f6e38", KLAERUNGSBEDARF: "#93641a", RISIKO: "#9b3b30" };
 
+/**
+ * Bewusst sehr kompakt (kleine Fonts/Abstände) — Rückmeldung: "es soll auf einer Seite
+ * Platz haben, ohne dass du Inhalte weglässt". Bei variablem Inhalt (Anzahl offener
+ * Fragen/fehlender Dokumente aus der Due-Diligence-Synthese, Länge der KI-generierten
+ * `overallSummary`) ist eine harte Ein-Seiten-Garantie nicht möglich, ohne Inhalte zu
+ * kürzen — die Kompaktheit hier ist so bemessen, dass ein normal umfangreiches Objekt
+ * (siehe Fixture in managementSummaryPdf.test.ts) auf eine Seite passt, ohne
+ * unleserlich zu werden.
+ */
 const styles = StyleSheet.create({
-  page: { padding: 32, fontSize: 9, fontFamily: "Helvetica", color: "#12201b" },
-  h1: { fontSize: 16, fontFamily: "Helvetica-Bold", marginBottom: 2 },
-  subtitle: { fontSize: 9, color: "#4a574e", marginBottom: 14 },
-  sectionTitle: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 12, marginBottom: 5, borderBottom: "1pt solid #cdd5cb", paddingBottom: 2 },
-  scoreRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
-  scoreBadge: { fontSize: 14, fontFamily: "Helvetica-Bold", color: "#f3faf8", borderRadius: 4, paddingVertical: 3, paddingHorizontal: 10 },
+  page: { padding: 26, fontSize: 8.5, fontFamily: "Helvetica", color: "#12201b" },
+  h1: { fontSize: 14.5, fontFamily: "Helvetica-Bold", marginBottom: 1.5 },
+  subtitle: { fontSize: 8, color: "#4a574e", marginBottom: 8 },
+  sectionTitle: { fontSize: 10, fontFamily: "Helvetica-Bold", marginTop: 7, marginBottom: 3, borderBottom: "1pt solid #cdd5cb", paddingBottom: 1.5 },
+  scoreRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
+  scoreBadge: { fontSize: 12.5, fontFamily: "Helvetica-Bold", color: "#f3faf8", borderRadius: 4, paddingVertical: 2.5, paddingHorizontal: 9 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap" },
-  metric: { width: "33%", marginBottom: 8, paddingRight: 8 },
-  metricLabel: { fontSize: 7.5, color: "#4a574e", textTransform: "uppercase", letterSpacing: 0.3 },
-  metricValue: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 1 },
-  metricSub: { fontSize: 7, color: "#7c8880", marginTop: 1 },
-  row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
-  categoryRow: { flexDirection: "row", marginBottom: 2, alignItems: "flex-start" },
-  categoryDot: { width: 6, height: 6, borderRadius: 3, marginTop: 2.5, marginRight: 5 },
-  categoryLabel: { width: 130, fontFamily: "Helvetica-Bold" },
-  listItem: { marginBottom: 2 },
-  footer: { position: "absolute", bottom: 20, left: 32, right: 32, fontSize: 7, color: "#7c8880", borderTop: "0.5pt solid #cdd5cb", paddingTop: 4 },
+  metric: { width: "33%", marginBottom: 5, paddingRight: 8 },
+  metricLabel: { fontSize: 6.8, color: "#4a574e", textTransform: "uppercase", letterSpacing: 0.3 },
+  metricValue: { fontSize: 10, fontFamily: "Helvetica-Bold", marginTop: 0.5 },
+  metricSub: { fontSize: 6.3, color: "#7c8880", marginTop: 0.5 },
+  row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 2 },
+  categoryRow: { flexDirection: "row", marginBottom: 1.5, alignItems: "flex-start" },
+  categoryDot: { width: 5.5, height: 5.5, borderRadius: 2.75, marginTop: 2, marginRight: 5 },
+  categoryLabel: { width: 125, fontFamily: "Helvetica-Bold" },
+  listItem: { marginBottom: 1.5 },
+  footer: { position: "absolute", bottom: 14, left: 26, right: 26, fontSize: 6.3, color: "#7c8880", borderTop: "0.5pt solid #cdd5cb", paddingTop: 3 },
 });
 
 function scoreColor(totalScore: number): string {
