@@ -11,7 +11,10 @@ const P = BESTANDSRENDITE_PARAMETERS;
 /** Grobe thematische Gruppierung der Registry — rein für die Darstellung, keine eigene Datenstruktur. */
 const GROUPS: { title: string; keys: BestandsrenditeParameterKey[] }[] = [
   { title: "Finanzierung — Vorschlagswerte für neue Objekte", keys: ["ersteHypothekBelehnungPercentDefault", "zweiteHypothekBelehnungPercentDefault", "zinsPercentDefault"] },
-  { title: "Renditeziele (reine Referenzwerte, ohne Einfluss auf die Ampel-Bewertung)", keys: ["bruttoRenditeZielPercent", "nettoRenditeZielPercent"] },
+  {
+    title: "Renditeziele (Bruttorendite-Ziel steuert zusätzlich den Zielpreis im Verhandlungskorridor; sonst reine Referenzwerte ohne Einfluss auf die Ampel-Bewertung)",
+    keys: ["bruttoRenditeZielPercent", "nettoRenditeZielPercent"],
+  },
   { title: "Leerstand & Vermietung", keys: ["leerstandLangfristigPercent", "leerstandMoebliertPercent"] },
   { title: "Kaufnebenkosten", keys: ["handaenderungssteuerPercent", "notariatGrundbuchPercent", "maklerprovisionPercent"] },
   { title: "Eigene Reserven", keys: ["reparaturreservePercentOfKaufpreis", "leerstandsreservePercentOfKaufpreis"] },
@@ -21,7 +24,6 @@ const GROUPS: { title: string; keys: BestandsrenditeParameterKey[] }[] = [
     title: "15-Jahres-Modell",
     keys: ["holdingPeriodYearsDefault", "mietsteigerungPercentPerYear", "kosteninflationPercentPerYear", "wertsteigerungPercentPerYear", "sellingCostPercent"],
   },
-  { title: "Verhandlungskorridor", keys: ["verhandlungsmargeZielPercent", "verhandlungsmargeEroeffnungPercent"] },
 ];
 
 /**

@@ -1,12 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { DueDiligenceResult, DueDiligenceFieldUpdateProposal, DueDiligenceContradiction } from "@landfinder/domain";
 import { Panel, Chip } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
 import { getPropertyById, getPropertyDocuments, getPropertyDueDiligence, formatDateTime } from "@/lib/properties";
 import { BESTANDSRENDITE_PARAMETERS, defaultsOf } from "@landfinder/financial-engine";
-import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, computeMoeblierungsAlternative, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
+import {
+  computeBestandsrenditeAnalysis,
+  computeVerhandlungskorridor,
+  computeMoeblierungsAlternative,
+  parseBestandsrenditeFacts,
+  isAllowedUpdateField,
+  isProposalAlreadyApplied,
+} from "@/lib/bestandsrendite";
 import { computeInvestmentScore, scoreTone } from "@/lib/investmentScore";
 import { getParameterOverrides } from "@/lib/parameterOverrides";
 import { BestandsrenditeVertiefungForm } from "@/components/BestandsrenditeVertiefungForm";
@@ -169,14 +177,39 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
           />
         </details>
 
-        <div id="due-diligence" className="anchor-target">
-          <DueDiligencePanel
-            propertyId={property.id}
-            objectLabel={property.title || property.address_text}
-            initialDocuments={(documents ?? []) as DueDiligenceDocumentRow[]}
-            initialDueDiligence={dueDiligence}
-          />
-        </div>
+        {(() => {
+          // Ergänzung, siehe DueDiligencePanel.tsx: "übernommen ✓" darf nicht nur ein
+          // client-seitiger, ephemerer Zustand sein — nach einem Neuladen zeigte der
+          // Vorschlag sonst wieder einen aktiven "Übernehmen"-Button, obwohl der Wert
+          // längst gespeichert war (per Live-Test beobachtet). Stattdessen hier serverseitig
+          // aus dem TATSÄCHLICH gespeicherten Wert hergeleitet — bleibt über jeden Reload
+          // hinweg korrekt und löst nebenbei auch die Widerspruchs-Optionen sauber im
+          // Entweder-oder-Sinn auf: nur die Option, deren Wert wirklich im Feld steht, gilt
+          // als übernommen.
+          const rawFacts = (property.bestandsrendite as Record<string, unknown>) ?? {};
+          const ddResult = (dueDiligence?.result ?? null) as DueDiligenceResult | null;
+          const candidates: { field: string; value: string | number }[] = [
+            ...(ddResult?.fieldUpdateProposals ?? []).map((p: DueDiligenceFieldUpdateProposal) => ({ field: p.field, value: p.newValue })),
+            ...(ddResult?.contradictions ?? []).flatMap((c: DueDiligenceContradiction) =>
+              c.field ? c.options.map((o) => ({ field: c.field!, value: o.value })) : [],
+            ),
+          ];
+          const alreadyAppliedProposalKeys = candidates
+            .filter((c) => isAllowedUpdateField(c.field) && isProposalAlreadyApplied(rawFacts, c.field, c.value))
+            .map((c) => `${c.field}::${c.value}`);
+
+          return (
+            <div id="due-diligence" className="anchor-target">
+              <DueDiligencePanel
+                propertyId={property.id}
+                objectLabel={property.title || property.address_text}
+                initialDocuments={(documents ?? []) as DueDiligenceDocumentRow[]}
+                initialDueDiligence={dueDiligence}
+                alreadyAppliedProposalKeys={alreadyAppliedProposalKeys}
+              />
+            </div>
+          );
+        })()}
 
         <p style={{ marginTop: "0.9rem" }}>
           <Link href="/" className="maplink">

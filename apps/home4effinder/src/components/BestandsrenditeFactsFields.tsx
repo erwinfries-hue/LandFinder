@@ -424,12 +424,15 @@ export function BestandsrenditeFactsFields({
           <input id="initialRenovationCostChf" name="initialRenovationCostChf" type="number" step="500" defaultValue={existing?.renovation.initialRenovationCostChf ?? 0} />
         </div>
         <div className="field">
-          <label htmlFor="mieteVorRenovationChfPerMonth">Miete vor Renovation (CHF/Monat, für Renovation-ROI)</label>
+          <label htmlFor="mieteVorRenovationChfPerMonth">
+            Miete vor Renovation (CHF/Monat, für Renovation-ROI — leer = Nettomiete Wohnung oben)
+          </label>
           <input
             id="mieteVorRenovationChfPerMonth"
             name="mieteVorRenovationChfPerMonth"
             type="number"
             step="10"
+            placeholder={String(existing?.miete.wohnungsMieteChfPerMonth ?? wohnungsMiete.value ?? "")}
             defaultValue={existing?.renovation.mieteVorRenovationChfPerMonth}
           />
         </div>
@@ -851,6 +854,22 @@ export function BestandsrenditeFactsFields({
       <div className="field" style={{ marginTop: ".45rem" }}>
         <label htmlFor="beschlussrisikenNotes">Beschlussrisiken (z.B. Rechtsstreitigkeiten zwischen Eigentümern)</label>
         <textarea id="beschlussrisikenNotes" name="beschlussrisikenNotes" rows={2} defaultValue={existing?.stweg.beschlussrisikenNotes} style={{ width: "100%" }} />
+      </div>
+
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
+        Verhandlung
+      </div>
+      <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .45rem" }}>
+        Maximum und Zielpreis im Verhandlungskorridor werden rechnerisch hergeleitet (Cashflow-Nullpunkt bzw.
+        Renditeziel). Das Eröffnungsangebot dagegen nicht — hier deine eigene, per Marktrecherche bestimmte
+        Einschätzung eintragen (z.B. Vergleichsobjekte, Verhandlungsspielraum laut Makler). Leer = wird nicht
+        angezeigt.
+      </p>
+      <div className="fieldgrid">
+        <div className="field">
+          <label htmlFor="eroeffnungsangebotChf">Eröffnungsangebot — eigene Markteinschätzung (CHF, optional)</label>
+          <input id="eroeffnungsangebotChf" name="eroeffnungsangebotChf" type="number" step="1000" defaultValue={existing?.eroeffnungsangebotChf} />
+        </div>
       </div>
 
       <div className="field" style={{ marginTop: "1rem" }}>

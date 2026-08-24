@@ -51,6 +51,7 @@ function scoreColor(totalScore: number): string {
 export interface ManagementSummaryInput {
   addressText: string;
   canton: string;
+  wohnflaecheM2: number;
   generatedAt: Date;
   analysis: BestandsrenditeAnalysisResult;
   verhandlungskorridor: Verhandlungskorridor | null;
@@ -63,6 +64,7 @@ export interface ManagementSummaryInput {
 function ManagementSummaryDocument({
   addressText,
   canton,
+  wohnflaecheM2,
   generatedAt,
   analysis,
   verhandlungskorridor,
@@ -70,11 +72,12 @@ function ManagementSummaryDocument({
   investmentScore,
   moeblierungsAlternative,
 }: ManagementSummaryInput) {
-  const { schnellcheck, investmentCase } = analysis;
+  const { schnellcheck, investmentCase, noiBreakdown, mehrjahresmodell, hypothek } = analysis;
   const missingZwingend = dueDiligence?.missingDocuments.filter((m) => m.priority === "ZWINGEND") ?? [];
   const topQuestions = dueDiligence?.sellerQuestions.slice(0, 5) ?? [];
   const alt = moeblierungsAlternative;
   const altLabel = alt ? `Alt. (${alt.label})` : "";
+  const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
 
   return (
     <Document title={`Management Summary — ${addressText}`}>
@@ -104,6 +107,7 @@ function ManagementSummaryDocument({
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Preis/m²</Text>
             <Text style={styles.metricValue}>CHF {formatChf(Math.round(schnellcheck.preisProM2Chf))}</Text>
+            <Text style={styles.metricSub}>{formatChf(wohnflaecheM2)} m²</Text>
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Bruttorendite</Text>
@@ -113,6 +117,7 @@ function ManagementSummaryDocument({
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Eigenkapitalbedarf</Text>
             <Text style={styles.metricValue}>CHF {formatChf(Math.round(schnellcheck.eigenkapitalbedarfChf))}</Text>
+            <Text style={styles.metricSub}>inkl. Kaufnebenkosten, Belehnung {schnellcheck.belehnungPercent}%</Text>
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Cash-on-Cash</Text>
@@ -125,6 +130,79 @@ function ManagementSummaryDocument({
               CHF {formatChf(Math.round(investmentCase.wasserfall.nachhaltigerCashflowChf))}
             </Text>
           </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Jahresnettomiete</Text>
+            <Text style={styles.metricValue}>CHF {formatChf(schnellcheck.jahresnettomieteChf)}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>Investment Case (Ebene B)</Text>
+        <View style={styles.metricsGrid}>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>All-in-Investition</Text>
+            <Text style={styles.metricValue}>CHF {formatChf(Math.round(analysis.allInInvestitionChf))}</Text>
+            <Text style={styles.metricSub}>Kaufpreis + Nebenkosten + Renovation + Möblierung</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Bruttorendite All-in</Text>
+            <Text style={styles.metricValue}>{investmentCase.bruttoRenditeAllInPercent.toFixed(2)}%</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Nettorendite vor Finanzierung</Text>
+            <Text style={styles.metricValue}>{investmentCase.nettoRenditeVorFinanzierungPercent.toFixed(2)}%</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Eigenkapital</Text>
+            <Text style={styles.metricValue}>CHF {formatChf(Math.round(analysis.eigenkapitalChf))}</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>NOI (vor Finanzierung)</Text>
+            <Text style={styles.metricValue}>CHF {formatChf(Math.round(noiBreakdown.noiChf))}</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>1./2. Hypothek</Text>
+            <Text style={styles.metricValue}>
+              CHF {formatChf(Math.round(hypothek.ersteHypothekChf))} / {formatChf(Math.round(hypothek.zweiteHypothekChf))}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.metricsGrid}>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Cashflow nach Zins</Text>
+            <Text style={styles.metricValue}>CHF {formatChf(Math.round(investmentCase.wasserfall.cashflowNachZinsChf))}</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Cashflow nach Amortisation</Text>
+            <Text style={styles.metricValue}>CHF {formatChf(Math.round(investmentCase.wasserfall.cashflowNachAmortisationChf))}</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Cashflow nach kalk. Steuer</Text>
+            <Text style={styles.metricValue}>CHF {formatChf(Math.round(investmentCase.wasserfall.cashflowNachSteuerChf))}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>{mehrjahresmodell.years.length}-Jahres-Modell (Ebene C)</Text>
+        <View style={styles.metricsGrid}>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Levered IRR</Text>
+            <Text style={styles.metricValue}>{mehrjahresmodell.leveredIrrPercent !== undefined ? `${mehrjahresmodell.leveredIrrPercent.toFixed(1)}%` : "—"}</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Unlevered IRR</Text>
+            <Text style={styles.metricValue}>{mehrjahresmodell.unleveredIrrPercent !== undefined ? `${mehrjahresmodell.unleveredIrrPercent.toFixed(1)}%` : "—"}</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Equity Multiple</Text>
+            <Text style={styles.metricValue}>{mehrjahresmodell.equityMultiple.toFixed(2)}×</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Exit-Erlös (netto)</Text>
+            <Text style={styles.metricValue}>CHF {formatChf(Math.round(mehrjahresmodell.exit.netProceedsChf))}</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricLabel}>Kumulierter Cashflow</Text>
+            <Text style={styles.metricValue}>CHF {formatChf(Math.round(lastYear.kumulierterCashflowChf))}</Text>
+          </View>
         </View>
 
         {verhandlungskorridor?.maximumChf !== undefined ? (
@@ -133,11 +211,16 @@ function ManagementSummaryDocument({
             <View style={styles.metricsGrid}>
               <View style={styles.metric}>
                 <Text style={styles.metricLabel}>Eröffnungsangebot</Text>
-                <Text style={styles.metricValue}>CHF {formatChf(Math.round(verhandlungskorridor.eroeffnungChf!))}</Text>
+                <Text style={styles.metricValue}>
+                  {verhandlungskorridor.eroeffnungChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.eroeffnungChf))}` : "—"}
+                </Text>
+                {verhandlungskorridor.eroeffnungChf === undefined ? <Text style={styles.metricSub}>eigene Markteinschätzung nicht erfasst</Text> : null}
               </View>
               <View style={styles.metric}>
                 <Text style={styles.metricLabel}>Zielpreis</Text>
-                <Text style={styles.metricValue}>CHF {formatChf(Math.round(verhandlungskorridor.zielChf!))}</Text>
+                <Text style={styles.metricValue}>
+                  {verhandlungskorridor.zielChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.zielChf))}` : "—"}
+                </Text>
               </View>
               <View style={styles.metric}>
                 <Text style={styles.metricLabel}>Maximum</Text>

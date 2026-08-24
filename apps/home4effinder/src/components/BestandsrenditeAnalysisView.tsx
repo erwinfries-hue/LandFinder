@@ -64,6 +64,13 @@ export function BestandsrenditeAnalysisView({
   ].filter((t): t is string => t !== null);
   const parkierungSub = parkierungTeile.length > 0 ? `davon zusätzlich: ${parkierungTeile.join(", ")}` : undefined;
 
+  // Für die Herleitungs-Sub-Texte unter Eigenkapitalbedarf/Eigenkapital unten — beide
+  // Grössen stecken bereits fertig verrechnet im Ergebnis, hier nur zur Anzeige wieder in
+  // ihre Bestandteile zerlegt (Rückmeldung: "in kleiner Schrift ergänzend [...] herleiten,
+  // was alles inkl. ist im Total").
+  const hypothekTotalChf = hypothek.ersteHypothekChf + hypothek.zweiteHypothekChf;
+  const kaufnebenkostenChf = schnellcheck.eigenkapitalbedarfChf - schnellcheck.kaufpreisChf + hypothekTotalChf;
+
   return (
     <>
       <Panel id="schnellcheck" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
@@ -89,7 +96,7 @@ export function BestandsrenditeAnalysisView({
           <Metric
             l="Eigenkapitalbedarf"
             v={`CHF ${formatChf(Math.round(schnellcheck.eigenkapitalbedarfChf))}`}
-            sub="inkl. Kaufnebenkosten"
+            sub={`= CHF ${formatChf(Math.round(schnellcheck.kaufpreisChf))} − CHF ${formatChf(Math.round(hypothekTotalChf))} (Hypothek) + CHF ${formatChf(Math.round(kaufnebenkostenChf))} (Nebenkosten)`}
             hint="= Kaufpreis − Hypothek (Belehnung-% × Kaufpreis) + Kaufnebenkosten."
           />
           <Metric l="Belehnung" v={`${schnellcheck.belehnungPercent}%`} hint="= Belehnung-% der 1. Hypothek + Belehnung-% der 2. Hypothek, wie erfasst." />
@@ -126,16 +133,24 @@ export function BestandsrenditeAnalysisView({
             <h2>Verhandlungskorridor</h2>
           </div>
           <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".6rem" }}>
-            Rechnerisch hergeleitet, keine erfundenen Prozentzahlen — Maximum ist der Kaufpreis, bei dem der nachhaltige
-            Cashflow gerade CHF 0 erreicht; Ziel/Eröffnung sind Sicherheitsmargen darunter.
+            Maximum ist der Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht. Zielpreis ist der
+            Kaufpreis, bei dem die Bruttorendite das gespeicherte Renditeziel erreicht (Annahmen-Reiter). Eröffnungsangebot
+            ist deine eigene, per Marktrecherche bestimmte Einschätzung (Bestandsrendite-Fakten, Abschnitt
+            &quot;Verhandlung&quot;) — kein Rechenwert.
           </p>
           <div className="metricgrid">
             <Metric
               l="Eröffnungsangebot"
-              v={`CHF ${formatChf(Math.round(verhandlungskorridor.eroeffnungChf!))}`}
-              hint="= Maximum × (1 − Sicherheitsmarge Eröffnung, Standard 7%)."
+              v={verhandlungskorridor.eroeffnungChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.eroeffnungChf))}` : "—"}
+              sub={verhandlungskorridor.eroeffnungChf === undefined ? "eigene Markteinschätzung noch nicht erfasst" : undefined}
+              hint="Eigene Markteinschätzung, siehe Bestandsrendite-Fakten, Abschnitt „Verhandlung“ — kein Rechenwert."
             />
-            <Metric l="Zielpreis" v={`CHF ${formatChf(Math.round(verhandlungskorridor.zielChf!))}`} hint="= Maximum × (1 − Sicherheitsmarge Ziel, Standard 3%)." />
+            <Metric
+              l="Zielpreis"
+              v={verhandlungskorridor.zielChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.zielChf))}` : "—"}
+              sub={verhandlungskorridor.zielChf === undefined ? "kein Renditeziel gesetzt (Annahmen-Reiter)" : undefined}
+              hint="= Kaufpreis, bei dem die Bruttorendite (Kaufpreis) das Renditeziel erreicht (Annahmen-Reiter), gedeckelt auf das Maximum."
+            />
             <Metric
               l="Maximum"
               v={`CHF ${formatChf(Math.round(verhandlungskorridor.maximumChf))}`}
@@ -181,7 +196,12 @@ export function BestandsrenditeAnalysisView({
             sub={alt ? `${altLabel}: ${alt.analysis.investmentCase.cashOnCashPercent.toFixed(2)}%` : undefined}
             hint="= nachhaltiger Cashflow Jahr 1 (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) ÷ eingesetztes Eigenkapital × 100."
           />
-          <Metric l="Eigenkapital" v={`CHF ${formatChf(Math.round(result.eigenkapitalChf))}`} hint="= All-in-Investition − Hypothek (1. + 2., je Kaufpreis × Belehnung-%)." />
+          <Metric
+            l="Eigenkapital"
+            v={`CHF ${formatChf(Math.round(result.eigenkapitalChf))}`}
+            sub={`= CHF ${formatChf(Math.round(result.allInInvestitionChf))} (All-in) − CHF ${formatChf(Math.round(hypothekTotalChf))} (Hypothek)`}
+            hint="= All-in-Investition − Hypothek (1. + 2., je Kaufpreis × Belehnung-%)."
+          />
         </div>
 
         <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
