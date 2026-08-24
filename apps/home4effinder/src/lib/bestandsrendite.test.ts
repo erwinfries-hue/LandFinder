@@ -104,6 +104,22 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(result.stweg).toEqual(fullFacts.stweg); // unveränderte Datenhaltung, siehe StwegFacts
   });
 
+  it("moeblierungsVergleich stellt Paket 1 (unmöbliert) und Paket 2 (möbliert) als vollständige, unabhängige Szenarien nebeneinander", () => {
+    const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    const { unmoebliert, moebliert } = result.moeblierungsVergleich;
+
+    expect(unmoebliert.mieteChfPerMonth).toBe(1_450); // = miete.wohnungsMieteChfPerMonth, ohne Möblierungsaufschlag
+    expect(moebliert.mieteChfPerMonth).toBe(1_750); // = 1450 + 300 Möblierungsaufschlag
+    expect(unmoebliert.kostenInitialChf).toBe(0); // kein Möblierungskosten-Aufwand im unmöblierten Paket
+    expect(moebliert.kostenInitialChf).toBe(10_000);
+    expect(unmoebliert.reserveChfPerJahr).toBeUndefined();
+    expect(moebliert.reserveChfPerJahr).toBeCloseTo(1_000, 5);
+    // Beide Szenarien nutzen denselben Leerstand-Faktor (dasselbe Vermietungsmodell) — nur
+    // der Möblierungsaufschlag unterscheidet den effektiven Jahresertrag zwischen ihnen.
+    expect(moebliert.effektiverJahresertragChf).toBeGreaterThan(unmoebliert.effektiverJahresertragChf);
+    expect(moebliert.bruttoRenditePercent).toBeGreaterThan(unmoebliert.bruttoRenditePercent);
+  });
+
   it("noiBreakdown summiert sich exakt zum bereits bekannten NOI aus dem Cashflow-Wasserfall (Drill-down-Anzeige)", () => {
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
     const b = result.noiBreakdown;

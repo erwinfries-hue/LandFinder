@@ -157,6 +157,29 @@ export interface NoiBreakdown {
   noiChf: number;
 }
 
+/** Eines der beiden Vermietungsszenarien im Möblierungs-Vergleich — siehe `MoeblierungsVergleich`. */
+export interface MoeblierungsSzenario {
+  mieteChfPerMonth: number;
+  kostenInitialChf: number;
+  /** Geglättete jährliche Ersatzreserve — `undefined` beim unmöblierten Szenario (keine Möbel, keine Ersatzreserve). */
+  reserveChfPerJahr: number | undefined;
+  effektiverJahresertragChf: number;
+  bruttoRenditePercent: number;
+}
+
+/**
+ * Stellt "unmöbliert vermieten" und "möbliert vermieten" als zwei vollständige,
+ * nebeneinander vergleichbare Pakete dar (Kosten + erwartete Miete + resultierender
+ * Ertrag je Szenario) — unabhängig davon, welches `vermietungsmodell` tatsächlich für
+ * die übrigen Berechnungen (Schnellcheck/Investment Case/15-Jahres-Modell) aktiv ist.
+ * Beide Szenarien nutzen denselben Leerstand/Auslastung-Faktor des aktiven Modells —
+ * der einzige Unterschied ist der Möblierungs-Mietaufschlag und die Möblierungskosten.
+ */
+export interface MoeblierungsVergleich {
+  unmoebliert: MoeblierungsSzenario;
+  moebliert: MoeblierungsSzenario;
+}
+
 export interface BestandsrenditeAnalysisResult {
   schnellcheck: SchnellcheckResult;
   allInInvestitionChf: number;
@@ -167,6 +190,7 @@ export interface BestandsrenditeAnalysisResult {
   furnitureRoi: ValueAddRoiResult | undefined;
   /** Geglättete jährliche Ersatzreserve für die Möblierung — rein informativ, nicht Grundlage der 15-Jahres-Cashflows (die rechnen mit dem tatsächlichen Ersatz-Cashout im Ersatzjahr, siehe mehrjahresmodell). */
   moeblierungReserveChfPerJahr: number | undefined;
+  moeblierungsVergleich: MoeblierungsVergleich;
   renovationRoi: ValueAddRoiResult | undefined;
   renovationSummary: RenovationPositionenSummary;
   mehrjahresmodell: MehrjahresmodellResult;
@@ -299,6 +323,13 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   };
 
   const furnitureRoi = facts.moeblierung.initialCostChf > 0 ? calculateFurnitureRoi({ moeblierungInitialChf: facts.moeblierung.initialCostChf, mietPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth }) : undefined;
+
+  // "ich möchte zwei Szenarien sehen: unmöbliert vs. möbliert" — beide vollständig
+  // nebeneinander gerechnet, statt nur den Mehrertrag/ROI der Möblierung isoliert zu
+  // zeigen (siehe DECISIONS.md). Nutzt denselben Leerstand/Auslastung-Faktor wie das
+  // aktive Vermietungsmodell, nur der Möblierungs-Mietaufschlag unterscheidet sich.
+  const ertragUnmoebliert = calculateJahresertrag({ ...investmentCaseInput.ertrag, moeblierungsPremiumChfPerMonth: 0 });
+  const ertragMoebliert = calculateJahresertrag({ ...investmentCaseInput.ertrag, moeblierungsPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth });
   const renovationRoi =
     facts.renovation.initialRenovationCostChf > 0 &&
     facts.renovation.mieteVorRenovationChfPerMonth !== undefined &&
@@ -315,6 +346,23 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
       ? { initialCostChf: facts.moeblierung.initialCostChf, nutzungsdauerJahre: moeblierungNutzungsdauerJahre, ersatzquotePercent: jaehrlicherErsatzsatzPercent, kostensteigerungPercentPerYear: moeblierungKostensteigerung }
       : undefined;
   const moeblierungReserveChfPerJahr = moeblierungLebenszyklus ? moeblierungGeglaetteReserveChfPerJahr(moeblierungLebenszyklus) : undefined;
+
+  const moeblierungsVergleich: MoeblierungsVergleich = {
+    unmoebliert: {
+      mieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth,
+      kostenInitialChf: 0,
+      reserveChfPerJahr: undefined,
+      effektiverJahresertragChf: ertragUnmoebliert.effektiverJahresertragChf,
+      bruttoRenditePercent: kaufpreisChf > 0 ? (ertragUnmoebliert.effektiverJahresertragChf / kaufpreisChf) * 100 : 0,
+    },
+    moebliert: {
+      mieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth + facts.moeblierung.mietPremiumChfPerMonth,
+      kostenInitialChf: facts.moeblierung.initialCostChf,
+      reserveChfPerJahr: moeblierungReserveChfPerJahr,
+      effektiverJahresertragChf: ertragMoebliert.effektiverJahresertragChf,
+      bruttoRenditePercent: kaufpreisChf > 0 ? (ertragMoebliert.effektiverJahresertragChf / kaufpreisChf) * 100 : 0,
+    },
+  };
 
   const mehrjahresmodellInput = {
     holdingPeriodYears: facts.mehrjahresmodell.holdingPeriodYears ?? P.holdingPeriodYearsDefault.defaultValue,
@@ -368,6 +416,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     },
     furnitureRoi,
     moeblierungReserveChfPerJahr,
+    moeblierungsVergleich,
     renovationRoi,
     renovationSummary,
     mehrjahresmodell,

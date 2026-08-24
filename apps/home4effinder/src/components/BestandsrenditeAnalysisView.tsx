@@ -19,6 +19,7 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
     investmentTreiber,
     furnitureRoi,
     moeblierungReserveChfPerJahr,
+    moeblierungsVergleich,
     renovationRoi,
     renovationSummary,
     breakEven,
@@ -237,12 +238,53 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
         </div>
       </Panel>
 
-      {furnitureRoi ? (
-        <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
-          <div className="sectionhead">
-            <h2>Value-Add — Möblierung</h2>
-          </div>
-          <div className="metricgrid">
+      <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
+        <div className="sectionhead">
+          <h2>Value-Add — Möblierung</h2>
+        </div>
+        <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".6rem" }}>
+          Zwei vollständige Szenarien im Vergleich — Paket 1 (unmöbliert) und Paket 2 (möbliert), siehe Eingabe oben.
+        </p>
+        <div style={{ overflowX: "auto" }}>
+          <table className="stresstable">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Paket 1 — unmöbliert</th>
+                <th>Paket 2 — möbliert</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Erwartete Miete</td>
+                <td className="num mono">CHF {formatChf(Math.round(moeblierungsVergleich.unmoebliert.mieteChfPerMonth))}/Monat</td>
+                <td className="num mono">CHF {formatChf(Math.round(moeblierungsVergleich.moebliert.mieteChfPerMonth))}/Monat</td>
+              </tr>
+              <tr>
+                <td>Kosten (einmalig)</td>
+                <td className="num mono">CHF {formatChf(moeblierungsVergleich.unmoebliert.kostenInitialChf)}</td>
+                <td className="num mono">CHF {formatChf(Math.round(moeblierungsVergleich.moebliert.kostenInitialChf))}</td>
+              </tr>
+              <tr>
+                <td>
+                  Effektiver Jahresertrag <InfoHint text="= (Miete + Parkplatz + sonstige Einnahmen) × 12 nach Leerstand/Auslastung des oben gewählten Vermietungsmodells." />
+                </td>
+                <td className="num mono">CHF {formatChf(Math.round(moeblierungsVergleich.unmoebliert.effektiverJahresertragChf))}</td>
+                <td className="num mono">CHF {formatChf(Math.round(moeblierungsVergleich.moebliert.effektiverJahresertragChf))}</td>
+              </tr>
+              <tr>
+                <td>
+                  Bruttorendite <InfoHint text="= effektiver Jahresertrag ÷ Kaufpreis × 100." />
+                </td>
+                <td className="num mono">{moeblierungsVergleich.unmoebliert.bruttoRenditePercent.toFixed(2)}%</td>
+                <td className="num mono">{moeblierungsVergleich.moebliert.bruttoRenditePercent.toFixed(2)}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {furnitureRoi ? (
+          <div className="metricgrid" style={{ marginTop: "1rem" }}>
             <Metric
               l="Zusätzlicher Jahresertrag"
               v={`CHF ${formatChf(Math.round(furnitureRoi.zusaetzlicherJahresertragChf))}`}
@@ -262,8 +304,8 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
               />
             ) : null}
           </div>
-        </Panel>
-      ) : null}
+        ) : null}
+      </Panel>
 
       {renovationRoi || renovationSummary.totalChf > 0 ? (
         <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>

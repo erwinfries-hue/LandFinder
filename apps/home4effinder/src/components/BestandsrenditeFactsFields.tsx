@@ -267,7 +267,9 @@ export function BestandsrenditeFactsFields({
       </div>
       <div className="fieldgrid">
         <div className="field">
-          <label htmlFor="wohnungsMieteChfPerMonth">Nettomiete Wohnung (CHF/Monat){wohnungsMiete.fromDoc ? ` (aus Dokument: ${wohnungsMiete.value})` : ""}</label>
+          <label htmlFor="wohnungsMieteChfPerMonth">
+            Nettomiete Wohnung — Paket 1: unmöbliert (CHF/Monat){wohnungsMiete.fromDoc ? ` (aus Dokument: ${wohnungsMiete.value})` : ""}
+          </label>
           <input
             id="wohnungsMieteChfPerMonth"
             name="wohnungsMieteChfPerMonth"
@@ -339,16 +341,30 @@ export function BestandsrenditeFactsFields({
       </div>
 
       <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
-        Möblierung (0, falls unmöbliert)
+        Value-Add — Möblierung: 2 Szenarien im Vergleich
       </div>
+      <p style={{ fontSize: ".78rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".7rem" }}>
+        <strong>Paket 1 — unmöbliert vermieten:</strong> Miete siehe &quot;Nettomiete Wohnung&quot; oben, Kosten CHF 0.{" "}
+        <strong>Paket 2 — möbliert vermieten:</strong> eigene erwartete Miete plus einmalige Möblierungskosten unten. Das oben
+        gewählte Vermietungsmodell legt fest, welches Paket in Schnellcheck/Rendite/15-Jahres-Modell tatsächlich gerechnet
+        wird — das Ergebnis beider Pakete im direkten Vergleich zeigt die Analyse weiter unten unter &quot;Value-Add —
+        Möblierung&quot;.
+      </p>
+      <div style={{ fontWeight: 600, fontSize: ".82rem", marginBottom: ".4rem" }}>Paket 2 — möbliert vermieten</div>
       <div className="fieldgrid">
+        <div className="field">
+          <label htmlFor="moeblierteMieteChfPerMonth">Erwartete Miete möbliert (CHF/Monat)</label>
+          <input
+            id="moeblierteMieteChfPerMonth"
+            name="moeblierteMieteChfPerMonth"
+            type="number"
+            step="10"
+            defaultValue={existing ? existing.miete.wohnungsMieteChfPerMonth + existing.moeblierung.mietPremiumChfPerMonth : undefined}
+          />
+        </div>
         <div className="field">
           <label htmlFor="moeblierungInitialCostChf">Möblierung — Initialkosten (CHF)</label>
           <input id="moeblierungInitialCostChf" name="moeblierungInitialCostChf" type="number" step="500" defaultValue={existing?.moeblierung.initialCostChf ?? 0} />
-        </div>
-        <div className="field">
-          <label htmlFor="mietPremiumChfPerMonth">Möblierungs-Mietpremium (CHF/Monat)</label>
-          <input id="mietPremiumChfPerMonth" name="mietPremiumChfPerMonth" type="number" step="10" defaultValue={existing?.moeblierung.mietPremiumChfPerMonth ?? 0} />
         </div>
         <div className="field">
           <label htmlFor="moeblierungNutzungsdauerJahre">Nutzungsdauer (Jahre, Standard: {P.moeblierungNutzungsdauerJahre.defaultValue})</label>
