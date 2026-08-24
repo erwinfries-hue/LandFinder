@@ -83,7 +83,14 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             <div>
               <h1>{property.title || property.address_text}</h1>
             </div>
-            <PropertyDeleteButton propertyId={property.id} propertyLabel={property.title || property.address_text} />
+            <div style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
+              {analysis ? (
+                <a href={`/api/properties/${property.id}/management-summary`} className="btn" style={{ width: "auto" }}>
+                  Management Summary (PDF)
+                </a>
+              ) : null}
+              <PropertyDeleteButton propertyId={property.id} propertyLabel={property.title || property.address_text} />
+            </div>
           </div>
           {investmentScore ? (
             <div style={{ display: "flex", alignItems: "center", gap: ".6rem", margin: ".6rem 0 0" }}>

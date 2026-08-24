@@ -1684,6 +1684,31 @@ gewünscht). Grauer "–"-Chip, solange Bestandsrendite-Fakten und/oder Due-Dili
 Synthese fehlen — ein Score ohne jede Grundlage wäre irreführend präzise für "noch nicht
 geprüft".
 
+## Nachgezogen (2026-08-24): Management Summary als One-Pager-PDF-Download
+
+Wunsch: "ein zusätzliches management summary als one pager pdf erstellen zum download.
+dieses soll auch bei der objektsicht ergänzt und aktualisiert werden wenn vorhanden."
+
+Technologiewahl: `@react-pdf/renderer` (reines JS, `renderToBuffer`) statt HTML→PDF via
+Headless-Browser (Puppeteer/Playwright) — Letzteres bräuchte auf Vercel serverless eine
+separate schlanke Chromium-Distribution (`@sparticuz/chromium`) und mehr Konfiguration,
+Ersteres läuft ohne Sonderaufwand in derselben Node-Runtime wie die übrigen API-Routen.
+
+Bewusst KEIN Ausdruck der ganzen (langen) Detailseite, sondern eine eigens kuratierte
+Auswahl der wichtigsten Punkte — das ist der Sinn eines "Management Summary": Adresse,
+Investment-Score, Kennzahlen (Kaufpreis, Bruttorendite, Cash-on-Cash, nachhaltiger
+Cashflow), Verhandlungskorridor, Due-Diligence-Status je Kategorie, fehlende
+Pflichtdokumente, die fünf wichtigsten offenen Verkäuferfragen.
+
+"aktualisiert werden wenn vorhanden": bewusst OHNE Speicherung/Caching gelöst — das PDF
+wird bei jedem Download frisch aus den aktuell gespeicherten Daten gerendert
+(`GET /api/properties/[id]/management-summary`), dadurch per Definition nie veraltet.
+Ein gespeichertes/gecachtes PDF hätte eine Invalidierungslogik gebraucht (wann neu
+generieren? nach jeder Due-Diligence-Synthese? nach jedem Fakten-Update?) — das wäre
+deutlich mehr Komplexität für denselben Nutzen gewesen. Download-Link auf der
+Objekt-Detailseite oben rechts neben "Objekt löschen", nur sichtbar wenn
+Bestandsrendite-Fakten erfasst sind (sonst kein sinnvoller Inhalt).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
