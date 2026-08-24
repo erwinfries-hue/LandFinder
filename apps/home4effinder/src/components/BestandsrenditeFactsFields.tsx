@@ -631,7 +631,7 @@ export function BestandsrenditeFactsFields({
             step="1"
             list="dl-zweite-belehnung"
             required
-            defaultValue={existing?.hypothek.zweiteHypothek.belehnungPercent ?? 15}
+            defaultValue={existing?.hypothek.zweiteHypothek.belehnungPercent ?? 10}
           />
         </div>
         <div className="field">
