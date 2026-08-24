@@ -263,42 +263,9 @@ export function BestandsrenditeFactsFields({
       </div>
 
       <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
-        Miete &amp; Vermietungsmodell
+        Miete &amp; Vermietungsmodell — gemeinsame Angaben (gelten für Paket 1 und 2)
       </div>
       <div className="fieldgrid">
-        <div className="field">
-          <label htmlFor="wohnungsMieteChfPerMonth">
-            Nettomiete Wohnung — Paket 1: unmöbliert (CHF/Monat){wohnungsMiete.fromDoc ? ` (aus Dokument: ${wohnungsMiete.value})` : ""}
-          </label>
-          <input
-            id="wohnungsMieteChfPerMonth"
-            name="wohnungsMieteChfPerMonth"
-            type="number"
-            step="10"
-            required
-            ref={wohnungsMieteInputRef}
-            defaultValue={existing?.miete.wohnungsMieteChfPerMonth ?? wohnungsMiete.value}
-          />
-          {!wohnungsMiete.fromDoc && !existing?.miete.wohnungsMieteChfPerMonth ? (
-            <div style={{ marginTop: ".3rem" }}>
-              <button
-                type="button"
-                className="btn"
-                style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem" }}
-                disabled={estimatingRent}
-                onClick={handleEstimateRent}
-              >
-                {estimatingRent ? "Schätzt…" : "Marktschätzung vorschlagen (kein Dokumentwert)"}
-              </button>
-              {rentEstimateError ? <div style={{ color: "var(--bad)", fontSize: ".74rem", marginTop: ".25rem" }}>{rentEstimateError}</div> : null}
-              {rentEstimate ? (
-                <div style={{ color: "var(--warn)", fontSize: ".74rem", marginTop: ".25rem" }}>
-                  Annahme (KI-Schätzung, keine Live-Marktdaten) — bitte prüfen: {rentEstimate.rationale}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
         <div className="field">
           <label htmlFor="parkplatzMieteChfPerMonth">Miete Parkplatz (CHF/Monat){parkplatzMiete.fromDoc ? ` (aus Dokument: ${parkplatzMiete.value})` : ""}</label>
           <input
@@ -344,13 +311,51 @@ export function BestandsrenditeFactsFields({
         Value-Add — Möblierung: 2 Szenarien im Vergleich
       </div>
       <p style={{ fontSize: ".78rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".7rem" }}>
-        <strong>Paket 1 — unmöbliert vermieten:</strong> Miete siehe &quot;Nettomiete Wohnung&quot; oben, Kosten CHF 0.{" "}
-        <strong>Paket 2 — möbliert vermieten:</strong> eigene erwartete Miete plus einmalige Möblierungskosten unten. Das oben
-        gewählte Vermietungsmodell legt fest, welches Paket in Schnellcheck/Rendite/15-Jahres-Modell tatsächlich gerechnet
-        wird — das Ergebnis beider Pakete im direkten Vergleich zeigt die Analyse weiter unten unter &quot;Value-Add —
-        Möblierung&quot;.
+        Jedes Paket komplett für sich erfasst — Paket 1 hat schlicht keine eigenen Zusatzkosten, Paket 2 zusätzlich
+        einmalige Möblierungskosten. Das oben gewählte Vermietungsmodell legt fest, welches Paket in
+        Schnellcheck/Rendite/15-Jahres-Modell tatsächlich gerechnet wird — das Ergebnis beider Pakete im direkten
+        Vergleich zeigt die Analyse weiter unten unter &quot;Value-Add — Möblierung&quot;.
       </p>
-      <div style={{ fontWeight: 600, fontSize: ".82rem", marginBottom: ".4rem" }}>Paket 2 — möbliert vermieten</div>
+      <div style={{ fontWeight: 600, fontSize: ".82rem", marginBottom: ".4rem" }}>Paket 1 — unmöbliert vermieten</div>
+      <div className="fieldgrid">
+        <div className="field">
+          <label htmlFor="wohnungsMieteChfPerMonth">
+            Nettomiete Wohnung unmöbliert (CHF/Monat){wohnungsMiete.fromDoc ? ` (aus Dokument: ${wohnungsMiete.value})` : ""}
+          </label>
+          <input
+            id="wohnungsMieteChfPerMonth"
+            name="wohnungsMieteChfPerMonth"
+            type="number"
+            step="10"
+            required
+            ref={wohnungsMieteInputRef}
+            defaultValue={existing?.miete.wohnungsMieteChfPerMonth ?? wohnungsMiete.value}
+          />
+          {!wohnungsMiete.fromDoc && !existing?.miete.wohnungsMieteChfPerMonth ? (
+            <div style={{ marginTop: ".3rem" }}>
+              <button
+                type="button"
+                className="btn"
+                style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem" }}
+                disabled={estimatingRent}
+                onClick={handleEstimateRent}
+              >
+                {estimatingRent ? "Schätzt…" : "Marktschätzung vorschlagen (kein Dokumentwert)"}
+              </button>
+              {rentEstimateError ? <div style={{ color: "var(--bad)", fontSize: ".74rem", marginTop: ".25rem" }}>{rentEstimateError}</div> : null}
+              {rentEstimate ? (
+                <div style={{ color: "var(--warn)", fontSize: ".74rem", marginTop: ".25rem" }}>
+                  Annahme (KI-Schätzung, keine Live-Marktdaten) — bitte prüfen: {rentEstimate.rationale}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        <div className="field">
+          <div style={{ color: "var(--ink-faint)", fontSize: ".8125rem", marginTop: "1.4rem" }}>Zusatzkosten: CHF 0 (keine Möblierung)</div>
+        </div>
+      </div>
+      <div style={{ fontWeight: 600, fontSize: ".82rem", margin: ".9rem 0 .4rem" }}>Paket 2 — möbliert vermieten</div>
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="moeblierteMieteChfPerMonth">Erwartete Miete möbliert (CHF/Monat)</label>
