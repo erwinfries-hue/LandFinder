@@ -66,7 +66,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .eq("id", propertyId);
   if (updateError) {
     console.error(`[api/properties/${propertyId}] Speichern fehlgeschlagen`, updateError);
-    return NextResponse.json({ saved: false, error: "write failed" }, { status: 500 });
+    // Ausnahmsweise die Postgres-Fehlermeldung direkt zurückgeben (statt eines generischen
+    // "write failed") — Single-User-Tool ohne Mandantentrennung, kein Informationsleck an
+    // Dritte. Ohne das war ein fehlgeschlagenes Speichern nicht diagnostizierbar, ohne
+    // Zugriff auf die Server-Logs zu haben.
+    return NextResponse.json({ saved: false, error: `write failed: ${updateError.message} (${updateError.code})` }, { status: 500 });
   }
 
   return NextResponse.json({ saved: true });
