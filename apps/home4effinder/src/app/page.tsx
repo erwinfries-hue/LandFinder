@@ -1,19 +1,51 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Panel } from "@landfinder/ui";
+import { Panel, Chip } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { DeletePropertyButton } from "@/components/DeletePropertyButton";
-import { getProperties, formatDateTime } from "@/lib/properties";
+import { getProperties, getPropertyDueDiligence, formatDateTime, type PropertyRow } from "@/lib/properties";
 import { formatChf } from "@/lib/format";
+import { computeBestandsrenditeAnalysis, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
+import { computeInvestmentScore, scoreTone } from "@/lib/investmentScore";
 
 export const metadata: Metadata = { title: "Objekte — HOME4efFINDER" };
 
 /** Zeigt live den aktuellen Datenbankstand statt eines beim letzten Deploy eingefrorenen Snapshots. */
 export const dynamic = "force-dynamic";
 
+/**
+ * Ampel-Übersicht für die Objektliste — Rückmeldung: "überlege, wo du mit einem
+ * ergänzenden ampelsystem eine einfache uebersicht der bewertung machen kannst". Die
+ * Liste zeigte bisher nur Rohdaten (Adresse/Preis/Fläche), keinerlei Einschätzung — man
+ * musste jedes Objekt einzeln öffnen, um zu sehen, ob es sich überhaupt lohnt,
+ * genauer hinzuschauen. Derselbe deterministische Investment-Score wie auf der
+ * Objekt-Detailseite (computeInvestmentScore), hier nur kompakt als farbiger Chip statt
+ * mit Aufschlüsselung — die volle Aufschlüsselung bleibt der Detailseite vorbehalten.
+ * `undefined` (graue "–"-Chip), solange Bestandsrendite-Fakten und/oder Due-Diligence-
+ * Synthese fehlen — ein Score ohne jede Grundlage wäre irreführend präzise.
+ */
+async function computeAmpelScore(property: PropertyRow): Promise<number | undefined> {
+  const factsParsed = property.bestandsrendite ? parseBestandsrenditeFacts(property.bestandsrendite) : null;
+  const facts = factsParsed && "facts" in factsParsed ? factsParsed.facts : null;
+  if (!facts) return undefined;
+
+  const analysis = computeBestandsrenditeAnalysis({ kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton }, facts);
+  const dueDiligence = await getPropertyDueDiligence(property.id);
+  if (!dueDiligence?.result) return undefined;
+
+  const score = computeInvestmentScore({
+    categories: dueDiligence.result.categories,
+    missingDocuments: dueDiligence.result.missingDocuments,
+    bruttoRenditePercent: analysis.schnellcheck.bruttoRenditePercent,
+    cashflowChf: analysis.schnellcheck.groberCashflowChf,
+  });
+  return score?.totalScore;
+}
+
 export default async function HomePage() {
   const properties = await getProperties();
   const configured = properties !== null;
+  const ampelScores = configured ? await Promise.all(properties.map((p) => computeAmpelScore(p))) : [];
 
   return (
     <div className="shell">
@@ -47,6 +79,9 @@ export default async function HomePage() {
             <table style={{ marginTop: "1rem" }}>
               <thead>
                 <tr>
+                  <th title="Investment-Score (0-100) — Due Diligence, Dokumentation, Rendite. Grau, solange Bestandsrendite-Fakten und/oder Due-Diligence-Synthese fehlen.">
+                    Ampel
+                  </th>
                   <th>Adresse</th>
                   <th>Kanton</th>
                   <th className="num">Kaufpreis</th>
@@ -57,8 +92,19 @@ export default async function HomePage() {
                 </tr>
               </thead>
               <tbody>
-                {properties.map((p) => (
+                {properties.map((p, i) => (
                   <tr key={p.id}>
+                    <td>
+                      {ampelScores[i] !== undefined ? (
+                        <Chip tone={scoreTone(ampelScores[i]!)} title={`Investment-Score ${ampelScores[i]}/100`}>
+                          {ampelScores[i]}
+                        </Chip>
+                      ) : (
+                        <Chip tone="neutral" title="Noch nicht bewertet — Bestandsrendite-Fakten und/oder Due-Diligence-Synthese fehlen.">
+                          –
+                        </Chip>
+                      )}
+                    </td>
                     <td>
                       <Link href={`/objekte/${p.id}`} className="maplink">
                         {p.title || p.address_text}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DueDiligenceCategoryResult, DueDiligenceMissingDocument } from "@landfinder/domain";
-import { computeInvestmentScore } from "./investmentScore";
+import { computeInvestmentScore, scoreTone } from "./investmentScore";
 
 function category(status: DueDiligenceCategoryResult["status"]): DueDiligenceCategoryResult {
   return { category: "STWEG", status, findings: [] };
@@ -40,5 +40,16 @@ describe("computeInvestmentScore", () => {
     const categories = Array.from({ length: 9 }, () => category("OK"));
     const result = computeInvestmentScore({ categories, missingDocuments: [], bruttoRenditePercent: 50, cashflowChf: 1_000_000 });
     expect(result?.totalScore).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("scoreTone", () => {
+  it("ordnet Score-Bereiche den drei Ampel-Farben zu (Objekt-Detailseite UND Objektliste nutzen dieselbe Funktion)", () => {
+    expect(scoreTone(100)).toBe("good");
+    expect(scoreTone(70)).toBe("good");
+    expect(scoreTone(69)).toBe("warn");
+    expect(scoreTone(40)).toBe("warn");
+    expect(scoreTone(39)).toBe("bad");
+    expect(scoreTone(0)).toBe("bad");
   });
 });

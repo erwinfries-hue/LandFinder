@@ -1,4 +1,5 @@
 import type { DueDiligenceCategoryResult, DueDiligenceMissingDocument } from "@landfinder/domain";
+import type { ChipTone } from "@landfinder/ui";
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
 
 /**
@@ -59,4 +60,16 @@ export function computeInvestmentScore(params: {
     documentationScore: Math.round(documentationScore),
     renditeScore: Math.round(renditeScore),
   };
+}
+
+/**
+ * Ampel-Farbe für den Investment-Score — eine gemeinsame Stelle statt in jeder
+ * verwendenden Seite neu definiert (Objekt-Detailseite UND Objektliste, siehe
+ * DECISIONS.md "Ampelsystem"). Grenzen bewusst grosszügig (siehe computeInvestmentScore),
+ * keine harte Kauf-/Ablehnungsempfehlung.
+ */
+export function scoreTone(totalScore: number): ChipTone {
+  if (totalScore >= 70) return "good";
+  if (totalScore >= 40) return "warn";
+  return "bad";
 }
