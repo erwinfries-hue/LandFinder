@@ -115,13 +115,13 @@ export function BestandsrenditeAnalysisView({
           <Metric
             l="1. Hypothek"
             v={`CHF ${formatChf(Math.round(hypothek.ersteHypothekChf))}`}
-            sub={`Amortisation CHF ${formatChf(Math.round(hypothek.ersteAmortisationChfPerYear))}/Jahr`}
+            sub={`Amortisation CHF ${formatChf(Math.round(hypothek.ersteAmortisationChfPerYear))} p.a.`}
             hint={'Betrag = Kaufpreis × Belehnung-% (1. Hypothek). Amortisation: bei „Prozent pro Jahr" = Betrag × Satz; bei „Dauer in Jahren" = Betrag ÷ Jahre.'}
           />
           <Metric
             l="2. Hypothek"
             v={`CHF ${formatChf(Math.round(hypothek.zweiteHypothekChf))}`}
-            sub={`Amortisation CHF ${formatChf(Math.round(hypothek.zweiteAmortisationChfPerYear))}/Jahr`}
+            sub={`Amortisation CHF ${formatChf(Math.round(hypothek.zweiteAmortisationChfPerYear))} p.a.`}
             hint={'Betrag = Kaufpreis × Belehnung-% (2. Hypothek). Amortisation: bei „Prozent pro Jahr" = Betrag × Satz; bei „Dauer in Jahren" = Betrag ÷ Jahre.'}
           />
         </div>
@@ -388,7 +388,7 @@ export function BestandsrenditeAnalysisView({
             {moeblierungReserveChfPerJahr !== undefined ? (
               <Metric
                 l="Geglättete Ersatzreserve"
-                v={`CHF ${formatChf(Math.round(moeblierungReserveChfPerJahr))}/Jahr`}
+                v={`CHF ${formatChf(Math.round(moeblierungReserveChfPerJahr))} p.a.`}
                 hint="Rein informativ — die 15-Jahres-Cashflows rechnen mit dem tatsächlichen Ersatz-Cashout im Ersatzjahr, nicht mit dieser geglätteten Reserve."
               />
             ) : null}
