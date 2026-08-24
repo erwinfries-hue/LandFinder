@@ -240,11 +240,25 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
   const moeblierungNutzungsdauerJahre = facts.moeblierung.nutzungsdauerJahre ?? P.moeblierungNutzungsdauerJahre.defaultValue;
   const moeblierungKostensteigerung = facts.moeblierung.kostensteigerungPercentPerYear ?? P.kosteninflationPercentPerYear.defaultValue;
 
+  // "Vermietungsmodell" ist das eigentliche Auswahlfeld für das bevorzugte Szenario
+  // (unmöbliert/möbliert, siehe DECISIONS.md) — Möblierungskosten/-mietaufschlag dürfen
+  // NUR einfliessen, wenn möbliert tatsächlich das gewählte Modell ist. Vorher
+  // inkonsistent: Ebene A (Schnellcheck) ignorierte sie immer, Ebene B/C (All-in-
+  // Investition, Investment Case, Mehrjahresmodell, Verhandlungskorridor)
+  // berücksichtigten sie immer, sobald erfasst — unabhängig vom gewählten Modell. Der
+  // volle Vergleich beider Szenarien bleibt in `moeblierungsVergleich`/`furnitureRoi`
+  // (Value-Add-Möblierung-Panel) unverändert erhalten — die verwenden bewusst weiterhin
+  // die ungegateten Rohwerte, weil sie unabhängig vom aktuell gewählten Szenario
+  // beantworten sollen, ob sich Möblieren überhaupt lohnen würde.
+  const moeblierungIstGewaehltesSzenario = facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT";
+  const moeblierungsPremiumChfPerMonth = moeblierungIstGewaehltesSzenario ? facts.moeblierung.mietPremiumChfPerMonth : 0;
+  const moeblierungInitialChfEffective = moeblierungIstGewaehltesSzenario ? facts.moeblierung.initialCostChf : 0;
+
   const allInInvestitionChf = calculateAllInInvestition({
     kaufpreisChf,
     nebenkosten,
     renovationInitialChf: facts.renovation.initialRenovationCostChf,
-    moeblierungInitialChf: facts.moeblierung.initialCostChf,
+    moeblierungInitialChf: moeblierungInitialChfEffective,
     sonstigeInitialkostenChf: 0,
   });
 
@@ -264,6 +278,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     wohnflaecheM2: property.wohnflaecheM2,
     wohnungsMieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth,
     parkplatzMieteChfPerMonth: facts.miete.parkplatzMieteChfPerMonth,
+    moeblierungsPremiumChfPerMonth,
     kaufnebenkostenPercent,
     laufendeKostenChfPerYear:
       facts.betriebskosten.stwegAkontobeitragChfPerYear + facts.betriebskosten.eigentuemerkostenChfPerYear + facts.betriebskosten.vermietungskostenChfPerYear,
@@ -291,7 +306,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     ertrag: {
       wohnungsMieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth,
       parkplatzMieteChfPerMonth: facts.miete.parkplatzMieteChfPerMonth,
-      moeblierungsPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth,
+      moeblierungsPremiumChfPerMonth,
       sonstigeEinnahmenChfPerYear: facts.miete.sonstigeEinnahmenChfPerYear,
       vermietungsmodell: facts.miete.vermietungsmodell,
       leerstandPercent: facts.miete.leerstandPercent ?? leerstandDefaultPercent,
@@ -347,6 +362,10 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
       ? { initialCostChf: facts.moeblierung.initialCostChf, nutzungsdauerJahre: moeblierungNutzungsdauerJahre, ersatzquotePercent: jaehrlicherErsatzsatzPercent, kostensteigerungPercentPerYear: moeblierungKostensteigerung }
       : undefined;
   const moeblierungReserveChfPerJahr = moeblierungLebenszyklus ? moeblierungGeglaetteReserveChfPerJahr(moeblierungLebenszyklus) : undefined;
+  // `moeblierungLebenszyklus` bleibt oben ungegatet (Value-Add-Reserve ist informativ,
+  // unabhängig vom gewählten Szenario) — für das tatsächliche 15-Jahres-Modell (reale
+  // Ersatz-Cashouts) gilt dieselbe Gating-Regel wie überall sonst in dieser Funktion.
+  const moeblierungLebenszyklusEffective = moeblierungIstGewaehltesSzenario ? moeblierungLebenszyklus : undefined;
 
   const moeblierungsVergleich: MoeblierungsVergleich = {
     unmoebliert: {
@@ -378,7 +397,7 @@ export function computeBestandsrenditeAnalysis(property: BestandsrenditeProperty
     kosteninflationPercentPerYear: facts.mehrjahresmodell.kosteninflationPercentPerYear ?? P.kosteninflationPercentPerYear.defaultValue,
     wertsteigerungPercentPerYear: facts.mehrjahresmodell.wertsteigerungPercentPerYear ?? P.wertsteigerungPercentPerYear.defaultValue,
     wertvermehrendeRenovationChf: renovationSummary.totalByKategorie.WERTVERMEHREND,
-    moeblierung: moeblierungLebenszyklus,
+    moeblierung: moeblierungLebenszyklusEffective,
     hypothek: {
       ersteHypothek: { initialLoanChf: ersteHypothekChf, amortisation: facts.hypothek.ersteHypothek.amortisation },
       zweiteHypothek: { initialLoanChf: zweiteHypothekChf, amortisation: facts.hypothek.zweiteHypothek.amortisation },
@@ -461,6 +480,39 @@ export function computeVerhandlungskorridor(property: BestandsrenditePropertyInp
   const zielChf = maximumChf * (1 - P.verhandlungsmargeZielPercent.defaultValue / 100);
   const eroeffnungChf = maximumChf * (1 - P.verhandlungsmargeEroeffnungPercent.defaultValue / 100);
   return { maximumChf, zielChf, eroeffnungChf };
+}
+
+export interface MoeblierungsAlternative {
+  label: "unmöbliert" | "möbliert";
+  analysis: BestandsrenditeAnalysisResult;
+  verhandlungskorridor: Verhandlungskorridor;
+}
+
+/**
+ * Rechnet das jeweils ANDERE Szenario (möbliert/unmöbliert) komplett durch — für eine
+ * kompakte "Schattenrechnung" neben den Hauptkennzahlen auf allen Ebenen (Rückmeldung:
+ * "bitte prüfen, wo dieser Vergleich überall durchschlägt resp. als Vergleich
+ * dargestellt werden soll", siehe DECISIONS.md). Ergänzt `moeblierungsVergleich` (der nur
+ * Miete/Kosten/Jahresertrag/Bruttorendite vergleicht) um die übrigen, vom gewählten
+ * Szenario abhängigen Kennzahlen (IRR, Equity Multiple, Verhandlungskorridor, …), die sich
+ * nicht einfach algebraisch aus den beiden Ertragswerten ableiten lassen.
+ *
+ * `null`, wenn kein sinnvolles Alternativszenario existiert: SHORT_STAY kennt keine
+ * unmöbliert/möbliert-Unterscheidung, und ohne erfasste Möblierungsdaten (weder Kosten
+ * noch Mietaufschlag) wäre das Alternativszenario ohnehin identisch mit dem Hauptszenario.
+ */
+export function computeMoeblierungsAlternative(property: BestandsrenditePropertyInput, facts: BestandsrenditeFacts): MoeblierungsAlternative | null {
+  const aktuell = facts.miete.vermietungsmodell;
+  if (aktuell !== "LANGFRISTIG_UNMOEBLIERT" && aktuell !== "MITTELFRISTIG_MOEBLIERT") return null;
+  if (facts.moeblierung.initialCostChf <= 0 && facts.moeblierung.mietPremiumChfPerMonth <= 0) return null;
+
+  const alternativesModell: Vermietungsmodell = aktuell === "LANGFRISTIG_UNMOEBLIERT" ? "MITTELFRISTIG_MOEBLIERT" : "LANGFRISTIG_UNMOEBLIERT";
+  const alternativeFacts: BestandsrenditeFacts = { ...facts, miete: { ...facts.miete, vermietungsmodell: alternativesModell } };
+  return {
+    label: alternativesModell === "MITTELFRISTIG_MOEBLIERT" ? "möbliert" : "unmöbliert",
+    analysis: computeBestandsrenditeAnalysis(property, alternativeFacts),
+    verhandlungskorridor: computeVerhandlungskorridor(property, alternativeFacts),
+  };
 }
 
 const VERMIETUNGSMODELL_VALUES: Vermietungsmodell[] = ["LANGFRISTIG_UNMOEBLIERT", "MITTELFRISTIG_MOEBLIERT", "SHORT_STAY"];

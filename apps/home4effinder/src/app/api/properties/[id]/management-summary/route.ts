@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasValidSession } from "@/lib/authSession";
 import { getPropertyById, getPropertyDueDiligence } from "@/lib/properties";
-import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
+import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, computeMoeblierungsAlternative, parseBestandsrenditeFacts } from "@/lib/bestandsrendite";
 import { computeInvestmentScore } from "@/lib/investmentScore";
 import { renderManagementSummaryPdf } from "@/lib/managementSummaryPdf";
 
@@ -27,6 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const propertyInput = { kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton };
   const analysis = computeBestandsrenditeAnalysis(propertyInput, facts);
   const verhandlungskorridor = computeVerhandlungskorridor(propertyInput, facts);
+  const moeblierungsAlternative = computeMoeblierungsAlternative(propertyInput, facts);
   const dueDiligence = await getPropertyDueDiligence(propertyId);
 
   const investmentScore = dueDiligence?.result
@@ -46,6 +47,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     verhandlungskorridor,
     dueDiligence: dueDiligence?.result ?? null,
     investmentScore,
+    moeblierungsAlternative,
   });
 
   const safeFilename = (property.title || property.address_text).replace(/[^a-zA-Z0-9äöüÄÖÜ_.-]+/g, "_");

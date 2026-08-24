@@ -120,6 +120,23 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(moebliert.bruttoRenditePercent).toBeGreaterThan(unmoebliert.bruttoRenditePercent);
   });
 
+  it("Ebene A/B/C zeigen konsistent NUR das per Vermietungsmodell gewählte Szenario — Möblierungsaufschlag/-kosten fliessen nicht ein, wenn unmöbliert gewählt ist, obwohl beide erfasst sind (Regressionstest: vorher inkonsistent zwischen Ebenen)", () => {
+    const moebliertGewaehlt = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    const unmoebliertGewaehlt = computeBestandsrenditeAnalysis(
+      { kaufpreisChf: 870_000, wohnflaecheM2: 75 },
+      { ...fullFacts, miete: { ...fullFacts.miete, vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT" } },
+    );
+
+    // Dieselben erfassten Möblierungsdaten (300 Aufschlag, 10'000 Kosten) — nur das
+    // Vermietungsmodell unterscheidet sich.
+    expect(unmoebliertGewaehlt.schnellcheck.jahresnettomieteChf).toBe(moebliertGewaehlt.schnellcheck.jahresnettomieteChf - 300 * 12);
+    expect(unmoebliertGewaehlt.allInInvestitionChf).toBe(moebliertGewaehlt.allInInvestitionChf - 10_000);
+    expect(unmoebliertGewaehlt.investmentCase.wasserfall.noiChf).toBeLessThan(moebliertGewaehlt.investmentCase.wasserfall.noiChf);
+    // moeblierungsVergleich zeigt trotzdem weiterhin BEIDE Szenarien im Detail — die
+    // Gating-Regel betrifft nur die "Haupt"-Kennzahlen (Ebene A/B/C), nicht den Vergleich.
+    expect(unmoebliertGewaehlt.moeblierungsVergleich.moebliert.mieteChfPerMonth).toBe(1_750);
+  });
+
   it("noiBreakdown summiert sich exakt zum bereits bekannten NOI aus dem Cashflow-Wasserfall (Drill-down-Anzeige)", () => {
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
     const b = result.noiBreakdown;

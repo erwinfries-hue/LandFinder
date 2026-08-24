@@ -35,6 +35,7 @@ describe("calculateSchnellcheck (Ebene A)", () => {
       wohnflaecheM2: 75,
       wohnungsMieteChfPerMonth: 1_450,
       parkplatzMieteChfPerMonth: 150,
+      moeblierungsPremiumChfPerMonth: 0,
       kaufnebenkostenPercent: 2.5,
       laufendeKostenChfPerYear: 4_000,
       loanToValuePercent: 70,
@@ -49,6 +50,22 @@ describe("calculateSchnellcheck (Ebene A)", () => {
     expect(result.belehnungPercent).toBe(70);
     const hypothekChf = 900_000 * 0.7;
     expect(result.groberCashflowChf).toBeCloseTo((1_450 + 150) * 12 - 4_000 - hypothekChf * 0.02, 5);
+  });
+
+  it("bezieht moeblierungsPremiumChfPerMonth in die Jahresnettomiete/Bruttorendite ein, wenn gesetzt — Aufrufer entscheidet anhand des Vermietungsmodells, ob 0 oder der erfasste Aufschlag übergeben wird", () => {
+    const result = calculateSchnellcheck({
+      wohnungskaufpreisChf: 850_000,
+      parkplatzkaufpreisChf: 50_000,
+      wohnflaecheM2: 75,
+      wohnungsMieteChfPerMonth: 1_450,
+      parkplatzMieteChfPerMonth: 150,
+      moeblierungsPremiumChfPerMonth: 300,
+      kaufnebenkostenPercent: 2.5,
+      laufendeKostenChfPerYear: 4_000,
+      loanToValuePercent: 70,
+      interestRatePercent: 2,
+    });
+    expect(result.jahresnettomieteChf).toBe((1_450 + 150 + 300) * 12);
   });
 });
 
