@@ -62,13 +62,16 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
   // Nur Anker zu Abschnitten, die auf dieser Seite tatsächlich gerendert werden (z.B. kein
   // "Verhandlungskorridor"-Link, wenn dafür keine Bisektionslösung gefunden wurde) — siehe
   // ObjectSectionNav.tsx.
+  // Labels bewusst kurz (statt z.B. "Bestandsrendite"/"Verhandlungskorridor" voll
+  // ausgeschrieben) — Rückmeldung: auf dem Handy möglichst ohne horizontales Scrollen
+  // sichtbar, siehe ObjectSectionNav.tsx/.section-nav in globals.css.
   const sectionLinks = [
     { href: "#objektdaten", label: "Objekt" },
-    ...(analysis ? [{ href: "#schnellcheck", label: "Bestandsrendite" }] : []),
-    ...(verhandlungskorridor?.maximumChf !== undefined ? [{ href: "#verhandlungskorridor", label: "Verhandlungskorridor" }] : []),
-    ...(analysis ? [{ href: "#investment-case", label: "Investment Case" }] : []),
+    ...(analysis ? [{ href: "#schnellcheck", label: "Rendite" }] : []),
+    ...(verhandlungskorridor?.maximumChf !== undefined ? [{ href: "#verhandlungskorridor", label: "Verhandlung" }] : []),
+    ...(analysis ? [{ href: "#investment-case", label: "Investment" }] : []),
     ...(analysis ? [{ href: "#value-add-moeblierung", label: "Value-Add" }] : []),
-    ...(analysis ? [{ href: "#mehrjahresmodell", label: "15-Jahres-Modell" }] : []),
+    ...(analysis ? [{ href: "#mehrjahresmodell", label: "15 Jahre" }] : []),
     { href: "#due-diligence", label: "Due Diligence" },
   ];
 

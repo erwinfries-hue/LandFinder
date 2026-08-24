@@ -958,8 +958,12 @@ table.sortable th {
   min-width: 0;
 }
 
-/* Sprungmarken-Navigation auf der Objekt-Detailseite (ObjectSectionNav.tsx) — sticky,
-   horizontal scrollbar für schmale/mobile Bildschirme statt Umbruch. `.anchor-target`
+/* Sprungmarken-Navigation auf der Objekt-Detailseite (ObjectSectionNav.tsx). Desktop:
+   `position: sticky` (genug Breite für eine Zeile, reserviert automatisch den nötigen
+   Platz, kein manuelles Nachrechnen der Höhe nötig). Mobile: `position: fixed` statt
+   sticky (siehe @media unten) — Rückmeldung "soll vertikal fixiert sein", explizit
+   ausserhalb des normalen Flusses statt nur "beim Vorbeiscrollen einrastend", plus
+   horizontaler Scroll als Fallback statt Pflicht (siehe dort für Details). `.anchor-target`
    markiert die per Link angesprungenen Panels, damit sie beim Springen nicht unter der
    Nav (bzw. auf Mobile zusätzlich unter dem fixed Burger-Menü) verschwinden. */
 .section-nav {
@@ -967,12 +971,12 @@ table.sortable th {
   top: 0;
   z-index: 20;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.4rem;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--paper);
   border-bottom: 1px solid var(--line);
-  padding: 0.6rem 0;
+  padding: 0.5rem 0;
   margin-bottom: 1.2rem;
 }
 .section-nav a {
@@ -1331,13 +1335,32 @@ table.sortable th {
   /* .mobilenav-burger ist jetzt fixed statt sticky (bleibt garantiert oben, unabhängig
      vom Scroll-Kontext) — dadurch verlässt es den normalen Fluss, .main braucht also
      eigenen Abstand, damit der Inhalt nicht darunter startet. */
+  /* .section-nav auf Mobile ebenfalls `position: fixed` statt sticky (Rückmeldung: "soll
+     vertikal fixiert sein") — verlässt dadurch wie der Burger den normalen Fluss, .main
+     braucht deshalb zusätzlichen Abstand oben (Burger-Höhe + Nav-Höhe statt nur Burger).
+     Reduzierte Padding/Gap-Werte + gekürzte Labels (siehe ObjectSectionNav.tsx-Aufrufer)
+     allein reichen auf schmalen Geräten (getestet: 390px) nicht für eine Zeile ohne
+     Scrollen — deshalb zusätzlich `flex-wrap: wrap` statt Pflicht-Scroll (Rückmeldung:
+     "möglichst ohne horizontales Scrollen"), `overflow-x: auto` bleibt nur als Fallback
+     für einzelne besonders lange Labels. .main bekommt grosszügig Platz für den
+     Worst-Case (zwei Zeilen bei voller Abschnittsanzahl) statt einer exakt berechneten
+     Höhe — etwas Leerraum bei weniger Abschnitten ist der kleinere Fehler gegenüber
+     verdecktem Seiteninhalt. */
   .main {
-    padding-top: 5rem;
+    padding-top: 10rem;
   }
-  /* .section-nav ist innerhalb von .main sticky, muss auf Mobile also unterhalb des
-     fixed .mobilenav-burger einrasten statt ihn zu überdecken. */
   .section-nav {
+    position: fixed;
     top: 3rem;
+    left: 0;
+    right: 0;
+    padding: 0.5rem 1rem;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+  .section-nav a {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.72rem;
   }
   .anchor-target {
     scroll-margin-top: 7rem;

@@ -1709,6 +1709,39 @@ deutlich mehr Komplexität für denselben Nutzen gewesen. Download-Link auf der
 Objekt-Detailseite oben rechts neben "Objekt löschen", nur sichtbar wenn
 Bestandsrendite-Fakten erfasst sind (sonst kein sinnvoller Inhalt).
 
+## Nachgezogen (2026-08-24): Sprungmarken-Navigation echt fixiert + ohne horizontales Scrollen, "write failed" beim Objekt-Basisdaten-Speichern diagnostizierbar gemacht
+
+Zwei Live-Test-Rückmeldungen zur eben gebauten Sprungmarken-Navigation und ein neu
+beobachteter Speicherfehler:
+
+**Sprungmarken-Navigation**: `position: sticky` hat sich in einer kontrollierten
+Nachstellung (Playwright, echtes Scrollen statt nur Anker-Klick) korrekt verhalten —
+liess sich aber nicht mit Sicherheit als tatsächliche Ursache der Live-Beobachtung
+ausschliessen. Da die Rückmeldung explizit "vertikal fixiert" verlangte, auf Mobile
+(≤980px) jetzt echtes `position: fixed` statt `sticky` — robuster als sticky, unabhängig
+von Sticky-Kontext-Eigenheiten (z.B. Browser-Adressleisten-Ein-/Ausblenden). `.main`
+bekommt entsprechend mehr Abstand oben (Burger + Nav-Höhe statt nur Burger), da ein fixed
+Element den normalen Fluss verlässt und keinen Platz mehr reserviert. Desktop bleibt
+`sticky` (dort bereits nachweislich korrekt, keine Fixed-Positionierungs-Fallstricke mit
+der Seitenleiste nötig).
+
+Zusätzlich: Labels gekürzt (z.B. "Bestandsrendite" → "Rendite", "Verhandlungskorridor" →
+"Verhandlung") und `flex-wrap: wrap` auf Mobile statt Pflicht-Scroll — bei 7 gleichzeitig
+sichtbaren Abschnitten reichten gekürzte Labels allein auf 390px nicht für eine Zeile
+(gemessen: 592px benötigt vs. 390px verfügbar), mit Umbruch auf zwei Zeilen passt es ohne
+horizontales Scrollen (Rückmeldung: "möglichst ohne horizontales Scrollen"). `.main`
+bekommt grosszügig Platz für den Zwei-Zeilen-Worst-Case statt einer exakt berechneten
+Höhe — etwas Leerraum bei weniger Abschnitten ist der kleinere Fehler gegenüber
+verdecktem Seiteninhalt.
+
+**"write failed" beim Speichern der Objekt-Basisdaten**: liess sich anhand des Codes
+nicht abschliessend reproduzieren (Schema/RLS/Trigger unauffällig, andere Schreibzugriffe
+auf `properties` funktionieren nachweislich). Statt zu raten: die Route gibt jetzt die
+echte Postgres-Fehlermeldung zurück (`updateError.message`/`.code`) statt des generischen
+"write failed" — Single-User-Tool ohne Mandantentrennung, kein Informationsleck an
+Dritte. Zeigt beim nächsten Auftreten die tatsächliche Ursache, statt dass nur Zugriff
+auf Server-Logs weiterhelfen würde.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
