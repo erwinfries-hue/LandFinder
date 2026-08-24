@@ -1531,6 +1531,47 @@ bereits erfasste Werte bleiben unverändert). Label um "kalkulatorisch" ergänzt
 zu machen, dass es sich um eine bewusste Modellannahme handelt, nicht um einen konkreten
 Hypothekarofferten-Zins.
 
+## Nachgezogen (2026-08-24): "Value-Add — Möblierung" als 2 vollständige Szenarien neu aufgebaut
+
+Wunsch: "'Value-Add — Möblierung' dieses thema bitte grundsätzlich neu aufbauen: ich
+möchte zwei szenarien sehen: 1. ohne möblierung vermieten und möbliert vermieten. hierzu
+gehören die kosten und erwartete miete. bitte bei der eingabe diese 2 szenarien sauber
+als paket darstellen". Vorher war die Eingabe unklar strukturiert: eine einzelne
+"Nettomiete Wohnung" (deren Rolle als unmöbliert/möbliert nicht explizit war) plus ein
+separates "Möblierungs-Mietpremium"-Delta-Feld — und dieses Delta floss in
+`calculateJahresertrag` IMMER in den Hauptertrag ein, unabhängig vom gewählten
+"Vermietungsmodell" (Bug/Unklarheit: kein echtes Umschalten zwischen zwei Szenarien,
+sondern ein Premium, das bei gesetztem Wert stets mitgerechnet wurde).
+
+Eingabe (Formular) neu strukturiert als 2 klar benannte Pakete:
+- **Paket 1 — unmöbliert**: bestehendes Feld "Nettomiete Wohnung" umbenannt zu
+  "... — Paket 1: unmöbliert (CHF/Monat)", Kosten CHF 0 (impliziert, keine eigenen Felder
+  nötig).
+- **Paket 2 — möbliert**: neues Feld "Erwartete Miete möbliert (CHF/Monat)"
+  (`moeblierteMieteChfPerMonth`, ABSOLUTER Wert statt Delta — passender zum Wunsch
+  "hierzu gehören die Kosten und erwartete Miete" je Paket) direkt neben den bereits
+  bestehenden Möblierungskosten-Feldern (Initialkosten/Nutzungsdauer/Ersatzquote/
+  Kosteninflation). `buildBestandsrenditeFactsFromFormData` rechnet daraus weiterhin den
+  intern gespeicherten Mietaufschlag (`mietPremiumChfPerMonth = max(0, möbliert −
+  unmöbliert)`) — keine Schema-/API-Änderung nötig, die Rechenformeln (`calculateJahresertrag`
+  & Co. in financial-engine) bleiben unverändert. Bekannte Einschränkung: da beide Felder
+  unabhängige, unkontrollierte Inputs sind (kein Live-JS-Sync), zeigt das Möbliert-Feld
+  beim Bearbeiten eines bestehenden Objekts den zuletzt gespeicherten Absolutwert
+  (Basis+Aufschlag) — ändert man nur die unmöblierte Miete ohne die möblierte
+  nachzuführen, verschiebt sich der daraus abgeleitete Aufschlag entsprechend. Wie bei
+  den bereits bestehenden Hypothek-Feldpaaren im selben Formular als akzeptabler
+  Kompromiss bewertet (kein controlled-Form-Umbau für dieses eine Feldpaar).
+
+Ausgabe (`BestandsrenditeAnalysisView.tsx`, Sektion "Value-Add — Möblierung"): neue
+Vergleichstabelle zeigt jetzt IMMER (nicht mehr nur wenn Möblierungskosten > 0) beide
+Pakete nebeneinander — erwartete Miete, Kosten, effektiver Jahresertrag, Bruttorendite.
+Neues `moeblierungsVergleich`-Feld im Analyse-Ergebnis (`bestandsrendite.ts`) rechnet
+beide Szenarien vollständig durch (`calculateJahresertrag` je einmal mit
+Möblierungsaufschlag 0 bzw. dem erfassten Aufschlag), nutzt denselben Leerstand-/
+Auslastungsfaktor des aktiv gewählten Vermietungsmodells — nur der Möblierungsaufschlag
+unterscheidet die beiden Szenarien. Bisherige ROI/Payback/Ersatzreserve-Kennzahlen
+(Furniture ROI) bleiben als ergänzende Metriken unterhalb der neuen Tabelle erhalten.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

@@ -22,6 +22,27 @@ describe("buildBestandsrenditeFactsFromFormData", () => {
     expect(facts.baujahr).toBeUndefined();
   });
 
+  it("rechnet die im Formular als Paket-2-Absolutwert erfasste 'Miete möbliert' in den intern gespeicherten Mietaufschlag um", () => {
+    const ohneMoeblierteMiete = buildBestandsrenditeFactsFromFormData(formDataFrom({ wohnungsMieteChfPerMonth: "1450" }), "LANGFRISTIG_UNMOEBLIERT", []);
+    expect((ohneMoeblierteMiete.moeblierung as Record<string, unknown>).mietPremiumChfPerMonth).toBe(0); // kein Paket-2-Wert erfasst → kein Aufschlag
+
+    const mitMoeblierterMiete = buildBestandsrenditeFactsFromFormData(
+      formDataFrom({ wohnungsMieteChfPerMonth: "1450", moeblierteMieteChfPerMonth: "1750" }),
+      "MITTELFRISTIG_MOEBLIERT",
+      [],
+    );
+    expect((mitMoeblierterMiete.moeblierung as Record<string, unknown>).mietPremiumChfPerMonth).toBe(300);
+    expect((mitMoeblierterMiete.miete as Record<string, unknown>).wohnungsMieteChfPerMonth).toBe(1450); // Paket 1 bleibt unverändert
+
+    // Möblierte Miete unter der unmöblierten eingetragen (unplausibel) — kein negativer Aufschlag.
+    const unterUnmoebliert = buildBestandsrenditeFactsFromFormData(
+      formDataFrom({ wohnungsMieteChfPerMonth: "1450", moeblierteMieteChfPerMonth: "1000" }),
+      "MITTELFRISTIG_MOEBLIERT",
+      [],
+    );
+    expect((unterUnmoebliert.moeblierung as Record<string, unknown>).mietPremiumChfPerMonth).toBe(0);
+  });
+
   it("übernimmt gesetzte Werte korrekt", () => {
     const facts = buildBestandsrenditeFactsFromFormData(
       formDataFrom({ zimmerzahl: "3.5", baujahr: "1998", wohnungsMieteChfPerMonth: "1450" }),

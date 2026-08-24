@@ -20,6 +20,15 @@ export function buildBestandsrenditeFactsFromFormData(
   };
   const req = (key: string): number => num(key) ?? 0;
 
+  // Paket 1 (unmöbliert) und Paket 2 (möbliert) werden im Formular je mit ihrer eigenen
+  // "erwartete Miete" erfasst (siehe BestandsrenditeFactsFields.tsx) — gespeichert wird
+  // weiterhin intern als Mietaufschlag (mietPremiumChfPerMonth), damit die Rechenformeln
+  // (calculateJahresertrag & Co.) unverändert bleiben. Kein Aufschlag ohne erfasste
+  // Möbliert-Miete oder falls sie unter der unmöblierten Miete läge (kein negativer Wert).
+  const wohnungsMieteChfPerMonth = req("wohnungsMieteChfPerMonth");
+  const moeblierteMieteChfPerMonth = num("moeblierteMieteChfPerMonth");
+  const mietPremiumChfPerMonth = moeblierteMieteChfPerMonth !== undefined ? Math.max(0, moeblierteMieteChfPerMonth - wohnungsMieteChfPerMonth) : 0;
+
   return {
     zimmerzahl: num("zimmerzahl"),
     baujahr: num("baujahr"),
@@ -52,13 +61,13 @@ export function buildBestandsrenditeFactsFromFormData(
     },
     moeblierung: {
       initialCostChf: req("moeblierungInitialCostChf"),
-      mietPremiumChfPerMonth: req("mietPremiumChfPerMonth"),
+      mietPremiumChfPerMonth,
       jaehrlicherErsatzsatzPercent: num("jaehrlicherErsatzsatzPercent"),
       nutzungsdauerJahre: num("moeblierungNutzungsdauerJahre"),
       kostensteigerungPercentPerYear: num("moeblierungKostensteigerungPercentPerYear"),
     },
     miete: {
-      wohnungsMieteChfPerMonth: req("wohnungsMieteChfPerMonth"),
+      wohnungsMieteChfPerMonth,
       parkplatzMieteChfPerMonth: req("parkplatzMieteChfPerMonth"),
       sonstigeEinnahmenChfPerYear: req("sonstigeEinnahmenChfPerYear"),
       vermietungsmodell,
