@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import type { DueDiligenceDocumentType } from "@landfinder/domain";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { hasValidSession } from "@/lib/authSession";
@@ -64,6 +65,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const bytes = new Uint8Array(await file.arrayBuffer());
   // Siehe Kommentar in documents/route.ts — Storage-Key bewusst ohne Original-Dateinamen.
   const storagePath = `${propertyId}/${crypto.randomUUID()}.${isPdf ? "pdf" : "txt"}`;
+  // Siehe Kommentar in documents/route.ts — Content-Hash für die Dubletten-Erkennung.
+  const contentHash = createHash("sha256").update(bytes).digest("hex");
 
   const { error: uploadError } = await supabase.storage
     .from("property-documents")
@@ -83,6 +86,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       analysis_status: "DONE",
       extraction,
       analyzed_at: new Date().toISOString(),
+      content_hash: contentHash,
     })
     .select("id")
     .single();

@@ -40,6 +40,9 @@ function appliedFieldKey(field: string, value: string | number): string {
 /** Datei, die ausgewählt aber noch nicht hochgeladen ist — Dokumenttyp aus dem Dateinamen vorgeschlagen, vor dem Hochladen editierbar. */
 type StagedFile = { file: File; documentType: DueDiligenceDocumentType; guessed: boolean };
 
+/** Eine Gruppe byte-identischer Dokumente (gleicher SHA-256-Content-Hash) — `documents[0]` ist das älteste (Löschvorschlag betrifft die übrigen). */
+type DuplicateGroup = { contentHash: string; documents: { id: string; filename: string; uploadedAt: string }[] };
+
 /** Bewusst dieselbe Grenze wie `MAX_PASTED_TEXT_LENGTH` in dueDiligenceExtraction.ts (nicht von dort importiert, um den Anthropic-SDK-Server-Code nicht ins Client-Bundle zu ziehen). */
 const MAX_PASTED_TEXT_LENGTH = 200_000;
 
@@ -91,6 +94,10 @@ export function DueDiligencePanel({
   const [reanalyzing, setReanalyzing] = useState<string | null>(null);
   const [togglingExcluded, setTogglingExcluded] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [duplicateCheckError, setDuplicateCheckError] = useState<string | null>(null);
+  /** `null` = noch nie geprüft (Button nicht ausgeblendet, aber auch keine "0 Dubletten"-Meldung angezeigt). */
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[] | null>(null);
 
   // `initialDocuments` ist eine serverseitige Momentaufnahme vom letzten Seitenaufbau —
   // nach einem frischen Upload braucht `router.refresh()` (siehe handleUpload) eine
@@ -263,6 +270,25 @@ export function DueDiligencePanel({
       window.alert("Löschen fehlgeschlagen (Netzwerkfehler).");
     } finally {
       setDeleting(null);
+    }
+  }
+
+  async function handleDetectDuplicates() {
+    setCheckingDuplicates(true);
+    setDuplicateCheckError(null);
+    try {
+      const body = await fetchJsonWithRetry<{ duplicateGroups?: DuplicateGroup[]; error?: string }>(`/api/properties/${propertyId}/documents/detect-duplicates`, {
+        method: "POST",
+      });
+      if (!body.duplicateGroups) {
+        setDuplicateCheckError(body.error ?? "Prüfung fehlgeschlagen.");
+        return;
+      }
+      setDuplicateGroups(body.duplicateGroups);
+    } catch {
+      setDuplicateCheckError("Prüfung fehlgeschlagen (Netzwerkfehler).");
+    } finally {
+      setCheckingDuplicates(false);
     }
   }
 
@@ -450,6 +476,53 @@ export function DueDiligencePanel({
       <div className="sectionhead">
         <h2 style={{ fontSize: ".85rem" }}>Hochgeladene Dokumente ({initialDocuments.length})</h2>
       </div>
+
+      {initialDocuments.length >= 2 ? (
+        <div style={{ marginBottom: ".8rem" }}>
+          <button type="button" className="btn" style={{ width: "auto", padding: ".2rem .6rem", fontSize: ".76rem" }} disabled={checkingDuplicates} onClick={handleDetectDuplicates}>
+            {checkingDuplicates ? "Prüft…" : "Auf Dubletten prüfen"}
+          </button>
+          {duplicateCheckError ? <p style={{ color: "var(--bad)", fontSize: ".78rem", marginTop: ".3rem" }}>{duplicateCheckError}</p> : null}
+          {duplicateGroups !== null ? (
+            duplicateGroups.length === 0 ? (
+              <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem", marginTop: ".4rem" }}>Keine byte-identischen Dubletten gefunden.</p>
+            ) : (
+              <div style={{ marginTop: ".5rem", display: "flex", flexDirection: "column", gap: ".5rem" }}>
+                {duplicateGroups.map((group) => {
+                  const [keep, ...rest] = group.documents;
+                  return (
+                    <div key={group.contentHash} style={{ fontSize: ".8125rem", border: "1px solid var(--line)", borderRadius: 6, padding: ".5rem .6rem" }}>
+                      <div>
+                        <Chip tone="warn">Dublette</Chip> <strong>{keep.filename}</strong> (behalten, ältestes Original, {formatDateTime(keep.uploadedAt)}) ist inhaltlich identisch
+                        mit:
+                      </div>
+                      <ul style={{ listStyle: "none", margin: ".3rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: ".3rem" }}>
+                        {rest.map((doc) => (
+                          <li key={doc.id} style={{ display: "flex", gap: ".5rem", alignItems: "baseline", flexWrap: "wrap" }}>
+                            <span>
+                              {doc.filename} ({formatDateTime(doc.uploadedAt)})
+                            </span>
+                            <button
+                              type="button"
+                              className="btn"
+                              style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem" }}
+                              disabled={deleting === doc.id}
+                              onClick={() => handleDeleteDocument(doc.id, doc.filename)}
+                            >
+                              {deleting === doc.id ? "Löscht…" : "Löschvorschlag: Löschen"}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : null}
+        </div>
+      ) : null}
+
       {initialDocuments.length === 0 ? (
         <p style={{ color: "var(--ink-faint)", fontSize: ".8125rem" }}>Noch keine Dokumente hochgeladen.</p>
       ) : (

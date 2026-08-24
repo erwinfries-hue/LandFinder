@@ -1618,6 +1618,31 @@ eigenes Ergebnis hätte eine Rekursion erzeugt. Wird auf der Objektseite separat
 berechnet und der Analyse-Ansicht als zusätzliche Prop übergeben. Neues Panel
 "Verhandlungskorridor" direkt nach dem Schnellcheck.
 
+## Nachgezogen (2026-08-24): Dokumenten-Dubletten-Erkennung
+
+Wunsch: "auch die Dokumente auf dubletten überprüfen und wenn vorhanden, löschvorschlag
+machen".
+
+Umsetzung per SHA-256-Content-Hash der rohen Datei-Bytes, bewusst NICHT per
+Dateinamen-Heuristik (z.B. "-1"-Suffix) — ein ähnlicher/gleicher Dateiname beweist keine
+Inhaltsgleichheit (unterschiedliche Dokumente können zufällig ähnlich heissen), und
+umgekehrt könnten unterschiedlich benannte Dateien zufällig denselben Inhalt haben. Nur
+byte-exakte Duplikate zählen — keine falsch-positiven Löschvorschläge möglich.
+
+Neue Spalte `content_hash` (Migration 0006) auf `property_documents`. Wird bei jedem
+neuen Upload sofort berechnet (beide Upload-Routen: documents/route.ts und
+documents/attach/route.ts). Neue Route `POST .../documents/detect-duplicates`: holt alle
+Dokumente eines Objekts, berechnet für bereits VOR Migration 0006 hochgeladene Dokumente
+den Hash nachträglich (Backfill — Download aus Storage, Hash, in DB speichern), gruppiert
+danach nach Hash und liefert nur Gruppen mit >1 Dokument zurück, ältestes Dokument je
+Gruppe zuerst (= Löschvorschlag betrifft die jüngeren Kopien).
+
+UI: neuer Button "Auf Dubletten prüfen" bei den hochgeladenen Dokumenten (nur sichtbar ab
+2 Dokumenten). Gefundene Gruppen zeigen das zu behaltende Original und pro Dublette einen
+"Löschvorschlag: Löschen"-Button, der den bereits bestehenden Lösch-Endpoint
+(`DELETE .../documents/[documentId]`) wiederverwendet — keine automatische Löschung,
+immer eine explizite Nutzerbestätigung (`window.confirm`, bereits vorhandenes Verhalten).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
