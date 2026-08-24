@@ -1643,6 +1643,25 @@ UI: neuer Button "Auf Dubletten prüfen" bei den hochgeladenen Dokumenten (nur s
 (`DELETE .../documents/[documentId]`) wiederverwendet — keine automatische Löschung,
 immer eine explizite Nutzerbestätigung (`window.confirm`, bereits vorhandenes Verhalten).
 
+## Nachgezogen (2026-08-24): Sprungmarken-Navigation auf der Objektseite
+
+Wunsch: "oben navigation einbauen, damit auf die abschnitte direkt gesprungen werden
+kann" — die Objektseite ist mit Bestandsrendite, Verhandlungskorridor, Value-Add und
+Due-Diligence-Funden sehr lang geworden, gerade auf dem Handy bedeutete das viel
+manuelles Scrollen.
+
+Neue Komponente `ObjectSectionNav.tsx` — sticky Pillen-Reihe direkt unter dem
+(auf Mobile fixed) Burger-Menü, horizontal scrollbar statt umzubrechen. Anker zu:
+Objekt, Bestandsrendite (Schnellcheck), Verhandlungskorridor, Investment Case, Value-Add,
+15-Jahres-Modell, Due Diligence. Nur Links zu Abschnitten, die auf der aktuellen Seite
+tatsächlich existieren (z.B. kein Verhandlungskorridor-Link, wenn dafür keine
+Bisektionslösung gefunden wurde, kein Bestandsrendite-Link ohne erfasste Fakten).
+
+CSS: `.anchor-target { scroll-margin-top: … }` auf allen Sprungzielen, damit sie beim
+Anspringen nicht unter der sticky Nav (und auf Mobile zusätzlich unter dem fixed
+Burger-Menü) verschwinden — zwei unterschiedliche Werte für Desktop/Mobile, da dort die
+Fixed-Elemente unterschiedlich hoch sind.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

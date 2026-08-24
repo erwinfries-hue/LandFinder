@@ -12,6 +12,7 @@ import { BestandsrenditeAnalysisView } from "@/components/BestandsrenditeAnalysi
 import { DueDiligencePanel, type DueDiligenceDocumentRow } from "@/components/DueDiligencePanel";
 import { PropertyDeleteButton } from "@/components/PropertyDeleteButton";
 import { PropertyEditForm } from "@/components/PropertyEditForm";
+import { ObjectSectionNav } from "@/components/ObjectSectionNav";
 
 function scoreTone(totalScore: number): ChipTone {
   if (totalScore >= 70) return "good";
@@ -64,11 +65,25 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
         })
       : undefined;
 
+  // Nur Anker zu Abschnitten, die auf dieser Seite tatsächlich gerendert werden (z.B. kein
+  // "Verhandlungskorridor"-Link, wenn dafür keine Bisektionslösung gefunden wurde) — siehe
+  // ObjectSectionNav.tsx.
+  const sectionLinks = [
+    { href: "#objektdaten", label: "Objekt" },
+    ...(analysis ? [{ href: "#schnellcheck", label: "Bestandsrendite" }] : []),
+    ...(verhandlungskorridor?.maximumChf !== undefined ? [{ href: "#verhandlungskorridor", label: "Verhandlungskorridor" }] : []),
+    ...(analysis ? [{ href: "#investment-case", label: "Investment Case" }] : []),
+    ...(analysis ? [{ href: "#value-add-moeblierung", label: "Value-Add" }] : []),
+    ...(analysis ? [{ href: "#mehrjahresmodell", label: "15-Jahres-Modell" }] : []),
+    { href: "#due-diligence", label: "Due Diligence" },
+  ];
+
   return (
     <div className="shell">
       <SideNav current="objekte" />
       <main className="main">
-        <Panel className="dethead">
+        <ObjectSectionNav links={sectionLinks} />
+        <Panel id="objektdaten" className="dethead anchor-target">
           <div className="eyebrow">Bestandswohnung · Rendite-/Buy-to-let-Objekt</div>
           <div className="dethead-top">
             <div>
@@ -136,12 +151,14 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
           />
         </details>
 
-        <DueDiligencePanel
-          propertyId={property.id}
-          objectLabel={property.title || property.address_text}
-          initialDocuments={(documents ?? []) as DueDiligenceDocumentRow[]}
-          initialDueDiligence={dueDiligence}
-        />
+        <div id="due-diligence" className="anchor-target">
+          <DueDiligencePanel
+            propertyId={property.id}
+            objectLabel={property.title || property.address_text}
+            initialDocuments={(documents ?? []) as DueDiligenceDocumentRow[]}
+            initialDueDiligence={dueDiligence}
+          />
+        </div>
 
         <p style={{ marginTop: "0.9rem" }}>
           <Link href="/" className="maplink">
