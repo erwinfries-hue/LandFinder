@@ -1,7 +1,7 @@
 import { Panel, Chip, InfoHint } from "@landfinder/ui";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
-import type { BestandsrenditeAnalysisResult } from "@/lib/bestandsrendite";
+import type { BestandsrenditeAnalysisResult, Verhandlungskorridor } from "@/lib/bestandsrendite";
 
 /**
  * Reine Anzeige der drei Ebenen — die Berechnung selbst
@@ -9,7 +9,14 @@ import type { BestandsrenditeAnalysisResult } from "@/lib/bestandsrendite";
  * Abhängigkeit, läuft deshalb serverseitig in der Detailseite, kein
  * Client-Live-Recompute nötig.
  */
-export function BestandsrenditeAnalysisView({ result }: { result: BestandsrenditeAnalysisResult }) {
+export function BestandsrenditeAnalysisView({
+  result,
+  verhandlungskorridor,
+}: {
+  result: BestandsrenditeAnalysisResult;
+  /** `undefined`/`null`, wenn `computeVerhandlungskorridor` keine Bisektionslösung fand (Objekt trägt sich unter keinen Umständen). */
+  verhandlungskorridor?: Verhandlungskorridor | null;
+}) {
   const {
     schnellcheck,
     investmentCase,
@@ -85,6 +92,31 @@ export function BestandsrenditeAnalysisView({ result }: { result: Bestandsrendit
           />
         </div>
       </Panel>
+
+      {verhandlungskorridor?.maximumChf !== undefined ? (
+        <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
+          <div className="sectionhead">
+            <h2>Verhandlungskorridor</h2>
+          </div>
+          <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".6rem" }}>
+            Rechnerisch hergeleitet, keine erfundenen Prozentzahlen — Maximum ist der Kaufpreis, bei dem der nachhaltige
+            Cashflow gerade CHF 0 erreicht; Ziel/Eröffnung sind Sicherheitsmargen darunter.
+          </p>
+          <div className="metricgrid">
+            <Metric
+              l="Eröffnungsangebot"
+              v={`CHF ${formatChf(Math.round(verhandlungskorridor.eroeffnungChf!))}`}
+              hint="= Maximum × (1 − Sicherheitsmarge Eröffnung, Standard 7%)."
+            />
+            <Metric l="Zielpreis" v={`CHF ${formatChf(Math.round(verhandlungskorridor.zielChf!))}`} hint="= Maximum × (1 − Sicherheitsmarge Ziel, Standard 3%)." />
+            <Metric
+              l="Maximum"
+              v={`CHF ${formatChf(Math.round(verhandlungskorridor.maximumChf))}`}
+              hint="Kaufpreis, bei dem der nachhaltige Cashflow (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) gerade CHF 0 erreicht — mehr zu zahlen ist unter den aktuellen Annahmen rechnerisch nicht mehr cashflow-tragfähig."
+            />
+          </div>
+        </Panel>
+      ) : null}
 
       <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
         <div className="sectionhead">
