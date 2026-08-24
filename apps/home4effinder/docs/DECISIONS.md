@@ -1769,6 +1769,25 @@ die Übersicht nicht zu überladen, aber das jeweilige Alternativ-Szenario bleib
 Blick sichtbar ("das andere Alternativszenario als Schattenrechnung auf dem High-Level-
 Ergebnis anzeigen").
 
+## Nachgezogen (2026-08-24): Paket 1/2 in der Erfassungsmaske strukturell symmetrisch gestaltet
+
+Rückmeldung: Paket 2 (möbliert) sei "im Grundsatz gut", Paket 1 (unmöbliert) habe noch
+"Verbesserungspotenzial betreffs Übersichtlichkeit und Logik" — bisher sass das Feld
+"Nettomiete Wohnung — Paket 1: unmöbliert" oben im allgemeinen Abschnitt "Miete &amp;
+Vermietungsmodell", während Paket 2 weiter unten einen eigenen, klar abgegrenzten Block
+mit eigener Überschrift hatte. Paket 1 existierte optisch nur als Fussnote in einem
+Erklärtext ("Miete siehe 'Nettomiete Wohnung' oben, Kosten CHF 0"), nicht als eigener
+Block wie Paket 2.
+
+Jetzt identisch strukturiert: "Miete &amp; Vermietungsmodell" enthält nur noch, was für
+BEIDE Pakete gilt (Parkplatzmiete, sonstige Einnahmen, Vermietungsmodell-Auswahl,
+Leerstand/Auslastung) — mit eigener Überschrift "gemeinsame Angaben (gelten für Paket 1
+und 2)". Im Abschnitt "Value-Add — Möblierung" folgen jetzt zwei gleich aufgebaute
+Blöcke: "Paket 1 — unmöbliert vermieten" (Nettomiete-Feld hierher verschoben, plus
+"Zusatzkosten: CHF 0" als Pendant zu Paket 2s Kostenfeldern) und unverändert "Paket 2 —
+möbliert vermieten". Feldname/-id von `wohnungsMieteChfPerMonth` unverändert — reine
+Anordnung, kein Eingriff in Speicherformat oder Berechnung.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
