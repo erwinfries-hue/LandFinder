@@ -3,14 +3,20 @@ import {
   computeMissingDocuments,
   computeOverallStatus,
   parseSynthesisResponse,
+  parseSynthesisBatchResponse,
   buildSynthesisToolSchema,
   compactFindingsForPrompt,
   selectSynthesisPromptDocuments,
+  splitDocumentsIntoBatches,
+  mergeDueDiligenceBatches,
   synthesizeDueDiligence,
+  synthesizeDueDiligenceBatch,
   MAX_FINDINGS_PER_DOCUMENT_IN_PROMPT,
   MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT,
+  SYNTHESIS_BATCH_SIZE,
   type SynthesisDocumentInput,
   type SynthesisKnownField,
+  type PartialSynthesisResult,
 } from "./dueDiligenceSynthesis";
 import { CATEGORY_ORDER } from "./dueDiligenceCategories";
 import type { DueDiligenceFinding } from "@landfinder/domain";
@@ -418,5 +424,180 @@ describe("synthesizeDueDiligence — Sonnet-5-Zeitlimit mit Haiku-4.5-Rückfallo
     expect(result.overallSummary).toBe("von Haiku");
     expect(createMock).toHaveBeenCalledTimes(2);
     expect(createMock.mock.calls[1][0]).toMatchObject({ model: "claude-haiku-4-5-20251001" });
+  });
+});
+
+describe("splitDocumentsIntoBatches", () => {
+  function makeDocs(n: number): SynthesisDocumentInput[] {
+    return Array.from({ length: n }, (_, i) => ({ id: `d${i}`, filename: `d${i}.pdf`, documentType: "GRUNDBUCHAUSZUG", summary: "x", facts: {}, findings: [] }));
+  }
+
+  it("liefert eine leere Liste bei 0 Dokumenten", () => {
+    expect(splitDocumentsIntoBatches([])).toEqual([]);
+  });
+
+  it(`bildet genau einen Batch bei ≤${SYNTHESIS_BATCH_SIZE} Dokumenten (unverändertes Verhalten für die meisten Objekte)`, () => {
+    expect(splitDocumentsIntoBatches(makeDocs(1))).toHaveLength(1);
+    expect(splitDocumentsIntoBatches(makeDocs(SYNTHESIS_BATCH_SIZE))).toHaveLength(1);
+  });
+
+  it(`bildet mehrere Batches zu je höchstens ${SYNTHESIS_BATCH_SIZE} Dokumenten, letzter Batch kleiner`, () => {
+    const batches = splitDocumentsIntoBatches(makeDocs(4));
+    expect(batches).toHaveLength(2);
+    expect(batches[0]).toHaveLength(SYNTHESIS_BATCH_SIZE);
+    expect(batches[1]).toHaveLength(1);
+  });
+
+  it(`bildet 3 Batches bei ${MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT} Dokumenten (nach der Deckelung durch selectSynthesisPromptDocuments)`, () => {
+    const batches = splitDocumentsIntoBatches(makeDocs(MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT));
+    expect(batches.map((b) => b.length)).toEqual([3, 3, 2]);
+  });
+});
+
+describe("parseSynthesisBatchResponse", () => {
+  it("gibt NUR die vom LLM genannten Kategorien zurück, ohne deterministische Auffüllung (passiert erst beim Merge)", () => {
+    const json = JSON.stringify({ categories: [{ category: "STWEG", status: "OK", findings: [] }], sellerQuestions: [], fieldUpdateProposals: [], contradictions: [] });
+    const result = parseSynthesisBatchResponse(json, documents, knownFields);
+    expect(result.categories).toHaveLength(1);
+  });
+
+  it("löst sourceDocumentId auch für ein Dokument auf, das nur als Quervergleichs-Kontext (nicht als Fokus) übergeben wurde", () => {
+    const json = JSON.stringify({
+      categories: [{ category: "STWEG", status: "OK", findings: [{ summary: "x", sourceDocumentId: "doc-2" }] }],
+      sellerQuestions: [],
+      fieldUpdateProposals: [],
+      contradictions: [],
+    });
+    const result = parseSynthesisBatchResponse(json, documents, knownFields);
+    const stweg = result.categories.find((c) => c.category === "STWEG")!;
+    expect(stweg.findings[0]).toMatchObject({ sourceDocumentId: "doc-2", sourceDocumentName: "grundbuch.pdf" });
+  });
+
+  it("liefert kein overallStatus/missingDocuments (Teilergebnis, kein vollständiges DueDiligenceResult)", () => {
+    const json = JSON.stringify({ categories: [], sellerQuestions: [], fieldUpdateProposals: [], contradictions: [] });
+    const result = parseSynthesisBatchResponse(json, documents, knownFields);
+    expect(result).not.toHaveProperty("overallStatus");
+    expect(result).not.toHaveProperty("missingDocuments");
+  });
+});
+
+describe("mergeDueDiligenceBatches", () => {
+  const docA: SynthesisDocumentInput = { id: "a", filename: "a.pdf", documentType: "STWEG_PROTOKOLL", summary: "x", facts: {}, findings: [] };
+  const docB: SynthesisDocumentInput = { id: "b", filename: "b.pdf", documentType: "MIETVERTRAG", summary: "x", facts: {}, findings: [] };
+
+  function partial(overrides: Partial<PartialSynthesisResult> = {}): PartialSynthesisResult {
+    return { overallSummary: "", categories: [], sellerQuestions: [], fieldUpdateProposals: [], contradictions: [], ...overrides };
+  }
+
+  it("legt Funde derselben Kategorie aus mehreren Batches zusammen", () => {
+    const batch1 = partial({ categories: [{ category: "STWEG", status: "OK", findings: [{ category: "STWEG", severity: "OK", summary: "Fund 1" }] }] });
+    const batch2 = partial({ categories: [{ category: "STWEG", status: "OK", findings: [{ category: "STWEG", severity: "OK", summary: "Fund 2" }] }] });
+    const result = mergeDueDiligenceBatches([batch1, batch2], [docA, docB]);
+    const stweg = result.categories.find((c) => c.category === "STWEG")!;
+    expect(stweg.findings.map((f) => f.summary)).toEqual(["Fund 1", "Fund 2"]);
+  });
+
+  it("lässt den schlechteren (schwerwiegenderen) Status gewinnen, wenn zwei Batches für dieselbe Kategorie unterschiedliche Status liefern", () => {
+    const batch1 = partial({ categories: [{ category: "STWEG", status: "OK", findings: [] }] });
+    const batch2 = partial({ categories: [{ category: "STWEG", status: "RISIKO", findings: [] }] });
+    const result = mergeDueDiligenceBatches([batch1, batch2], [docA, docB]);
+    expect(result.categories.find((c) => c.category === "STWEG")!.status).toBe("RISIKO");
+  });
+
+  it("behält verschiedene Kategorien aus verschiedenen Batches jeweils vollständig", () => {
+    const batch1 = partial({ categories: [{ category: "STWEG", status: "OK", findings: [] }] });
+    const batch2 = partial({ categories: [{ category: "MIETVERHAELTNIS", status: "KLAERUNGSBEDARF", findings: [] }] });
+    const result = mergeDueDiligenceBatches([batch1, batch2], [docA, docB]);
+    expect(result.categories.find((c) => c.category === "STWEG")).toMatchObject({ status: "OK" });
+    expect(result.categories.find((c) => c.category === "MIETVERHAELTNIS")).toMatchObject({ status: "KLAERUNGSBEDARF" });
+  });
+
+  it("füllt Kategorien, zu denen kein Batch etwas beitrug, deterministisch auf — wie beim bisherigen Einzel-Call", () => {
+    const result = mergeDueDiligenceBatches([partial()], [docA, docB]);
+    expect(result.categories).toHaveLength(CATEGORY_ORDER.length);
+  });
+
+  it("hängt sellerQuestions/fieldUpdateProposals/contradictions aus allen Batches aneinander", () => {
+    const batch1 = partial({ sellerQuestions: [{ question: "Frage 1" }] });
+    const batch2 = partial({ sellerQuestions: [{ question: "Frage 2" }] });
+    const result = mergeDueDiligenceBatches([batch1, batch2], [docA, docB]);
+    expect(result.sellerQuestions.map((q) => q.question)).toEqual(["Frage 1", "Frage 2"]);
+  });
+
+  it("verbindet nicht-leere overallSummary-Texte der Batches mit einer Leerzeile, lässt leere weg", () => {
+    const batch1 = partial({ overallSummary: "Erster Teil." });
+    const batch2 = partial({ overallSummary: "" });
+    const batch3 = partial({ overallSummary: "Dritter Teil." });
+    const result = mergeDueDiligenceBatches([batch1, batch2, batch3], [docA, docB]);
+    expect(result.overallSummary).toBe("Erster Teil.\n\nDritter Teil.");
+  });
+
+  it("berechnet missingDocuments aus der VOLLSTÄNDIGEN Dokumentenliste, nicht nur den in Batches enthaltenen", () => {
+    const result = mergeDueDiligenceBatches([partial()], [docA, docB]);
+    expect(result.missingDocuments.some((m) => m.documentType === "STWEG_PROTOKOLL")).toBe(false);
+    expect(result.missingDocuments.some((m) => m.documentType === "MIETVERTRAG")).toBe(false);
+    expect(result.missingDocuments.some((m) => m.documentType === "GRUNDBUCHAUSZUG")).toBe(true);
+  });
+
+  it("verhält sich bei genau einem Batch wie das bisherige Einzel-Call-Auffüllverhalten", () => {
+    const batch = partial({ overallSummary: "Zusammenfassung", categories: [{ category: "STWEG", status: "RISIKO", findings: [] }] });
+    const result = mergeDueDiligenceBatches([batch], [docA, docB]);
+    expect(result.overallStatus).toBe("RISIKO");
+    expect(result.overallSummary).toBe("Zusammenfassung");
+    expect(result.categories).toHaveLength(CATEGORY_ORDER.length);
+  });
+});
+
+describe("synthesizeDueDiligenceBatch — otherDocuments als reiner Fakten-Quervergleichskontext", () => {
+  function toolUseResponse(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      stop_reason: "tool_use",
+      content: [{ type: "tool_use", name: "emit_due_diligence_synthesis", input: { overallSummary: "", categories: [], sellerQuestions: [], fieldUpdateProposals: [], contradictions: [], ...overrides } }],
+    };
+  }
+
+  beforeEach(() => {
+    createMock.mockReset();
+    process.env.ANTHROPIC_API_KEY = "test-key";
+  });
+
+  it("übergibt otherDocuments nur mit Fakten — nicht mit summary/findings — als Quervergleichs-Kontext im Prompt", async () => {
+    createMock.mockResolvedValue(toolUseResponse());
+    const focus: SynthesisDocumentInput = { id: "focus-1", filename: "focus.pdf", documentType: "STWEG_PROTOKOLL", summary: "Fokus-Zusammenfassung", facts: { baujahr: 1990 }, findings: [] };
+    const other: SynthesisDocumentInput = {
+      id: "other-1",
+      filename: "other.pdf",
+      documentType: "GRUNDBUCHAUSZUG",
+      summary: "GEHEIME Zusammenfassung des anderen Dokuments",
+      facts: { flaeche: 80 },
+      findings: [],
+    };
+
+    await synthesizeDueDiligenceBatch([focus], [other], [], []);
+
+    const system = createMock.mock.calls[0][0].system as string;
+    expect(system).toContain("WEITERE, BEREITS ANALYSIERTE DOKUMENTE");
+    expect(system).toContain('"flaeche":80');
+    expect(system).not.toContain("GEHEIME Zusammenfassung");
+  });
+
+  it("lässt den Quervergleichs-Abschnitt ganz weg, wenn keine otherDocuments übergeben werden", async () => {
+    createMock.mockResolvedValue(toolUseResponse());
+    await synthesizeDueDiligenceBatch(documents, [], [], knownFields);
+    const system = createMock.mock.calls[0][0].system as string;
+    expect(system).not.toContain("WEITERE, BEREITS ANALYSIERTE DOKUMENTE");
+  });
+
+  it("löst sourceDocumentId aus einem otherDocuments-Fund korrekt auf den Dateinamen auf", async () => {
+    const other: SynthesisDocumentInput = { id: "other-1", filename: "grundbuch-other.pdf", documentType: "GRUNDBUCHAUSZUG", summary: "x", facts: {}, findings: [] };
+    createMock.mockResolvedValue(
+      toolUseResponse({ categories: [{ category: "STWEG", status: "OK", findings: [{ summary: "Quervergleich", sourceDocumentId: "other-1" }] }] }),
+    );
+    const focus: SynthesisDocumentInput = { id: "focus-1", filename: "focus.pdf", documentType: "STWEG_PROTOKOLL", summary: "x", facts: {}, findings: [] };
+
+    const result = await synthesizeDueDiligenceBatch([focus], [other], [], []);
+
+    const stweg = result.categories.find((c) => c.category === "STWEG")!;
+    expect(stweg.findings[0]).toMatchObject({ sourceDocumentId: "other-1", sourceDocumentName: "grundbuch-other.pdf" });
   });
 });

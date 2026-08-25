@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
-import type { DueDiligenceDocumentType } from "@landfinder/domain";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { hasValidSession } from "@/lib/authSession";
 import { AnthropicNotConfiguredError } from "@/lib/dueDiligenceExtraction";
-import { synthesizeDueDiligence, type SynthesisDocumentInput, type SynthesisKnownFact, type SynthesisKnownField } from "@/lib/dueDiligenceSynthesis";
+import {
+  synthesizeDueDiligenceBatch,
+  selectSynthesisPromptDocuments,
+  splitDocumentsIntoBatches,
+  type PartialSynthesisResult,
+  type SynthesisKnownFact,
+  type SynthesisKnownField,
+} from "@/lib/dueDiligenceSynthesis";
 import { BESTANDSRENDITE_KNOWN_FIELD_LABELS } from "@/lib/bestandsrenditeKnownFields";
+import { loadSynthesisDocuments } from "./documents";
 
 export const maxDuration = 60;
 
@@ -29,10 +36,23 @@ function buildKnownFacts(property: { address_text: string; canton: string; askin
   ];
 }
 
+/**
+ * Verarbeitet GENAU EINEN Batch der Stufe-2-Synthese pro Aufruf (`batchIndex`, 0-basiert)
+ * statt — wie früher — alle Dokumente in einem einzigen, potenziell Vercels
+ * 60-Sekunden-Limit überschreitenden Request (siehe docs/DECISIONS.md). Der Client
+ * (`DueDiligencePanel.tsx`) ruft diese Route wiederholt auf (batchIndex 0, 1, …), bis
+ * `totalBatches` erreicht ist, sammelt die `batchResult`s und schickt sie danach EINMAL
+ * an `.../due-diligence/finalize`, wo sie zusammengeführt und persistiert werden.
+ * Persistiert hier bewusst NICHTS in `property_due_diligence.result` — nur ein
+ * Zwischenergebnis, kein Schema-Update nötig.
+ */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   if (!(await hasValidSession(request))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { id: propertyId } = await params;
+  const body = (await request.json().catch(() => ({}))) as { batchIndex?: number };
+  const batchIndex = typeof body.batchIndex === "number" && body.batchIndex >= 0 ? body.batchIndex : 0;
+
   const supabase = createSupabaseServerClient();
   if (!supabase) return NextResponse.json({ saved: false, configured: false }, { status: 200 });
 
@@ -47,38 +67,40 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   if (!property) return NextResponse.json({ error: "property not found" }, { status: 404 });
 
-  const { data: documentRows, error: documentsError } = await supabase
-    .from("property_documents")
-    .select("id, original_filename, document_type, extraction")
-    .eq("property_id", propertyId)
-    .eq("analysis_status", "DONE")
-    .eq("excluded_from_synthesis", false);
-  if (documentsError) {
-    console.error(`[api/properties/${propertyId}/due-diligence] Lesen der Dokumente fehlgeschlagen`, documentsError);
-    return NextResponse.json({ error: "read documents failed" }, { status: 500 });
+  const documentsResult = await loadSynthesisDocuments(supabase, propertyId);
+  if ("error" in documentsResult) return NextResponse.json({ error: documentsResult.error }, { status: 500 });
+
+  if (batchIndex === 0) {
+    await supabase.from("property_due_diligence").upsert({ property_id: propertyId, status: "ANALYZING" });
   }
 
-  const documents: SynthesisDocumentInput[] = (documentRows ?? []).map((row) => {
-    const extraction = (row.extraction ?? {}) as { summary?: string; facts?: Record<string, unknown>; findings?: SynthesisDocumentInput["findings"] };
-    return {
-      id: row.id,
-      filename: row.original_filename,
-      documentType: row.document_type as DueDiligenceDocumentType,
-      summary: extraction.summary ?? "",
-      facts: extraction.facts ?? {},
-      findings: extraction.findings ?? [],
-    };
-  });
+  const batches = splitDocumentsIntoBatches(selectSynthesisPromptDocuments(documentsResult.documents));
+  if (batches.length === 0) {
+    // Kein Dokument (nach Filterung) für die Synthese verfügbar — als einzelner leerer
+    // Batch behandeln, damit der Client-Loop/die Finalize-Route ohne Sonderfall
+    // denselben Codepfad wie bei ≥1 echtem Batch durchlaufen (analog zum früheren
+    // documents.length===0-Fall in synthesizeDueDiligence).
+    const emptyBatchResult: PartialSynthesisResult = { overallSummary: "", categories: [], sellerQuestions: [], fieldUpdateProposals: [], contradictions: [] };
+    return NextResponse.json({ saved: true, batchResult: emptyBatchResult, batchIndex: 0, totalBatches: 1 });
+  }
 
-  await supabase.from("property_due_diligence").upsert({ property_id: propertyId, status: "ANALYZING" });
+  const focusDocuments = batches[batchIndex];
+  if (!focusDocuments) {
+    return NextResponse.json({ saved: false, error: "ungültiger batchIndex" }, { status: 400 });
+  }
+  const otherDocuments = batches.filter((_, i) => i !== batchIndex).flat();
 
   try {
-    const result = await synthesizeDueDiligence(documents, buildKnownFacts(property), buildKnownFields(property.bestandsrendite as Record<string, unknown> | null));
-    await supabase.from("property_due_diligence").upsert({ property_id: propertyId, status: "DONE", result, error_message: null, generated_at: new Date().toISOString() });
-    return NextResponse.json({ saved: true, result });
+    const batchResult = await synthesizeDueDiligenceBatch(
+      focusDocuments,
+      otherDocuments,
+      buildKnownFacts(property),
+      buildKnownFields(property.bestandsrendite as Record<string, unknown> | null),
+    );
+    return NextResponse.json({ saved: true, batchResult, batchIndex, totalBatches: batches.length });
   } catch (err) {
     const message = err instanceof AnthropicNotConfiguredError ? err.message : "Synthese fehlgeschlagen";
-    console.error(`[api/properties/${propertyId}/due-diligence] Synthese fehlgeschlagen`, err);
+    console.error(`[api/properties/${propertyId}/due-diligence] Batch-Synthese fehlgeschlagen (batchIndex=${batchIndex})`, err);
     await supabase.from("property_due_diligence").upsert({ property_id: propertyId, status: "FAILED", error_message: message });
     return NextResponse.json({ saved: false, error: message }, { status: 502 });
   }

@@ -2143,6 +2143,85 @@ wirkte dadurch, als würde nichts passieren. Bestehendes `.spinner`-Muster ergä
 lang-laufende Claude-Aufrufe verwendet wird), sowohl am Status-Text als auch am
 Button.
 
+## Nachgezogen (2026-08-25): Due-Diligence-Synthese batched statt ein einzelner Blocking-Call
+
+Live-Test bei Objekt "Bollmoosweg 18" (mehrere hochgeladene Dokumente): "Due-Diligence
+aktualisieren" schlug mit "Analyse fehlgeschlagen (Netzwerkfehler)" fehl. KEIN neuer
+Bug — dieselbe, in diesem Dokument bereits mehrfach beschriebene Ursache: Vercels
+harte, im Code nicht anhebbare 60-Sekunden-Ausführungsgrenze für Serverless-Functions
+auf dem Hobby-Plan. Trotz bereits vorhandener Prompt-Verkleinerungen
+(`MAX_DOCUMENTS_IN_SYNTHESIS_PROMPT`, Funde-/Zusammenfassungs-/Fakten-Kürzung,
+Sonnet-5→Haiku-4.5-Zeitbudget-Rennen) reisst ein EINZELNER Synthese-Call bei mehreren/
+umfangreichen Dokumenten weiterhin gelegentlich die Grenze. Auf Nachfrage hat sich der
+Nutzer explizit für die aufwendigste, aber strukturell wirksame Lösung entschieden
+(statt "nochmal versuchen" oder Vercel-Plan-Upgrade): die Synthese in mehrere
+garantiert-kurze Claude-Aufrufe aufteilen. Recherche bestätigt: Next.js' `after()` (ab
+Next 15 stabil) verlängert die Function-Laufzeit NICHT — kein echtes
+Hintergrund-Job-Primitive auf Vercel Hobby verfügbar. Die "Hintergrundverarbeitung"
+ist deshalb client-getrieben: der Browser ruft den Server wiederholt für kurze,
+unabhängige Schritte auf, statt eines langen serverseitigen Jobs.
+
+**Batching-Design** (`dueDiligenceSynthesis.ts`):
+- Nach der bestehenden ≤8-Dokumente-Deckelung (`selectSynthesisPromptDocuments`)
+  Aufteilung in Batches von `SYNTHESIS_BATCH_SIZE = 3` Dokumenten
+  (`splitDocumentsIntoBatches`) — bei ≤3 Dokumenten (die meisten Objekte) bleibt es bei
+  genau 1 Batch, also unverändertes Verhalten/Timing wie zuvor.
+- **Korrektheit der Widerspruchserkennung erhalten**: eine reine Aufteilung nach
+  Dokumenten-Teilmengen hätte riskiert, einen Widerspruch zwischen zwei Dokumenten in
+  unterschiedlichen Batches zu übersehen. Deshalb bekommt jeder Batch zusätzlich zu
+  seinen eigenen Fokus-Dokumenten die **Fakten (nicht Funde/Zusammenfassung) ALLER
+  übrigen Dokumente** als Quervergleichs-Kontext (`buildSynthesisPrompt`, neuer
+  `otherDocuments`-Parameter, neuer Prompt-Abschnitt "WEITERE, BEREITS ANALYSIERTE
+  DOKUMENTE") — analysiert im Detail nur die eigene Teilmenge, kann Widersprüche zu den
+  übrigen Dokumenten aber weiterhin über deren Fakten erkennen. Das erhält den
+  teuersten Vorteil (Quervergleich) bei deutlich reduzierten Prompt-Kosten (volle
+  Funde/Zusammenfassung nur noch für die Fokus-Dokumente statt für alle).
+- Jeder Batch-Call nutzt dieselbe Sonnet-5→Haiku-4.5-Zeitbudget-Renn-Logik wie zuvor
+  (`callSynthesisModel`, aus dem bisherigen `synthesizeDueDiligence` extrahiert und
+  jetzt von beidem — Einzel-Call UND Batch-Call — gemeinsam genutzt).
+- Merge der Batch-Ergebnisse (`mergeDueDiligenceBatches`, reine Berechnung, KEIN
+  weiterer Claude-Aufruf): Kategorien zusammenführen (kommt dieselbe Kategorie aus
+  mehreren Batches, Funde zusammenlegen, schlechterer/schwerwiegenderer Status
+  gewinnt), sellerQuestions/fieldUpdateProposals/contradictions aneinanderhängen,
+  overallSummary-Texte der Batches mit Leerzeile verbunden, danach dieselbe
+  deterministische Kategorie-Auffüllung wie zuvor (`fillMissingCategories`, aus
+  `parseSynthesisResponse` extrahiert) + `computeOverallStatus` +
+  `computeMissingDocuments` — alles unverändert wiederverwendet, nur jetzt über die
+  gemergten Kategorien/die vollständige (nicht nur die batch-gedeckelte)
+  Dokumentenliste statt direkt vom LLM.
+- `synthesizeDueDiligence` (Einzel-Call) bleibt unverändert nutzbar — wird weiterhin
+  vom Neu-Erfassen-Flow (`api/properties/prefill-synthesis/route.ts`) verwendet. Diese
+  zweite Stelle hat dasselbe 60s-Risiko, war aber nicht Teil der aktuellen
+  Nutzer-Meldung (typischerweise weniger/frisch hochgeladene Dokumente beim Neuanlegen)
+  — bewusst NICHT Teil dieses PRs, als Folge-Kandidat vermerkt.
+
+**Neue Routen**: `POST /api/properties/[id]/due-diligence` nimmt jetzt `{batchIndex}`
+entgegen, führt NUR diesen einen Batch aus und gibt `{batchResult, batchIndex,
+totalBatches}` zurück — persistiert dabei NICHTS in `property_due_diligence.result`
+(nur Zwischenergebnis, kein Schema-Update nötig). Neue `POST
+/api/properties/[id]/due-diligence/finalize` (`maxDuration = 10`, reine
+Merge-Logik) nimmt die vom Client gesammelten Batch-Ergebnisse entgegen, ruft
+`mergeDueDiligenceBatches` und persistiert erst hier `status = "DONE"`/`result`. Die
+Dokumenten-Lade-/Zuordnungslogik (identisch zwischen beiden Routen gebraucht) liegt
+jetzt gemeinsam in `due-diligence/documents.ts` (`loadSynthesisDocuments`).
+
+`DueDiligencePanel.tsx`: `handleSynthesize` ruft `.../due-diligence` jetzt in einer
+Schleife mit steigendem `batchIndex` (weiterhin über `fetchJsonWithRetry`, EIN
+automatischer Retry PRO Batch statt fürs Ganze), sammelt die Zwischenergebnisse im
+Speicher, ruft danach einmal `.../due-diligence/finalize`. Neuer
+`synthesisProgress`-Zustand zeigt am Button "Analysiert… (2/3)" statt nur "Analysiert…"
+— sichtbares Feedback, dass mehrere Schritte laufen, nicht nur ein einzelner hängender
+Request.
+
+Keine Live-Verifikation gegen das echte Anthropic-Modell möglich (kein
+`ANTHROPIC_API_KEY` in dieser Remote-Session) — abgesichert über Unit-Tests der
+Split-/Merge-/Parse-Logik (u.a. Quervergleichs-Kontext enthält nur Fakten, nicht
+Zusammenfassung/Funde des anderen Dokuments; schlechterer Status gewinnt beim Merge;
+Kategorie-Auffüllung bei genau einem Batch verhält sich identisch zum bisherigen
+Einzel-Call). Echte Bestätigung erst durch den Nutzer live (erneuter Klick auf
+"Due-Diligence aktualisieren" bei Bollmoosweg 18, demselben Objekt, das zuvor
+fehlschlug).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
