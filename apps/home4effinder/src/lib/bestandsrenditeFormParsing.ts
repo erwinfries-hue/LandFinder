@@ -56,7 +56,8 @@ export function buildBestandsrenditeFactsFromFormData(
       maklerprovisionPercent: num("maklerprovisionPercent"),
     },
     renovation: {
-      initialRenovationCostChf: req("initialRenovationCostChf"),
+      initialRenovationCostUnmoebliertChf: req("initialRenovationCostUnmoebliertChf"),
+      initialRenovationCostMoebliertChf: req("initialRenovationCostMoebliertChf"),
       positionen: renovationPositionen,
       mieteVorRenovationChfPerMonth: num("mieteVorRenovationChfPerMonth"),
       mieteNachRenovationChfPerMonth: num("mieteNachRenovationChfPerMonth"),
@@ -82,7 +83,8 @@ export function buildBestandsrenditeFactsFromFormData(
       stwegAkontobeitragChfPerYear: req("stwegAkontobeitragChfPerYear"),
       eigentuemerkostenChfPerYear: req("eigentuemerkostenChfPerYear"),
       vermietungskostenChfPerYear: req("vermietungskostenChfPerYear"),
-      reinigungServiceChfPerYear: req("reinigungServiceChfPerYear"),
+      reinigungServiceUnmoebliertChfPerYear: req("reinigungServiceUnmoebliertChfPerYear"),
+      reinigungServiceMoebliertChfPerYear: req("reinigungServiceMoebliertChfPerYear"),
     },
     reserven: {
       reparaturChfPerYear: num("reparaturChfPerYear"),

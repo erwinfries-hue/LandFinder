@@ -2319,6 +2319,42 @@ mehrspaltige Tabelle wäre darin zu eng gewesen. Der bisherige eigenständige Ab
 samt Tabelle ist komplett entfernt, die Berechnung selbst (`kategorienRenditen`)
 unverändert.
 
+## Nachgezogen (2026-08-25): Initial-Renovationskosten und Reinigung/Service je Vermietungsmodell (Paket 1/2) getrennt erfassbar
+
+Rückmeldung: die beiden Positionen "Initial-Renovationskosten" und "Reinigung/Service"
+waren bisher je EIN gemeinsamer Wert, unabhängig davon, ob langfristig/unmöbliert
+(Paket 1) oder mittelfristig/möbliert (Paket 2) vermietet wird — unrealistisch, da beide
+Grössen typischerweise vom Vermietungsmodell abhängen (kurzfristig/möbliert braucht oft
+eine andere Sanierungstiefe UND Reinigung zwischen Mietern, langfristig/unmöbliert meist
+weniger von beidem).
+
+**Gating exakt wie bei den Möblierungskosten**: `BestandsrenditeFacts.renovation` trägt
+jetzt `initialRenovationCostUnmoebliertChf`/`initialRenovationCostMoebliertChf` statt
+eines einzelnen Felds, `betriebskosten` entsprechend
+`reinigungServiceUnmoebliertChfPerYear`/`reinigungServiceMoebliertChfPerYear`. In
+`computeBestandsrenditeAnalysis` wird — dieselbe Regel wie
+`moeblierungIstGewaehltesSzenario` — nur der Betrag des tatsächlich gewählten
+Vermietungsmodells verwendet (SHORT_STAY nutzt denselben Wert wie unmöbliert, keine
+eigene dritte Variante): fliesst in die Investitionssumme
+(`calculateAllInInvestition`), den Renovation-ROI (`calculateRenovationRoi` nutzt jetzt
+ebenfalls den effektiven Betrag statt eines einzelnen Felds) und — neu ein
+`betriebskostenEffective`-Objekt statt `facts.betriebskosten` direkt — in NOI/Cashflow
+(Investment Case) UND ins 15-Jahres-Modell (`betriebskostenJahr1`).
+
+**Formular**: beide Felder sind aus den bisherigen Sektionen "Renovation"/
+"Betriebskosten" in die bestehenden "Paket 1 — unmöbliert"/"Paket 2 — möbliert"-Blöcke
+gewandert (dort, wo bereits die Miete/Möblierungskosten je Paket erfasst werden) —
+Beschreibungstexte in den verbleibenden Sektionen entsprechend angepasst, damit sie
+nicht mehr auf ein inzwischen woanders liegendes Feld verweisen. Die itemisierte
+Renovationspositionen-Liste (Werterhaltend/Wertvermehrend/Energetisch fürs
+15-Jahres-Modell) bleibt unverändert unabhängig vom Paket — ein eigenes, von der
+Vermietungsart unabhängiges Konzept.
+
+Neue Tests decken das Gating ab: All-in-Investition/NOI/Renovation-ROI verwenden je
+Paket den korrekten Betrag; bestehender Regressionstest zum Möblierungs-Gating
+entsprechend angepasst (Wechsel möbliert→unmöbliert lässt jetzt zusätzlich zur
+Möblierung auch die paket-spezifische Renovationsdifferenz wegfallen).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

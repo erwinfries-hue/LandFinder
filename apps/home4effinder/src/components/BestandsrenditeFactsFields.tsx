@@ -338,7 +338,24 @@ export function BestandsrenditeFactsFields({
           ) : null}
         </div>
         <div className="field">
-          <div style={{ color: "var(--ink-faint)", fontSize: ".8125rem", marginTop: "1.4rem" }}>Zusatzkosten: CHF 0 (keine Möblierung)</div>
+          <label htmlFor="initialRenovationCostUnmoebliertChf">Initial-Renovationskosten (CHF, 0 falls bereits saniert)</label>
+          <input
+            id="initialRenovationCostUnmoebliertChf"
+            name="initialRenovationCostUnmoebliertChf"
+            type="number"
+            step="500"
+            defaultValue={existing?.renovation.initialRenovationCostUnmoebliertChf ?? 0}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="reinigungServiceUnmoebliertChfPerYear">Reinigung/Service (CHF/Jahr)</label>
+          <input
+            id="reinigungServiceUnmoebliertChfPerYear"
+            name="reinigungServiceUnmoebliertChfPerYear"
+            type="number"
+            step="50"
+            defaultValue={existing?.betriebskosten.reinigungServiceUnmoebliertChfPerYear ?? 0}
+          />
         </div>
       </div>
       <div style={{ fontWeight: 600, fontSize: ".82rem", margin: ".9rem 0 .4rem" }}>Paket 2 — möbliert vermieten</div>
@@ -387,16 +404,37 @@ export function BestandsrenditeFactsFields({
             defaultValue={existing?.moeblierung.kostensteigerungPercentPerYear}
           />
         </div>
+        <div className="field">
+          <label htmlFor="initialRenovationCostMoebliertChf">Initial-Renovationskosten (CHF, 0 falls bereits saniert)</label>
+          <input
+            id="initialRenovationCostMoebliertChf"
+            name="initialRenovationCostMoebliertChf"
+            type="number"
+            step="500"
+            defaultValue={existing?.renovation.initialRenovationCostMoebliertChf ?? 0}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="reinigungServiceMoebliertChfPerYear">Reinigung/Service (CHF/Jahr)</label>
+          <input
+            id="reinigungServiceMoebliertChfPerYear"
+            name="reinigungServiceMoebliertChfPerYear"
+            type="number"
+            step="50"
+            defaultValue={existing?.betriebskosten.reinigungServiceMoebliertChfPerYear ?? 0}
+          />
+        </div>
       </div>
 
       <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         Renovation
       </div>
+      <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .45rem" }}>
+        Initial-Renovationskosten werden je Paket oben erfasst (Paket 1/Paket 2, kurzfristig/möbliert braucht
+        oft eine andere Sanierungstiefe als langfristig/unmöbliert) — hier nur noch die Mietwirkung und
+        Einzelpositionen fürs 15-Jahres-Modell.
+      </p>
       <div className="fieldgrid">
-        <div className="field">
-          <label htmlFor="initialRenovationCostChf">Initial-Renovationskosten gesamt (CHF, 0 falls bereits saniert)</label>
-          <input id="initialRenovationCostChf" name="initialRenovationCostChf" type="number" step="500" defaultValue={existing?.renovation.initialRenovationCostChf ?? 0} />
-        </div>
         <div className="field">
           <label htmlFor="mieteVorRenovationChfPerMonth">
             Miete vor Renovation (CHF/Monat, für Renovation-ROI — leer = Nettomiete Wohnung oben)
@@ -422,8 +460,9 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
       <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: ".4rem 0" }}>
-        Nur wertvermehrende Positionen unten erhöhen den angenommenen Immobilienwert im 15-Jahres-Modell — ohne
-        Positionen bleibt der Gesamtbetrag oben nur Teil der Investitionssumme, ohne Werteffekt beim Exit.
+        Nur wertvermehrende Positionen unten erhöhen den angenommenen Immobilienwert im 15-Jahres-Modell — die
+        Initial-Renovationskosten je Paket oben fliessen unabhängig davon immer in die Investitionssumme ein, ohne
+        Positionen aber ohne Werteffekt beim Exit.
       </p>
       {renovationPositionen.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: ".6rem", marginBottom: ".8rem" }}>
@@ -500,6 +539,10 @@ export function BestandsrenditeFactsFields({
       <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         Betriebskosten (CHF/Jahr)
       </div>
+      <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .45rem" }}>
+        Reinigung/Service wird je Paket oben erfasst (Paket 1/Paket 2) — kurzfristig/möbliert braucht typischerweise
+        Reinigung zwischen Mietern, langfristig/unmöbliert meist nicht.
+      </p>
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="stwegAkontobeitragChfPerYear">STWEG-Akontobeitrag{stwegAkonto.fromDoc ? ` (aus Dokument: ${stwegAkonto.value})` : ""}</label>
@@ -518,10 +561,6 @@ export function BestandsrenditeFactsFields({
         <div className="field">
           <label htmlFor="vermietungskostenChfPerYear">Vermietungs-/Inseratskosten</label>
           <input id="vermietungskostenChfPerYear" name="vermietungskostenChfPerYear" type="number" step="50" defaultValue={existing?.betriebskosten.vermietungskostenChfPerYear ?? 0} />
-        </div>
-        <div className="field">
-          <label htmlFor="reinigungServiceChfPerYear">Reinigung/Service</label>
-          <input id="reinigungServiceChfPerYear" name="reinigungServiceChfPerYear" type="number" step="50" defaultValue={existing?.betriebskosten.reinigungServiceChfPerYear ?? 0} />
         </div>
       </div>
 
