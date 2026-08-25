@@ -3,13 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { AVAILABLE_CANTONS } from "@/lib/cantons";
+import { createSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 
 /**
  * Legt bei Bedarf eine neue Region an (Find-or-Create über POST /api/regions) und lädt
- * direkt danach den ersten/nächsten Report für diese Region hoch. Zwei Requests statt
- * einem — hält beide Endpunkte einfach und wiederverwendbar (dieselbe Region kann später
- * auch ohne neuen Upload existieren, derselbe Upload-Endpunkt wird auch von der
- * Regions-Detailseite für weitere Reports genutzt).
+ * direkt danach den ersten/nächsten Report für diese Region hoch. Drei Schritte statt
+ * einem einzigen Formular-POST: (1) Region anlegen, (2) Datei DIREKT zu Supabase
+ * Storage hochladen (Signed URL, siehe supabaseBrowser.ts — Vercels
+ * Serverless-Function-Payload-Limit von 4.5 MB liess einen direkten Upload über eine
+ * eigene Route bei mehrseitigen Reports sofort mit einem "Netzwerkfehler"
+ * scheitern), (3) Server anweisen, die bereits hochgeladene Datei zu analysieren.
  */
 export function RegionUploadForm() {
   const router = useRouter();
@@ -51,14 +54,39 @@ export function RegionUploadForm() {
         setError(regionBody.error ?? "Region konnte nicht angelegt werden.");
         return;
       }
+      const regionId = regionBody.id;
 
-      setStatus("Report wird hochgeladen und analysiert — das kann bei umfangreichen Reports etwas dauern…");
-      const formData = new FormData();
-      formData.append("file", file);
-      const uploadRes = await fetch(`/api/regions/${regionBody.id}/documents`, { method: "POST", body: formData });
+      const browserClient = createSupabaseBrowserClient();
+      if (!browserClient) {
+        setError("Supabase ist im Browser nicht konfiguriert (NEXT_PUBLIC_SUPABASE_ANON_KEY fehlt) — Upload nicht möglich.");
+        return;
+      }
+
+      setStatus("Datei wird direkt zu Supabase hochgeladen…");
+      const signedUrlRes = await fetch(`/api/regions/${regionId}/documents/signed-upload-url`, { method: "POST" });
+      const signedUrlBody = (await signedUrlRes.json()) as { storagePath?: string; token?: string; error?: string };
+      if (!signedUrlRes.ok || !signedUrlBody.storagePath || !signedUrlBody.token) {
+        setError(signedUrlBody.error ?? "Signed-Upload-URL konnte nicht erstellt werden.");
+        return;
+      }
+
+      const { error: uploadStorageError } = await browserClient.storage
+        .from("region-documents")
+        .uploadToSignedUrl(signedUrlBody.storagePath, signedUrlBody.token, file, { contentType: "application/pdf" });
+      if (uploadStorageError) {
+        setError(`Upload zu Supabase fehlgeschlagen: ${uploadStorageError.message}`);
+        return;
+      }
+
+      setStatus("Report wird analysiert — das kann bei umfangreichen Reports etwas dauern…");
+      const uploadRes = await fetch(`/api/regions/${regionId}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storagePath: signedUrlBody.storagePath, originalFilename: file.name }),
+      });
       const uploadBody = (await uploadRes.json()) as { saved?: boolean; status?: string; error?: string; duplicate?: boolean };
       if (!uploadRes.ok || !uploadBody.saved) {
-        setError(uploadBody.error ?? "Upload fehlgeschlagen.");
+        setError(uploadBody.error ?? "Analyse konnte nicht gestartet werden.");
         return;
       }
       if (uploadBody.status === "FAILED") {

@@ -70,11 +70,14 @@ npm test                           # vitest über alle packages/* + beide Apps
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | **Eigenes** Supabase-Projekt — NICHT dasselbe wie LandFinders `NEXT_PUBLIC_SUPABASE_URL` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service-Role-Key desselben eigenen Projekts |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon-/Public-Key desselben Projekts (Supabase-Dashboard → Project Settings → API) — NUR für Direct-Uploads grosser Dateien (Regionsreports, siehe `src/lib/supabaseBrowser.ts`) direkt vom Browser zu Supabase Storage, umgeht damit Vercels 4.5-MB-Payload-Limit für Serverless-Functions. Alle übrigen Supabase-Zugriffe bleiben serverseitig über den service_role-Key |
 | `ANTHROPIC_API_KEY` | Für die Dokumenten-KI (Extraktion + Synthese) — kann derselbe Key wie bei LandFinder sein, reine Nutzungskosten |
 | `SESSION_SIGNING_SECRET` | Beliebiger langer Zufallsstring — signiert das Session-Cookie. Ohne diese Variable bleibt die App komplett gesperrt (fail closed) |
 
 Ohne `NEXT_PUBLIC_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` läuft die App, zeigt aber
-überall "Supabase ist nicht konfiguriert" statt echter Daten — kein Absturz.
+überall "Supabase ist nicht konfiguriert" statt echter Daten — kein Absturz. Ohne
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` funktioniert alles ausser dem Hochladen von
+Regionsreports (Fehlermeldung statt Absturz).
 
 ## Erstinbetriebnahme (siehe `docs/DECISIONS.md` für Details)
 

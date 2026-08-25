@@ -4,6 +4,7 @@ import { Panel, Chip } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { Metric } from "@/components/MetricPrimitives";
 import { DeleteRegionDocumentButton } from "@/components/DeleteRegionDocumentButton";
+import { DeleteRegionButton } from "@/components/DeleteRegionButton";
 import { getRegionById, getRegionDocuments } from "@/lib/regionMarketData";
 import { formatDateTime } from "@/lib/properties";
 import { formatChf } from "@/lib/format";
@@ -85,9 +86,12 @@ export default async function RegionDetailPage({ params }: { params: Promise<{ i
       <main className="main">
         <Panel className="dethead">
           <div className="eyebrow">Region</div>
-          <h1>
-            {region.gemeinde} ({region.canton})
-          </h1>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+            <h1>
+              {region.gemeinde} ({region.canton})
+            </h1>
+            <DeleteRegionButton regionId={region.id} label={`${region.gemeinde} (${region.canton})`} redirectTo="/regionen" />
+          </div>
         </Panel>
 
         {extraction ? (
