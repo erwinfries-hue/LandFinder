@@ -302,7 +302,7 @@ export function BestandsrenditeFactsFields({
         Schnellcheck/Rendite/15-Jahres-Modell tatsächlich gerechnet wird — das Ergebnis beider Pakete im direkten
         Vergleich zeigt die Analyse weiter unten unter &quot;Value-Add — Möblierung&quot;.
       </p>
-      <div style={{ fontWeight: 600, fontSize: ".82rem", marginBottom: ".4rem" }}>Paket 1 — unmöbliert vermieten</div>
+      <div style={{ fontWeight: 600, fontSize: "1.07rem", marginBottom: ".4rem" }}>Paket 1 — unmöbliert vermieten</div>
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="wohnungsMieteChfPerMonth">
@@ -358,7 +358,7 @@ export function BestandsrenditeFactsFields({
           />
         </div>
       </div>
-      <div style={{ fontWeight: 600, fontSize: ".82rem", margin: ".9rem 0 .4rem" }}>Paket 2 — möbliert vermieten</div>
+      <div style={{ fontWeight: 600, fontSize: "1.07rem", margin: ".9rem 0 .4rem" }}>Paket 2 — möbliert vermieten</div>
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="moeblierteMieteChfPerMonth">Erwartete Miete möbliert (CHF/Monat)</label>
