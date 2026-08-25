@@ -2073,6 +2073,59 @@ echten Testupload mit dem Wohlen-Report durchführen und die extrahierten Werte 
 neuen Regions-Detailseite gegenprüfen, bevor in einem Folge-PR (PR B) Regionswerte in
 die Finanzberechnung einfliessen.
 
+## Nachgezogen (2026-08-25): Regionsreport-Upload scheiterte an Vercels 4.5-MB-Payload-Limit
+
+Live-Test direkt nach dem Merge des Regionen-Fundaments: Upload des echten
+Wohlen-Reports (90 Seiten, 4.4 MB) schlug sofort (< 10 Sekunden) mit einem
+generischen "Netzwerkfehler" fehl — die Region selbst wurde dabei erfolgreich
+angelegt (kleiner JSON-Request), nur der nachfolgende Datei-Upload nicht. Diagnose:
+Vercel-Serverless-Functions haben ein hartes, nicht konfigurierbares Payload-Limit
+von 4.5 MB — die Plattform hat den Request bereits VOR dem Route-Handler-Code
+abgelehnt, weshalb weder ein sinnvoller Fehlertext noch mein für die Analysedauer
+gedachtes `maxDuration`-Handling je zum Zug kamen (das war ein separates, hier
+NICHT ursächliches Risiko — die Analyse selbst hatte noch gar nicht begonnen).
+
+Fix: der Upload läuft jetzt zweistufig statt über einen einzigen FormData-POST an
+die Vercel-Function:
+1. `POST /api/regions/[id]/documents/signed-upload-url` (neu) — mint serverseitig
+   mit dem service_role-Key eine Supabase-Storage-Signed-Upload-URL (winziger
+   Request/Response, kein Payload-Problem).
+2. Der Browser lädt die Datei DIREKT zu Supabase Storage hoch
+   (`uploadToSignedUrl`, siehe `src/lib/supabaseBrowser.ts`) — läuft komplett an der
+   Vercel-Function vorbei, unterliegt nur noch Supabases eigenen (deutlich
+   grosszügigeren) Limits.
+3. `POST /api/regions/[id]/documents` (Vertrag geändert: nimmt jetzt
+   `{storagePath, originalFilename}` als kleines JSON entgegen statt der Datei
+   selbst) lädt die bereits hochgeladene Datei serverseitig aus dem Storage
+   herunter und startet die Claude-Extraktion wie bisher.
+
+Laut Supabase-SDK-Dokumentation (`storage-js`) benötigt `uploadToSignedUrl` EXPLIZIT
+keine RLS-Policy-Berechtigung — passt damit zum bestehenden "RLS aktiv, keine
+Policies"-Muster dieser App, ohne eine Ausnahme dafür einführen zu müssen. Die
+Autorisierung steckt vollständig im serverseitig geminteten Token.
+
+**Neuer Env-Var**: `NEXT_PUBLIC_SUPABASE_ANON_KEY` — bisher lief jeglicher
+Supabase-Zugriff ausschliesslich serverseitig über den service_role-Key; für den
+Direct-Upload braucht der Browser-Client zwingend einen (öffentlichen) Anon-Key,
+schon allein für den `apikey`-Header, unabhängig von RLS. Siehe README.md. Ohne
+diese Variable bleibt der Regionsreport-Upload mit einer klaren Fehlermeldung
+blockiert (kein stiller Fehlschlag) — alles andere in der App ist davon nicht
+betroffen.
+
+Dubletten-Bereinigung angepasst: da die Datei jetzt IMMER zuerst hochgeladen wird
+(bevor der Server den Content-Hash kennt), löscht `POST /api/regions/[id]/documents`
+bei einem erkannten Duplikat das soeben hochgeladene (jetzt überflüssige)
+Storage-Objekt wieder, statt es verwaist liegen zu lassen — der Rest des
+Dubletten-Verhaltens (kein zweiter Claude-Aufruf) bleibt unverändert.
+
+**Zusätzlich, per Rückmeldung während desselben Tests**: eine angelegte Region
+liess sich bisher nicht mehr löschen (nur einzelne Reports darin) — insbesondere
+störend, weil ein fehlgeschlagener Upload-Versuch eine leere Region zurücklässt.
+Neue `DELETE /api/regions/[id]/route.ts` (löscht Region + alle Reports, DB-Zeilen
+und Storage-Dateien, mirrort `properties/[id]/route.ts`) + `DeleteRegionButton.tsx`,
+sowohl in der Regionen-Liste als auch auf der Regions-Detailseite (dort mit
+Redirect zurück zur Liste, analog zu `PropertyDeleteButton.tsx` auf der Objektseite).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

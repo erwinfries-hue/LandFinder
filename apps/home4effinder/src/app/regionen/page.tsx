@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Panel } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
 import { RegionUploadForm } from "@/components/RegionUploadForm";
+import { DeleteRegionButton } from "@/components/DeleteRegionButton";
 import { listRegions } from "@/lib/regionMarketData";
 import { getProperties, formatDateTime } from "@/lib/properties";
 import { normalizeGemeinde } from "@/lib/gemeindeParsing";
@@ -89,10 +90,11 @@ export default async function RegionenPage() {
                             <td>{r.canton}</td>
                             <td className="num mono">{propertyCount}</td>
                             <td>{formatDateTime(r.created_at)}</td>
-                            <td>
+                            <td style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
                               <Link href={`/regionen/${r.id}`} className="maplink">
                                 Details →
                               </Link>
+                              <DeleteRegionButton regionId={r.id} label={`${r.gemeinde} (${r.canton})`} />
                             </td>
                           </tr>
                         );
