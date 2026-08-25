@@ -120,6 +120,25 @@ export function computeOverallStatus(categories: DueDiligenceCategoryResult[]): 
   return "OK";
 }
 
+/**
+ * Batch-Grösse für die Stufe-2-Synthese — nach der Deckelung durch
+ * `selectSynthesisPromptDocuments` (≤8 Dokumente) werden diese in Gruppen von je
+ * `SYNTHESIS_BATCH_SIZE` aufgeteilt und einzeln (kurze, garantiert unter Vercels
+ * 60-Sekunden-Limit bleibende) Claude-Aufrufe geschickt, statt alle gemeinsam in einem
+ * einzigen, potenziell zu langen Request (siehe docs/DECISIONS.md). Bei den meisten
+ * Objekten (≤3 Dokumente) ergibt sich dadurch weiterhin genau 1 Batch — unverändertes
+ * Verhalten/Timing wie vor dieser Umstellung.
+ */
+export const SYNTHESIS_BATCH_SIZE = 3;
+
+export function splitDocumentsIntoBatches(documents: SynthesisDocumentInput[]): SynthesisDocumentInput[][] {
+  const batches: SynthesisDocumentInput[][] = [];
+  for (let i = 0; i < documents.length; i += SYNTHESIS_BATCH_SIZE) {
+    batches.push(documents.slice(i, i + SYNTHESIS_BATCH_SIZE));
+  }
+  return batches;
+}
+
 const KNOWN_CATEGORIES = new Set(CATEGORY_ORDER);
 const KNOWN_SEVERITIES = new Set<DueDiligenceSeverity>(["OK", "KLAERUNGSBEDARF", "RISIKO"]);
 
@@ -154,7 +173,12 @@ function truncateForPrompt(text: string, maxLength: number): string {
   return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
 }
 
-function buildSynthesisPrompt(documents: SynthesisDocumentInput[], knownFacts: SynthesisKnownFact[], knownFields: SynthesisKnownField[]): string {
+function buildSynthesisPrompt(
+  documents: SynthesisDocumentInput[],
+  knownFacts: SynthesisKnownFact[],
+  knownFields: SynthesisKnownField[],
+  otherDocuments: SynthesisDocumentInput[] = [],
+): string {
   const documentsBlock = documents
     .map((d, i) => {
       const summary = truncateForPrompt(d.summary, MAX_SUMMARY_LENGTH_IN_PROMPT);
@@ -162,6 +186,20 @@ function buildSynthesisPrompt(documents: SynthesisDocumentInput[], knownFacts: S
       return `Dokument ${i + 1} (documentId="${d.id}", Dateiname="${d.filename}", Typ=${DOCUMENT_TYPE_CATALOG[d.documentType].label}):\nZusammenfassung: ${summary}\nFakten: ${factsJson}\nBereits erkannte Einzelfunde: ${JSON.stringify(compactFindingsForPrompt(d.findings))}`;
     })
     .join("\n\n");
+
+  // Nur Fakten (kein summary/findings) — Quervergleichs-Kontext für die Batch-Synthese,
+  // damit ein Widerspruch zwischen dem hier fokussierten Dokument und einem in einem
+  // ANDEREN Batch bereits/noch analysierten Dokument trotzdem erkannt wird, ohne dass
+  // diese anderen Dokumente hier erneut voll ausgewertet werden (siehe SYNTHESIS_BATCH_SIZE).
+  const otherDocumentsBlock =
+    otherDocuments.length > 0
+      ? `\n\nWEITERE, BEREITS ANALYSIERTE DOKUMENTE (nur Fakten, nur zum Quervergleich — dafür KEINE eigenen categories/findings erstellen):\n${otherDocuments
+          .map((d) => {
+            const factsJson = truncateForPrompt(JSON.stringify(d.facts), MAX_FACTS_JSON_LENGTH_IN_PROMPT);
+            return `Dokument (documentId="${d.id}", Dateiname="${d.filename}", Typ=${DOCUMENT_TYPE_CATALOG[d.documentType].label}):\nFakten: ${factsJson}`;
+          })
+          .join("\n\n")}`
+      : "";
 
   const factsBlock = knownFacts.length > 0 ? knownFacts.map((f) => `- ${f.label}: ${f.value}`).join("\n") : "(keine)";
   const fieldsBlock = knownFields.length > 0 ? knownFields.map((f) => `- field="${f.field}" (${f.label}), aktueller Wert: ${f.currentValue ?? "nicht erfasst"}`).join("\n") : "(keine)";
@@ -172,7 +210,7 @@ BEREITS ERFASSTE OBJEKT-DATEN (aus Inserat/manueller Erfassung):
 ${factsBlock}
 
 HOCHGELADENE DOKUMENTE:
-${documentsBlock}
+${documentsBlock}${otherDocumentsBlock}
 
 Beispiele für Widersprüche, auf die du besonders achten sollst: abweichende Flächenangaben zwischen Inserat und Grundriss/Grundbuch; ein im Inserat behauptetes Renovationsjahr ohne passenden Beleg in Rechnungen; ein angeblich inkludierter Parkplatz, der grundbuchlich nicht oder anders zugeordnet ist; ein in einem STWEG-Protokoll diskutiertes, aber abgelehntes/vertagtes Vorhaben (das trotzdem ein zukünftiges Risiko ist, nicht ignorieren).
 
@@ -316,8 +354,37 @@ function buildDefaultCategoryResult(category: DueDiligenceCategory, hasUploadedD
   return { category, status: "KLAERUNGSBEDARF", findings: [{ category, severity: "KLAERUNGSBEDARF", summary }] };
 }
 
-/** Defensiv geparst wie `parseDocumentExtractionResponse` — unbekannte/fehlerhafte Einträge werden übersprungen statt das ganze Ergebnis zu verwerfen. */
-export function parseSynthesisResponse(jsonText: string, documents: SynthesisDocumentInput[], knownFields: SynthesisKnownField[]): DueDiligenceResult {
+/**
+ * Füllt Kategorien, zu denen (in DIESEM Aufruf) nichts zurückkam, deterministisch mit
+ * einem neutralen Platzhalter auf (siehe `buildDefaultCategoryResult`) — aus
+ * `parseSynthesisResponse` extrahiert, damit sowohl der Einzel-Call-Pfad
+ * (`synthesizeDueDiligence`) als auch der Batch-Merge (`mergeDueDiligenceBatches`)
+ * dieselbe Logik verwenden. `documents` bestimmt dabei, für welche Kategorien
+ * überhaupt ein Dokument vorliegt (unterscheidet "kein Dokument" von "Dokument
+ * vorhanden, aber kein gesonderter Befund").
+ */
+function fillMissingCategories(categories: DueDiligenceCategoryResult[], documents: SynthesisDocumentInput[]): DueDiligenceCategoryResult[] {
+  const filled = [...categories];
+  const returnedCategories = new Set(categories.map((c) => c.category));
+  const uploadedCategories = new Set(documents.map((d) => DOCUMENT_TYPE_CATALOG[d.documentType].defaultCategory));
+  for (const category of CATEGORY_ORDER) {
+    if (returnedCategories.has(category)) continue;
+    filled.push(buildDefaultCategoryResult(category, uploadedCategories.has(category)));
+  }
+  return filled;
+}
+
+/** Zwischenergebnis eines einzelnen Batch-Aufrufs (`synthesizeDueDiligenceBatch`) — noch OHNE Kategorie-Auffüllung/`overallStatus`/`missingDocuments`, die erst nach dem Merge ALLER Batches über die vollständige Dokumentenliste berechnet werden (siehe `mergeDueDiligenceBatches`). */
+export interface PartialSynthesisResult {
+  overallSummary: string;
+  categories: DueDiligenceCategoryResult[];
+  sellerQuestions: DueDiligenceSellerQuestion[];
+  fieldUpdateProposals: DueDiligenceFieldUpdateProposal[];
+  contradictions: DueDiligenceContradiction[];
+}
+
+/** Gemeinsamer Parser-Kern für `parseSynthesisResponse` und `parseSynthesisBatchResponse` — unterscheidet sich nur darin, ob danach noch Kategorien aufgefüllt/`overallStatus`/`missingDocuments` berechnet werden. Defensiv geparst wie `parseDocumentExtractionResponse` — unbekannte/fehlerhafte Einträge werden übersprungen statt das ganze Ergebnis zu verwerfen. */
+function parseSynthesisResponseCore(jsonText: string, documents: SynthesisDocumentInput[], knownFields: SynthesisKnownField[]): PartialSynthesisResult {
   const parsed = JSON.parse(jsonText) as Record<string, unknown>;
   const overallSummary = typeof parsed.overallSummary === "string" ? parsed.overallSummary : "";
   const knownDocumentIds = new Set(documents.map((d) => d.id));
@@ -338,13 +405,6 @@ export function parseSynthesisResponse(jsonText: string, documents: SynthesisDoc
       if (parsedFinding) findings.push(parsedFinding);
     }
     categories.push({ category: c.category as DueDiligenceCategory, status: c.status as DueDiligenceSeverity, findings });
-  }
-
-  const returnedCategories = new Set(categories.map((c) => c.category));
-  const uploadedCategories = new Set(documents.map((d) => DOCUMENT_TYPE_CATALOG[d.documentType].defaultCategory));
-  for (const category of CATEGORY_ORDER) {
-    if (returnedCategories.has(category)) continue;
-    categories.push(buildDefaultCategoryResult(category, uploadedCategories.has(category)));
   }
 
   const sellerQuestions: DueDiligenceSellerQuestion[] = [];
@@ -403,15 +463,33 @@ export function parseSynthesisResponse(jsonText: string, documents: SynthesisDoc
     contradictions.push({ topic: c.topic, category: c.category as DueDiligenceCategory, field, options });
   }
 
+  return { overallSummary, categories, sellerQuestions, fieldUpdateProposals, contradictions };
+}
+
+/** Vollständiges Ergebnis eines EINZELNEN, alle Dokumente umfassenden Synthese-Aufrufs (`synthesizeDueDiligence`) — Kategorien vollständig aufgefüllt, `overallStatus`/`missingDocuments` bereits berechnet. */
+export function parseSynthesisResponse(jsonText: string, documents: SynthesisDocumentInput[], knownFields: SynthesisKnownField[]): DueDiligenceResult {
+  const core = parseSynthesisResponseCore(jsonText, documents, knownFields);
+  const categories = fillMissingCategories(core.categories, documents);
   return {
     overallStatus: computeOverallStatus(categories),
-    overallSummary,
+    overallSummary: core.overallSummary,
     categories,
     missingDocuments: computeMissingDocuments(documents.map((d) => d.documentType)),
-    sellerQuestions,
-    fieldUpdateProposals,
-    contradictions,
+    sellerQuestions: core.sellerQuestions,
+    fieldUpdateProposals: core.fieldUpdateProposals,
+    contradictions: core.contradictions,
   };
+}
+
+/**
+ * Ergebnis eines einzelnen Batch-Aufrufs (`synthesizeDueDiligenceBatch`) — bewusst OHNE
+ * Kategorie-Auffüllung/`overallStatus`/`missingDocuments`, da diese erst nach dem Merge
+ * ALLER Batches über die vollständige Dokumentenliste sinnvoll sind (siehe
+ * `mergeDueDiligenceBatches`). `allDocuments` (Fokus- + Quervergleichs-Dokumente dieses
+ * Batch-Aufrufs) dient hier nur der sourceDocumentId/Namens-Auflösung.
+ */
+export function parseSynthesisBatchResponse(jsonText: string, allDocuments: SynthesisDocumentInput[], knownFields: SynthesisKnownField[]): PartialSynthesisResult {
+  return parseSynthesisResponseCore(jsonText, allDocuments, knownFields);
 }
 
 const SYNTHESIS_MODEL_PRIMARY = "claude-sonnet-5";
@@ -432,20 +510,19 @@ const SYNTHESIS_PRIMARY_TIMEOUT_MS = 15_000;
 
 class SynthesisTimeoutError extends Error {}
 
-export async function synthesizeDueDiligence(
-  documents: SynthesisDocumentInput[],
-  knownFacts: SynthesisKnownFact[],
-  knownFields: SynthesisKnownField[],
-): Promise<DueDiligenceResult> {
+/**
+ * Modell-Rennen-/Timeout-Logik (Sonnet 5 mit Haiku-4.5-Rückfalloption, siehe
+ * `SYNTHESIS_PRIMARY_TIMEOUT_MS`) — gemeinsam genutzt vom Einzel-Call-Pfad
+ * (`synthesizeDueDiligence`) und vom Batch-Pfad (`synthesizeDueDiligenceBatch`), da
+ * jeder einzelne Claude-Aufruf (ob für alle Dokumente auf einmal oder nur einen Batch)
+ * demselben Zeitdruck unterliegt. Gibt den rohen Tool-Input als JSON-Text zurück, der
+ * ANSCHLIESSEND unterschiedlich geparst wird (`parseSynthesisResponse` vs.
+ * `parseSynthesisBatchResponse`).
+ */
+async function callSynthesisModel(system: string, knownFields: SynthesisKnownField[]): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new AnthropicNotConfiguredError();
 
-  if (documents.length === 0) {
-    return { overallStatus: "KLAERUNGSBEDARF", overallSummary: "", categories: [], missingDocuments: computeMissingDocuments([]), sellerQuestions: [], fieldUpdateProposals: [], contradictions: [] };
-  }
-
-  const promptDocuments = selectSynthesisPromptDocuments(documents);
-  const system = buildSynthesisPrompt(promptDocuments, knownFacts, knownFields);
   const tools = [{ name: SYNTHESIS_TOOL_NAME, description: "Nimmt das Due-Diligence-Syntheseergebnis entgegen.", input_schema: buildSynthesisToolSchema(knownFields) }];
 
   const client = new Anthropic({ apiKey });
@@ -485,5 +562,81 @@ export async function synthesizeDueDiligence(
   const toolUseBlock = response.content.find((block) => block.type === "tool_use" && block.name === SYNTHESIS_TOOL_NAME);
   if (!toolUseBlock || toolUseBlock.type !== "tool_use") throw new Error("Keine strukturierte Antwort (Tool-Aufruf) von Anthropic erhalten");
 
-  return parseSynthesisResponse(JSON.stringify(toolUseBlock.input), documents, knownFields);
+  return JSON.stringify(toolUseBlock.input);
+}
+
+export async function synthesizeDueDiligence(
+  documents: SynthesisDocumentInput[],
+  knownFacts: SynthesisKnownFact[],
+  knownFields: SynthesisKnownField[],
+): Promise<DueDiligenceResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new AnthropicNotConfiguredError();
+
+  if (documents.length === 0) {
+    return { overallStatus: "KLAERUNGSBEDARF", overallSummary: "", categories: [], missingDocuments: computeMissingDocuments([]), sellerQuestions: [], fieldUpdateProposals: [], contradictions: [] };
+  }
+
+  const promptDocuments = selectSynthesisPromptDocuments(documents);
+  const system = buildSynthesisPrompt(promptDocuments, knownFacts, knownFields);
+  const jsonText = await callSynthesisModel(system, knownFields);
+  return parseSynthesisResponse(jsonText, documents, knownFields);
+}
+
+/**
+ * Synthetisiert EINEN Batch (siehe `splitDocumentsIntoBatches`) — `focusDocuments`
+ * werden vollständig ausgewertet (eigene categories/findings), `otherDocuments` gehen
+ * nur als Fakten-Quervergleichskontext in den Prompt (siehe `buildSynthesisPrompt`).
+ * Das Ergebnis ist absichtlich ein `PartialSynthesisResult`, kein vollständiges
+ * `DueDiligenceResult` — Kategorie-Auffüllung/`overallStatus`/`missingDocuments`
+ * passieren erst einmalig nach dem Merge ALLER Batches (`mergeDueDiligenceBatches`).
+ */
+export async function synthesizeDueDiligenceBatch(
+  focusDocuments: SynthesisDocumentInput[],
+  otherDocuments: SynthesisDocumentInput[],
+  knownFacts: SynthesisKnownFact[],
+  knownFields: SynthesisKnownField[],
+): Promise<PartialSynthesisResult> {
+  const system = buildSynthesisPrompt(focusDocuments, knownFacts, knownFields, otherDocuments);
+  const jsonText = await callSynthesisModel(system, knownFields);
+  return parseSynthesisBatchResponse(jsonText, [...focusDocuments, ...otherDocuments], knownFields);
+}
+
+/**
+ * Führt die Ergebnisse aller Batches zu einem vollständigen `DueDiligenceResult`
+ * zusammen — reine Berechnung, KEIN weiterer Claude-Aufruf (siehe Plan/DECISIONS.md).
+ * Kommt dieselbe Kategorie aus mehreren Batches (kann bei >1 Batch vorkommen, wenn zwei
+ * Fokus-Dokumente verschiedener Batches derselben Kategorie zugeordnet sind), werden
+ * die Funde zusammengelegt und der schlechtere (schwerwiegendere) Status gewinnt —
+ * ein einzelner "unauffällig"-Befund aus einem Batch darf ein "Risiko" aus einem
+ * anderen Batch nicht überdecken. `allDocuments` sollte die VOLLSTÄNDIGE, nicht nur die
+ * batch-gedeckelte Dokumentenliste sein (für korrektes `missingDocuments`).
+ */
+export function mergeDueDiligenceBatches(batchResults: PartialSynthesisResult[], allDocuments: SynthesisDocumentInput[]): DueDiligenceResult {
+  const categoryByName = new Map<DueDiligenceCategory, DueDiligenceCategoryResult>();
+  for (const batch of batchResults) {
+    for (const c of batch.categories) {
+      const existing = categoryByName.get(c.category);
+      if (!existing) {
+        categoryByName.set(c.category, { category: c.category, status: c.status, findings: [...c.findings] });
+        continue;
+      }
+      existing.findings.push(...c.findings);
+      if (SEVERITY_SORT_WEIGHT[c.status] < SEVERITY_SORT_WEIGHT[existing.status]) existing.status = c.status;
+    }
+  }
+  const categories = fillMissingCategories([...categoryByName.values()], allDocuments);
+
+  return {
+    overallStatus: computeOverallStatus(categories),
+    overallSummary: batchResults
+      .map((b) => b.overallSummary)
+      .filter((s) => s.trim().length > 0)
+      .join("\n\n"),
+    categories,
+    missingDocuments: computeMissingDocuments(allDocuments.map((d) => d.documentType)),
+    sellerQuestions: batchResults.flatMap((b) => b.sellerQuestions),
+    fieldUpdateProposals: batchResults.flatMap((b) => b.fieldUpdateProposals),
+    contradictions: batchResults.flatMap((b) => b.contradictions),
+  };
 }

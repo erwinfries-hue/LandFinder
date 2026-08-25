@@ -10,6 +10,7 @@ import { guessDocumentType } from "@/lib/documentTypeGuess";
 import { formatDateTime } from "@/lib/properties";
 import { buildSellerQuestionsEmailDraft, buildMailtoUrl } from "@/lib/sellerQuestionsEmail";
 import { fetchJsonWithRetry } from "@/lib/fetchJsonWithRetry";
+import type { PartialSynthesisResult } from "@/lib/dueDiligenceSynthesis";
 
 export interface DueDiligenceDocumentRow {
   id: string;
@@ -89,6 +90,8 @@ export function DueDiligencePanel({
   const [uploading, setUploading] = useState(false);
   const [synthesizing, setSynthesizing] = useState(false);
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
+  /** Fortschritt über die einzelnen Synthese-Batches (siehe `handleSynthesize`) — `null` ausserhalb eines laufenden Durchlaufs. */
+  const [synthesisProgress, setSynthesisProgress] = useState<{ done: number; total: number } | null>(null);
   const [applying, setApplying] = useState<string | null>(null);
   /** Felder, die in dieser Sitzung bereits erfolgreich übernommen wurden — sofortiges "Übernommen ✓" statt Button, ohne auf den nächsten `router.refresh()` warten zu müssen (der die Formularfelder erst nach dem Neuladen aktualisiert). Ergänzt (nicht ersetzt) durch `groundTruthAppliedKeys` unten, das aus jedem Server-Render frisch neu berechnet wird und deshalb auch einen kompletten Seitenreload übersteht. */
   const [appliedFields, setAppliedFields] = useState<Set<string>>(new Set());
@@ -199,13 +202,50 @@ export function DueDiligencePanel({
     });
   }
 
+  /**
+   * Läuft die Stufe-2-Synthese jetzt batchweise ab (siehe docs/DECISIONS.md) — statt
+   * eines einzigen, bei vielen Dokumenten mitunter Vercels 60-Sekunden-Limit reissenden
+   * Requests, ruft der Client `.../due-diligence` wiederholt mit steigendem `batchIndex`
+   * auf (jeweils über `fetchJsonWithRetry`, EIN automatischer Retry PRO Batch statt fürs
+   * Ganze), sammelt die Zwischenergebnisse im Speicher und schickt sie danach EINMAL an
+   * `.../due-diligence/finalize`, wo sie zusammengeführt und persistiert werden.
+   */
   async function handleSynthesize() {
     setSynthesizing(true);
     setSynthesisError(null);
+    setSynthesisProgress(null);
     try {
-      const body = await fetchJsonWithRetry<{ saved?: boolean; error?: string }>(`/api/properties/${propertyId}/due-diligence`, { method: "POST" });
-      if (!body.saved) {
-        setSynthesisError(body.error ?? "Analyse fehlgeschlagen.");
+      const batchResults: PartialSynthesisResult[] = [];
+      let batchIndex = 0;
+      let totalBatches = 1;
+      while (batchIndex < totalBatches) {
+        const body = await fetchJsonWithRetry<{
+          saved?: boolean;
+          error?: string;
+          batchResult?: PartialSynthesisResult;
+          totalBatches?: number;
+        }>(`/api/properties/${propertyId}/due-diligence`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ batchIndex }),
+        });
+        if (!body.saved || !body.batchResult) {
+          setSynthesisError(body.error ?? "Analyse fehlgeschlagen.");
+          return;
+        }
+        batchResults.push(body.batchResult);
+        totalBatches = body.totalBatches ?? 1;
+        batchIndex += 1;
+        setSynthesisProgress({ done: batchIndex, total: totalBatches });
+      }
+
+      const finalizeBody = await fetchJsonWithRetry<{ saved?: boolean; error?: string }>(`/api/properties/${propertyId}/due-diligence/finalize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batches: batchResults }),
+      });
+      if (!finalizeBody.saved) {
+        setSynthesisError(finalizeBody.error ?? "Zusammenführen fehlgeschlagen.");
         return;
       }
       router.refresh();
@@ -213,6 +253,7 @@ export function DueDiligencePanel({
       setSynthesisError("Analyse fehlgeschlagen (Netzwerkfehler).");
     } finally {
       setSynthesizing(false);
+      setSynthesisProgress(null);
     }
   }
 
@@ -628,7 +669,7 @@ export function DueDiligencePanel({
           {synthesizing ? (
             <>
               <span className="spinner" aria-hidden="true" />
-              Analysiert…
+              {synthesisProgress ? `Analysiert… (${synthesisProgress.done}/${synthesisProgress.total})` : "Analysiert…"}
             </>
           ) : (
             "Due-Diligence aktualisieren"
