@@ -2003,6 +2003,76 @@ Ein-Seiten-Garantie ist bei variabler Anzahl offener Fragen/fehlender Dokumente 
 KI-generierter `overallSummary`-Länge nicht möglich, ohne echte Inhalte zu kürzen —
 das war explizit nicht gewünscht.
 
+## Neu (2026-08-24): Regionen-Marktdaten (Wüest-Partner-Standortreports) — Fundament (PR A)
+
+Nutzer besitzt zusätzlich zu den objektspezifischen Dokumenten (STWEG-Protokoll,
+Mietvertrag etc.) Marktreports auf Gemeinde-/Regionsebene (Beispiel: Wüest Partner
+"Standortinformation" für Wohlen AG — Miet-/Kaufpreis-Quantile je Zimmerzahl,
+Preisindizes, Bevölkerung, Mobilität, Steuern, Immobilienbestand, Bautätigkeit,
+Leerstand/Marktliquidität, Makrolagenbeschreibung). Anders als Objektdokumente sind
+diese Reports NICHT objektspezifisch, sondern für alle Objekte in derselben Gemeinde
+relevant — sollen deshalb einmal pro Gemeinde hochgeladen und wiederverwendet werden,
+nicht pro Objekt neu.
+
+**Bewusste Zwei-PR-Sequenzierung**: dieser Eintrag deckt nur PR A (Fundament: Upload,
+Extraktion, Anzeige) ab. Die Regionswerte fliessen NOCH NICHT in die
+Finanzberechnung (Leerstand-/Wertsteigerungs-Defaults) ein — das ist bewusst
+zurückgestellt (PR B), bis die Extraktionsqualität am echten Report bestätigt ist.
+Fehlextraktion in dieser ersten Version bleibt damit rein informativ sichtbar, statt
+still falsche Renditezahlen zu erzeugen.
+
+Neues Datenmodell (Migration `0008_regions.sql`): `regions` (Kanton+Gemeinde,
+`unique (canton, gemeinde_normalized)` — Kanton+Gemeinde als Composite-Key, weil
+mehrere Schweizer Gemeinden denselben Namen in unterschiedlichen Kantonen tragen, z.B.
+Wohlen AG vs. Wohlen bei Bern BE) + `region_documents` (Storage-Bucket
+`region-documents`, `content_hash`-Unique-Index PRO Region — verhindert einen zweiten
+Claude-Aufruf beim wiederholten Upload desselben Reports, PROAKTIV beim Upload geprüft
+statt erst nachträglich wie bei Objektdokumenten, weil sich ein Regionsreport-Upload
+in der Praxis tatsächlich wiederholt: mehrere Objekte in derselben Gemeinde, derselbe
+Report erneut hochgeladen). `properties.gemeinde` NEU, aber bewusst OHNE
+Fremdschlüssel zu `regions` — die Verknüpfung erfolgt zur Laufzeit über einen
+Kanton+Gemeinde-Text-Match (`getRegionByCantonGemeinde`/`getRegionMarketData` in
+regionMarketData.ts), damit sie robust bleibt, auch wenn eine Region erst nach dem
+Objekt angelegt oder das Gemeinde-Feld später korrigiert wird.
+
+`properties.gemeinde` wird beim Erfassen/Bearbeiten eines Objekts per Regex
+(`guessGemeindeFromAddress`, PLZ+Ortsname am Ende der Adresse) aus `address_text`
+vorbefüllt, sobald sich die Adresse ändert — SOLANGE der Nutzer das Gemeinde-Feld nicht
+bereits selbst angefasst hat (kein stilles Überschreiben einer bewussten Korrektur).
+`address_text` ist in dieser App bewusst unstrukturierter Freitext ohne Formatvorgabe
+— die Regex ist deshalb nur ein Vorschlag, das Feld bleibt immer frei editierbar,
+konsistent mit dem "nichts wird stillschweigend festgelegt"-Prinzip der App.
+
+Neue Extraktion (`regionExtraction.ts`, `extractRegionReport`) spiegelt
+`dueDiligenceExtraction.ts`, aber schlanker (ein einziger Report-"Typ", kein
+Dokumenttyp-Katalog, kein Due-Diligence-Findings-Schema). Extrahiert bewusst NUR die
+Gemeinde-Spalte, nicht die im Report zusätzlich vorhandenen MS-Region-/Kanton-/
+Schweiz-Vergleichsspalten — die App vergleicht ein Objekt gegen seine eigene Gemeinde.
+`maxDuration` für die Upload-Route auf 120s gesetzt (statt 60s wie bei
+Objektdokumenten) — ein 90-seitiger Report kann bei der Extraktion länger brauchen als
+ein typisches 5-20-seitiges STWEG-Protokoll; reicht das in der Praxis nicht, braucht es
+einen asynchronen Job statt synchroner Extraktion beim Upload (nicht Teil dieses PRs).
+
+Neues Markteinordnungs-Panel auf der Objektseite (`MarktEinordnungView.tsx`): zeigt,
+wo die erfasste Nettomiete/m²/Jahr und der Kaufpreis/m² des Objekts innerhalb der
+10/30/50/70/90%-Quantile seiner Gemeinde liegen (lineare Interpolation zwischen den
+Quantilpunkten, `estimateQuantilePosition` in regionMarketData.ts — Werte ausserhalb
+10-90% werden bewusst NICHT extrapoliert, sondern nur als "< 10%-Quantil"/
+"> 90%-Quantil" gekennzeichnet, um keine unplausibel präzise Zahl vorzutäuschen), plus
+Kontextkennzahlen (Leerstand, Preis-/Bevölkerungstrend). Rein informativ, nur
+sichtbar, wenn eine Region mit erfolgreich analysiertem Report für die Gemeinde des
+Objekts existiert.
+
+**Bekannte Einschränkung dieser Verifikation**: diese Remote-Session hat keinen
+`ANTHROPIC_API_KEY` — die Extraktionslogik (`regionExtraction.ts`) konnte deshalb NICHT
+live gegen den vom Nutzer bereitgestellten echten Wohlen-Report getestet werden,
+sondern nur per Unit-Tests der Parsing-/Validierungslogik und durch sorgfältigen
+Abgleich der Tool-Schema-Feldnamen/System-Prompt-Anweisungen gegen die tatsächlichen
+Tabellenüberschriften im Report (manuell gesichtet). Empfehlung: nach dem Merge einen
+echten Testupload mit dem Wohlen-Report durchführen und die extrahierten Werte auf der
+neuen Regions-Detailseite gegenprüfen, bevor in einem Folge-PR (PR B) Regionswerte in
+die Finanzberechnung einfliessen.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

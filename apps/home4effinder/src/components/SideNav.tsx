@@ -6,6 +6,7 @@ const items: { href: string; label: string; icon: IconName; key: string }[] = [
   { href: "/", label: "Objekte", icon: "plot", key: "objekte" },
   { href: "/neu", label: "Neu erfassen", icon: "grid", key: "neu" },
   { href: "/vergleich", label: "Vergleich", icon: "scale", key: "vergleich" },
+  { href: "/regionen", label: "Regionen", icon: "contour", key: "regionen" },
   { href: "/annahmen", label: "Annahmen", icon: "compass", key: "annahmen" },
 ];
 
