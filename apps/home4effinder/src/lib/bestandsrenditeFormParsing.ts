@@ -36,6 +36,8 @@ export function buildBestandsrenditeFactsFromFormData(
     parkplatzImKaufpreisEnthalten: form.get("parkplatzImKaufpreisEnthalten") === "on",
     garagenplatzKaufpreisChf: req("garagenplatzKaufpreisChf"),
     garagenplatzImKaufpreisEnthalten: form.get("garagenplatzImKaufpreisEnthalten") === "on",
+    hobbyraumKaufpreisChf: req("hobbyraumKaufpreisChf"),
+    hobbyraumImKaufpreisEnthalten: form.get("hobbyraumImKaufpreisEnthalten") === "on",
     stweg: {
       wertquotePromille: num("wertquotePromille"),
       erneuerungsfondsSaldoChf: num("erneuerungsfondsSaldoChf"),
@@ -69,6 +71,8 @@ export function buildBestandsrenditeFactsFromFormData(
     miete: {
       wohnungsMieteChfPerMonth,
       parkplatzMieteChfPerMonth: req("parkplatzMieteChfPerMonth"),
+      garagenplatzMieteChfPerMonth: req("garagenplatzMieteChfPerMonth"),
+      hobbyraumMieteChfPerMonth: req("hobbyraumMieteChfPerMonth"),
       sonstigeEinnahmenChfPerYear: req("sonstigeEinnahmenChfPerYear"),
       vermietungsmodell,
       leerstandPercent: vermietungsmodell !== "SHORT_STAY" ? num("leerstandPercent") : undefined,

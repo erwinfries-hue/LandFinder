@@ -41,6 +41,7 @@ export function BestandsrenditeAnalysisView({
     investmentCase,
     noiBreakdown,
     parkierung,
+    kategorienRenditen,
     mehrjahresmodell,
     investmentTreiber,
     furnitureRoi,
@@ -60,10 +61,21 @@ export function BestandsrenditeAnalysisView({
   // Nur die Parkierungsarten nennen, die tatsächlich zusätzlich zum Basis-Kaufpreis
   // dazugerechnet wurden (nicht die, die bereits im Basis-Kaufpreis enthalten sind).
   const parkierungTeile = [
-    parkierung.parkplatzZusatzChf > 0 ? `Parkplatz CHF ${formatChf(parkierung.parkplatzZusatzChf)}` : null,
+    parkierung.parkplatzZusatzChf > 0 ? `Aussenparkplatz CHF ${formatChf(parkierung.parkplatzZusatzChf)}` : null,
     parkierung.garagenplatzZusatzChf > 0 ? `Garage CHF ${formatChf(parkierung.garagenplatzZusatzChf)}` : null,
+    parkierung.hobbyraumZusatzChf > 0 ? `Hobbyraum CHF ${formatChf(parkierung.hobbyraumZusatzChf)}` : null,
   ].filter((t): t is string => t !== null);
   const parkierungSub = parkierungTeile.length > 0 ? `davon zusätzlich: ${parkierungTeile.join(", ")}` : undefined;
+
+  // Nur Kategorien mit tatsächlich erfasstem Kaufpreis zeigen — Wohnung ist Pflichtfeld,
+  // daher immer dabei; Garage/Aussenparkplatz/Hobbyraum nur wenn > 0 (siehe
+  // `KategorienRenditen` in bestandsrendite.ts).
+  const kategorienRenditenRows: { label: string; rendite: (typeof kategorienRenditen)["wohnung"] }[] = [
+    { label: "Wohnung", rendite: kategorienRenditen.wohnung },
+    ...(kategorienRenditen.garage.kaufpreisChf > 0 ? [{ label: "Garage", rendite: kategorienRenditen.garage }] : []),
+    ...(kategorienRenditen.aussenparkplatz.kaufpreisChf > 0 ? [{ label: "Aussenparkplatz", rendite: kategorienRenditen.aussenparkplatz }] : []),
+    ...(kategorienRenditen.hobbyraum.kaufpreisChf > 0 ? [{ label: "Hobbyraum", rendite: kategorienRenditen.hobbyraum }] : []),
+  ];
 
   // Für die Herleitungs-Sub-Texte unter Eigenkapitalbedarf/Eigenkapital unten — beide
   // Grössen stecken bereits fertig verrechnet im Ergebnis, hier nur zur Anzeige wieder in
@@ -80,13 +92,13 @@ export function BestandsrenditeAnalysisView({
         </div>
         <div className="metricgrid">
           <Metric
-            l="Kaufpreis (Wohnung + Parkplatz/Garage)"
+            l="Kaufpreis (Wohnung + Garage/Aussenparkplatz/Hobbyraum)"
             v={`CHF ${formatChf(schnellcheck.kaufpreisChf)}`}
             sub={parkierungSub}
-            hint="= Basis-Kaufpreis (Objekt-Basisdaten) + separater Parkplatz-/Garagenkaufpreis (0, falls dieser bereits im Basis-Kaufpreis enthalten ist)."
+            hint="= Basis-Kaufpreis (Objekt-Basisdaten) + separate Kaufpreise für Garage/Aussenparkplatz/Hobbyraum (0, falls diese bereits im Basis-Kaufpreis enthalten sind)."
           />
           <Metric l="Preis/m²" v={`CHF ${formatChf(Math.round(schnellcheck.preisProM2Chf))}`} hint="= Kaufpreis ÷ Wohnfläche (m²)." />
-          <Metric l="Jahresnettomiete" v={`CHF ${formatChf(schnellcheck.jahresnettomieteChf)}`} hint="= (Nettomiete Wohnung + Miete Parkplatz) × 12." />
+          <Metric l="Jahresnettomiete" v={`CHF ${formatChf(schnellcheck.jahresnettomieteChf)}`} hint="= (Nettomiete Wohnung + Miete Garage/Aussenparkplatz/Hobbyraum) × 12." />
           <Metric
             l="Bruttorendite (Kaufpreis)"
             v={`${schnellcheck.bruttoRenditePercent.toFixed(2)}%`}
@@ -109,6 +121,40 @@ export function BestandsrenditeAnalysisView({
             hint="= Jahresnettomiete − pauschale laufende Kosten − Hypothekarzins. Grobe Schnellcheck-Schätzung ohne Amortisation/Steuer/Reserven — die volle Aufschlüsselung folgt in Ebene B."
           />
         </div>
+
+        {kategorienRenditenRows.length > 1 ? (
+          <>
+            <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
+              <h2 style={{ fontSize: ".85rem" }}>Rendite nach Kategorie</h2>
+            </div>
+            <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .5rem" }}>
+              Rein informativ, je Kategorie eigener Kaufpreis ÷ eigene Jahresmiete — Hypothek/Cashflow/Steuer bleiben
+              unverändert auf dem Gesamt-Kaufpreis oben gerechnet (eine Liegenschaft hat eine Hypothek, nicht vier).
+            </p>
+            <div className="twrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Kategorie</th>
+                    <th className="num">Kaufpreis</th>
+                    <th className="num">Jahresmiete</th>
+                    <th className="num">Bruttorendite</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {kategorienRenditenRows.map((row) => (
+                    <tr key={row.label}>
+                      <td>{row.label}</td>
+                      <td className="num mono">CHF {formatChf(row.rendite.kaufpreisChf)}</td>
+                      <td className="num mono">CHF {formatChf(row.rendite.jahresmieteChf)}</td>
+                      <td className="num mono">{row.rendite.bruttoRenditePercent.toFixed(2)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : null}
 
         <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
           <h2 style={{ fontSize: ".85rem" }}>1./2. Hypothek</h2>
