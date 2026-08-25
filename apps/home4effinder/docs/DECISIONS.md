@@ -2222,6 +2222,23 @@ Einzel-Call). Echte Bestätigung erst durch den Nutzer live (erneuter Klick auf
 "Due-Diligence aktualisieren" bei Bollmoosweg 18, demselben Objekt, das zuvor
 fehlschlug).
 
+## Nachgezogen (2026-08-25): "DD aktualisieren"-Knopf zusätzlich im Objektseiten-Header
+
+Rückmeldung: der Auslöser für die Due-Diligence-Synthese sitzt bisher nur unten im
+`DueDiligencePanel` — auf dem Handy erst nach viel Scrollen erreichbar, gewünscht war
+ein zweiter, kompakter Knopf direkt oben im Header, unterhalb von "Objekt löschen"
+(neben "Management Summary (PDF)").
+
+Statt die Batch-Loop-Logik (siehe Eintrag oben) ein zweites Mal zu schreiben, wurde sie
+aus `DueDiligencePanel.tsx` in einen gemeinsamen Hook `useDueDiligenceSynthesis.ts`
+extrahiert (identisches Verhalten, nur als Hook statt inline). Neue, kompakte
+`DueDiligenceRefreshButton.tsx` (Objektseiten-Header) und das bestehende
+`DueDiligencePanel.tsx` nutzen beide denselben Hook — ein Klick oben löst exakt
+denselben batchweisen Ablauf aus wie der Knopf weiter unten, `router.refresh()`
+aktualisiert danach die ganze Seite inkl. Panel. Der Header-Knopf ist deaktiviert,
+solange keine Dokumente hochgeladen sind (`documents.length === 0`), analog zum
+bestehenden Knopf im Panel.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

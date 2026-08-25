@@ -21,6 +21,7 @@ import { BestandsrenditeVertiefungForm } from "@/components/BestandsrenditeVerti
 import { BestandsrenditeAnalysisView } from "@/components/BestandsrenditeAnalysisView";
 import { DueDiligencePanel, type DueDiligenceDocumentRow } from "@/components/DueDiligencePanel";
 import { PropertyDeleteButton } from "@/components/PropertyDeleteButton";
+import { DueDiligenceRefreshButton } from "@/components/DueDiligenceRefreshButton";
 import { PropertyEditForm } from "@/components/PropertyEditForm";
 import { ObjectSectionNav } from "@/components/ObjectSectionNav";
 import { MarktEinordnungView } from "@/components/MarktEinordnungView";
@@ -104,13 +105,16 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             <div>
               <h1>{property.title || property.address_text}</h1>
             </div>
-            <div style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
-              {analysis ? (
-                <a href={`/api/properties/${property.id}/management-summary`} className="btn" style={{ width: "auto" }}>
-                  Management Summary (PDF)
-                </a>
-              ) : null}
-              <PropertyDeleteButton propertyId={property.id} propertyLabel={property.title || property.address_text} />
+            <div style={{ display: "flex", flexDirection: "column", gap: ".5rem", alignItems: "flex-end" }}>
+              <div style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
+                {analysis ? (
+                  <a href={`/api/properties/${property.id}/management-summary`} className="btn" style={{ width: "auto" }}>
+                    Management Summary (PDF)
+                  </a>
+                ) : null}
+                <PropertyDeleteButton propertyId={property.id} propertyLabel={property.title || property.address_text} />
+              </div>
+              <DueDiligenceRefreshButton propertyId={property.id} disabled={(documents ?? []).length === 0} />
             </div>
           </div>
           {investmentScore ? (
