@@ -2126,6 +2126,14 @@ und Storage-Dateien, mirrort `properties/[id]/route.ts`) + `DeleteRegionButton.t
 sowohl in der Regionen-Liste als auch auf der Regions-Detailseite (dort mit
 Redirect zurück zur Liste, analog zu `PropertyDeleteButton.tsx` auf der Objektseite).
 
+**Nachtrag zur Inbetriebnahme**: `NEXT_PUBLIC_SUPABASE_ANON_KEY` wurde vom Nutzer in
+Vercel ergänzt (Supabase-Dashboard → Project Settings → API → "Publishable"-/
+Default-Key). Dieser Commit ist bewusst ohne funktionale Änderung — er löst nur einen
+neuen Vercel-Production-Build aus, damit der zur Build-Zeit fest eingebackene
+`NEXT_PUBLIC_`-Wert tatsächlich im ausgelieferten Browser-Code landet (ein reines
+Speichern des Env-Vars in Vercel wirkt sich erst auf den NÄCHSTEN Build aus, nicht auf
+bereits laufende Deployments).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
