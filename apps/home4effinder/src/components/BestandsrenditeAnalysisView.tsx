@@ -103,8 +103,24 @@ export function BestandsrenditeAnalysisView({
             l="Bruttorendite (Kaufpreis)"
             v={`${schnellcheck.bruttoRenditePercent.toFixed(2)}%`}
             valueColor={renditeAmpelColor(schnellcheck.bruttoRenditePercent, bruttoRenditeZielPercent)}
-            sub={alt ? `${altLabel}: ${alt.analysis.schnellcheck.bruttoRenditePercent.toFixed(2)}% · Ziel: ${bruttoRenditeZielPercent}%` : `Ziel: ${bruttoRenditeZielPercent}%`}
-            hint="= Jahresnettomiete ÷ Kaufpreis × 100. Farbe relativ zum Bruttorendite-Ziel (Annahmen-Reiter)."
+            sub={
+              <>
+                {alt ? `${altLabel}: ${alt.analysis.schnellcheck.bruttoRenditePercent.toFixed(2)}% · Ziel: ${bruttoRenditeZielPercent}%` : `Ziel: ${bruttoRenditeZielPercent}%`}
+                {kategorienRenditenRows.length > 1 ? (
+                  <details style={{ marginTop: ".25rem" }}>
+                    <summary style={{ cursor: "pointer", color: "var(--accent)" }}>Nach Kategorie</summary>
+                    <div style={{ marginTop: ".25rem", display: "flex", flexDirection: "column", gap: ".15rem" }}>
+                      {kategorienRenditenRows.map((row) => (
+                        <div key={row.label}>
+                          {row.label}: CHF {formatChf(row.rendite.kaufpreisChf)} · CHF {formatChf(row.rendite.jahresmieteChf)}/Jahr · {row.rendite.bruttoRenditePercent.toFixed(2)}%
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </>
+            }
+            hint="= Jahresnettomiete ÷ Kaufpreis × 100. Farbe relativ zum Bruttorendite-Ziel (Annahmen-Reiter). Aufklappbar: je Kategorie eigener Kaufpreis ÷ eigene Jahresmiete — Hypothek/Cashflow/Steuer bleiben unverändert auf dem Gesamt-Kaufpreis gerechnet (eine Liegenschaft hat eine Hypothek, nicht vier)."
           />
           <Metric
             l="Eigenkapitalbedarf"
@@ -121,40 +137,6 @@ export function BestandsrenditeAnalysisView({
             hint="= Jahresnettomiete − pauschale laufende Kosten − Hypothekarzins. Grobe Schnellcheck-Schätzung ohne Amortisation/Steuer/Reserven — die volle Aufschlüsselung folgt in Ebene B."
           />
         </div>
-
-        {kategorienRenditenRows.length > 1 ? (
-          <>
-            <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
-              <h2 style={{ fontSize: ".85rem" }}>Rendite nach Kategorie</h2>
-            </div>
-            <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .5rem" }}>
-              Rein informativ, je Kategorie eigener Kaufpreis ÷ eigene Jahresmiete — Hypothek/Cashflow/Steuer bleiben
-              unverändert auf dem Gesamt-Kaufpreis oben gerechnet (eine Liegenschaft hat eine Hypothek, nicht vier).
-            </p>
-            <div className="twrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Kategorie</th>
-                    <th className="num">Kaufpreis</th>
-                    <th className="num">Jahresmiete</th>
-                    <th className="num">Bruttorendite</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {kategorienRenditenRows.map((row) => (
-                    <tr key={row.label}>
-                      <td>{row.label}</td>
-                      <td className="num mono">CHF {formatChf(row.rendite.kaufpreisChf)}</td>
-                      <td className="num mono">CHF {formatChf(row.rendite.jahresmieteChf)}</td>
-                      <td className="num mono">{row.rendite.bruttoRenditePercent.toFixed(2)}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        ) : null}
 
         <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
           <h2 style={{ fontSize: ".85rem" }}>1./2. Hypothek</h2>

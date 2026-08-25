@@ -2300,6 +2300,25 @@ abgesichert über sorgfältige Feld-`id`/`name`-Konsistenz zwischen
 Kategorien korrekt berechnet, 0-Kaufpreis-Fall, Gesamtsumme bleibt bei gesetzten
 Garage-/Hobbyraum-Werten korrekt vollständig). Nutzer bestätigt nach dem Merge live.
 
+## Nachgezogen (2026-08-25): Rendite-nach-Kategorie als Drill-down statt eigener Abschnitt
+
+Rückmeldung direkt nach dem vorigen Merge: die neue "Rendite nach Kategorie"-Tabelle als
+eigener Abschnitt unter dem Schnellcheck war zwar korrekt, aber ein Sprung weg von der
+Kennzahl, die sie eigentlich aufschlüsselt. Sinnvoller: die "Bruttorendite
+(Kaufpreis)"-Kachel selbst bekommt ein Drill-down.
+
+Umsetzung: `Metric`s `sub`-Prop nimmt bereits `ReactNode` entgegen (nicht nur Text) —
+daher kein Umbau von `MetricPrimitives.tsx` nötig. Die Kachel zeigt weiterhin den
+bisherigen Ziel-/Alternativ-Vergleichstext, darunter jetzt zusätzlich ein natives
+`<details>`/`<summary>` ("Nach Kategorie", gleiches Muster wie
+"Objekt-Basisdaten bearbeiten" auf der Objektseite) — aufgeklappt erscheinen die vier
+Kategorien als kompakte Liste (Kaufpreis · Jahresmiete · Bruttorendite je Zeile), nicht
+als `<table>`: die Kachel ist nur eine von vier Spalten im `.metricgrid`
+(`grid-template-columns: repeat(4, 1fr)`, auf Mobile `repeat(2, 1fr)`) — eine
+mehrspaltige Tabelle wäre darin zu eng gewesen. Der bisherige eigenständige Abschnitt
+samt Tabelle ist komplett entfernt, die Berechnung selbst (`kategorienRenditen`)
+unverändert.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
