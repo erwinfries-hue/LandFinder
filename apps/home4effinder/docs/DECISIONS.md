@@ -2239,6 +2239,67 @@ aktualisiert danach die ganze Seite inkl. Panel. Der Header-Knopf ist deaktivier
 solange keine Dokumente hochgeladen sind (`documents.length === 0`), analog zum
 bestehenden Knopf im Panel.
 
+## Nachgezogen (2026-08-25): Kaufpreis-Aufteilung Wohnung/Garage/Aussenparkplatz/Hobbyraum + eigene Bruttorendite je Kategorie
+
+Rückmeldung anhand eines Screenshots des Erfassungsformulars: unter "Kaufpreis" sollten
+weitere Kaufpreis-Felder ergänzt werden — Garage, Aussenparkplatz, Hobbyraum —, damit
+sich "die Renditen für die vier Kategorien sauber auseinanderhalten" lassen. Auf
+Nachfrage bestätigt: (1) die bestehenden Parkplatz-/Garagenplatz-Kaufpreis-Felder
+(bisher nur im Deep-Dive-Formular) sollen ins Erfassungsformular vorgezogen werden statt
+doppelt zu existieren, (2) tatsächlich VIER getrennte Bruttorenditen sollen berechnet
+werden, nicht nur eine gemeinsame Summe.
+
+"Aussenparkplatz" existierte bereits als `parkplatzKaufpreisChf`, "Garage" als
+`garagenplatzKaufpreisChf` — beide bereits eigene Kaufpreis-Felder, nur (a) noch im
+Deep-Dive-Formular statt im Erfassungsformular, (b) ohne eigene Miete-Aufteilung (bisher
+EIN gemeinsames `parkplatzMieteChfPerMonth` für beide), (c) ohne "Hobbyraum"-Pendant.
+Kein DB-Schema-Update nötig — alles lebt in der bereits vorhandenen
+`properties.bestandsrendite`-JSONB-Spalte, kein manueller SQL-Schritt diesmal.
+
+**Kernentscheidung: additiv, nicht ersetzend.** Die bestehende Gesamtrechnung
+(Schnellcheck/Investment Case/15-Jahres-Modell/IRR) bleibt unverändert auf dem
+kombinierten Gesamt-Kaufpreis — eine Liegenschaft hat eine Hypothek/einen Cashflow,
+nicht vier getrennte (eine einzelne Garage bekommt keine eigene Hypothek). Zusätzlich
+NEU: eine reine Brutto-Rendite-Aufschlüsselung je Kategorie (`kategorienRenditen` in
+`bestandsrendite.ts`: Kaufpreis, Jahresmiete, Bruttorendite = Jahresmiete ÷ Kaufpreis,
+ohne Cashflow-/Hypotheken-/Steuerbezug). "Wohnung" nutzt bewusst NICHT "sonstige
+Einnahmen" (keiner Raum-Kategorie zuordenbar). 0% Rendite statt Division-durch-0-Fehler,
+wenn eine Kategorie keinen Kaufpreis hat.
+
+**Datenmodell** (`BestandsrenditeFacts`): neu `hobbyraumKaufpreisChf`/
+`hobbyraumImKaufpreisEnthalten` (Spiegelbild von Garage/Parkplatz), neu
+`miete.garagenplatzMieteChfPerMonth`/`miete.hobbyraumMieteChfPerMonth` (bestehendes
+`miete.parkplatzMieteChfPerMonth` gilt jetzt klar nur noch für den Aussenparkplatz). Die
+kombinierte Nebenraum-Miete für die GESAMTRECHNUNG ist weiterhin die Summe aller drei —
+sonst gingen Garage-/Hobbyraum-Mieteinnahmen aus Schnellcheck/Investment Case verloren.
+`packages/financial-engine` bleibt unangetastet (reine App-Ebene-Erweiterung).
+
+**Formulare**: neue geteilte Komponente `KaufpreisAufteilungFields.tsx` (reine
+Formularfelder ohne eigenes `<form>`, analog `BestandsrenditeFactsFields.tsx`) für
+Garage-/Aussenparkplatz-/Hobbyraum-Kaufpreis + "im Kaufpreis enthalten"-Checkboxen —
+verschoben aus `BestandsrenditeFactsFields.tsx`s "Objekt"-Block, jetzt direkt unter dem
+"Kaufpreis (Wohnung)"-Feld in `PropertyCreateForm.tsx` (funktioniert ohne Weiteres, da
+`PropertyCreateForm` ohnehin EIN kombiniertes `<form>` über Objekt-Basisdaten UND
+Bestandsrendite-Fakten ist) UND vor `BestandsrenditeFactsFields` in
+`BestandsrenditeVertiefungForm.tsx` (damit die Aufteilung nach der Ersterfassung
+weiterhin korrigierbar bleibt — analog zu `askingPriceChf` selbst, das ja auch sowohl im
+Neu-Erfassen- als auch im späteren "Objekt-Basisdaten bearbeiten"-Formular editierbar
+ist, keine "doppelte Ersterfassung"). Miete-Sektion in `BestandsrenditeFactsFields.tsx`
+um "Miete Garage"/"Miete Hobbyraum" ergänzt, "Miete Parkplatz" zu "Miete Aussenparkplatz"
+umbenannt (reine Label-Klarheit).
+
+**Anzeige**: neue Tabelle "Rendite nach Kategorie" im Schnellcheck-Panel der Objektseite
+— nur Kategorien mit erfasstem Kaufpreis > 0 (Wohnung immer, Pflichtfeld), nur
+eingeblendet, wenn mindestens eine Nebenkategorie einen Kaufpreis hat (sonst wäre die
+Tabelle nur eine Wiederholung der Kaufpreis-/Bruttorendite-Metriken darüber).
+
+Keine Live-Verifikation mit echten Browser-Formularen möglich (Remote-Session) —
+abgesichert über sorgfältige Feld-`id`/`name`-Konsistenz zwischen
+`KaufpreisAufteilungFields`, `bestandsrenditeFormParsing.ts` und
+`parseBestandsrenditeFacts`, plus neue Unit-Tests für `kategorienRenditen` (alle vier
+Kategorien korrekt berechnet, 0-Kaufpreis-Fall, Gesamtsumme bleibt bei gesetzten
+Garage-/Hobbyraum-Werten korrekt vollständig). Nutzer bestätigt nach dem Merge live.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

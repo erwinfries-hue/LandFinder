@@ -56,6 +56,10 @@ export interface BestandsrenditeFacts {
   garagenplatzKaufpreisChf: number;
   /** Analog zu `parkplatzImKaufpreisEnthalten`, aber für den Garagenplatz. */
   garagenplatzImKaufpreisEnthalten: boolean;
+  /** Separat erfassbarer Hobbyraum (z.B. Kellerabteil-Ausbau) — rechnerisch identisch zu den beiden Parkierungsarten behandelt, eigenes Feld aus demselben Grund (kann zusätzlich zu Parkplatz/Garage vorhanden sein). */
+  hobbyraumKaufpreisChf: number;
+  /** Analog zu `parkplatzImKaufpreisEnthalten`, aber für den Hobbyraum. */
+  hobbyraumImKaufpreisEnthalten: boolean;
 
   stweg: StwegFacts;
 
@@ -83,7 +87,10 @@ export interface BestandsrenditeFacts {
 
   miete: {
     wohnungsMieteChfPerMonth: number;
+    /** Nur der offene/Aussen-Parkplatz — siehe `parkplatzKaufpreisChf`. Garage/Hobbyraum haben eigene Mietefelder unten. */
     parkplatzMieteChfPerMonth: number;
+    garagenplatzMieteChfPerMonth: number;
+    hobbyraumMieteChfPerMonth: number;
     sonstigeEinnahmenChfPerYear: number;
     vermietungsmodell: Vermietungsmodell;
     leerstandPercent?: number;
@@ -200,6 +207,28 @@ export interface MoeblierungsVergleich {
   moebliert: MoeblierungsSzenario;
 }
 
+/** Reine Brutto-Rendite-Angabe für eine einzelne Kaufpreis-Kategorie — ohne Bezug zu Cashflow/Hypothek/Steuer (die bleiben bewusst auf dem Gesamt-Kaufpreis gerechnet, siehe `schnellcheck`/`investmentCase`). `bruttoRenditePercent` ist 0, wenn kein Kaufpreis erfasst ist (keine Division durch 0). */
+export interface KategorieRendite {
+  kaufpreisChf: number;
+  jahresmieteChf: number;
+  bruttoRenditePercent: number;
+}
+
+/**
+ * Vier separat ausgewiesene Brutto-Renditen (Rückmeldung: "damit können wir die
+ * Renditen für die vier Kategorien sauber auseinanderhalten") — rein additiv zur
+ * bestehenden Gesamtrechnung, ersetzt sie nicht: eine Liegenschaft hat eine Hypothek/
+ * einen Cashflow, nicht vier getrennte, daher bleiben Schnellcheck/Investment Case/
+ * 15-Jahres-Modell unverändert auf dem kombinierten Gesamt-Kaufpreis. "Wohnung" nutzt
+ * bewusst NICHT `sonstigeEinnahmenChfPerYear` (keiner Raum-Kategorie zuordenbar).
+ */
+export interface KategorienRenditen {
+  wohnung: KategorieRendite;
+  garage: KategorieRendite;
+  aussenparkplatz: KategorieRendite;
+  hobbyraum: KategorieRendite;
+}
+
 export interface BestandsrenditeAnalysisResult {
   schnellcheck: SchnellcheckResult;
   allInInvestitionChf: number;
@@ -218,8 +247,10 @@ export interface BestandsrenditeAnalysisResult {
   hypothek: { ersteHypothekChf: number; zweiteHypothekChf: number; ersteAmortisationChfPerYear: number; zweiteAmortisationChfPerYear: number };
   /** Für den Herleitungs-Sub-Text unter "Grober Cashflow" (Ebene A) — dieselben zwei Abzugsposten, die bereits in `schnellcheck.groberCashflowChf` verrechnet sind, hier nur zur Anzeige separat ausgewiesen. */
   schnellcheckKostenBreakdown: { laufendeKostenChfPerYear: number; zinsChf: number };
-  /** Wie viel vom Gesamt-Kaufpreis (`schnellcheck.kaufpreisChf`) zusätzlich zum Basis-Kaufpreis (Objekt-Basisdaten) aus Parkplatz/Garage stammt — 0, wenn keiner erfasst ist oder beide bereits im Basis-Kaufpreis enthalten sind. */
-  parkierung: { parkplatzZusatzChf: number; garagenplatzZusatzChf: number; totalZusatzChf: number };
+  /** Wie viel vom Gesamt-Kaufpreis (`schnellcheck.kaufpreisChf`) zusätzlich zum Basis-Kaufpreis (Objekt-Basisdaten) aus Parkplatz/Garage/Hobbyraum stammt — 0, wenn keiner erfasst ist oder alle bereits im Basis-Kaufpreis enthalten sind. */
+  parkierung: { parkplatzZusatzChf: number; garagenplatzZusatzChf: number; hobbyraumZusatzChf: number; totalZusatzChf: number };
+  /** Siehe `KategorienRenditen` — rein informative Brutto-Rendite je Kaufpreis-Kategorie, zusätzlich zur Gesamtrechnung oben. */
+  kategorienRenditen: KategorienRenditen;
   /** Unveränderte STWEG-Fakten aus den Facts — reine Datenhaltung ohne Scoring/Formel, siehe StwegFacts. */
   stweg: StwegFacts;
   assumptionNotes: string[];
@@ -257,8 +288,13 @@ export function computeBestandsrenditeAnalysis(
   // behandelt — reine Kategorisierung/Beschriftung, keine unterschiedliche Formel.
   const parkplatzKaufpreisZusatzChf = facts.parkplatzImKaufpreisEnthalten ? 0 : facts.parkplatzKaufpreisChf;
   const garagenplatzKaufpreisZusatzChf = facts.garagenplatzImKaufpreisEnthalten ? 0 : facts.garagenplatzKaufpreisChf;
-  const parkierungKaufpreisZusatzChf = parkplatzKaufpreisZusatzChf + garagenplatzKaufpreisZusatzChf;
+  const hobbyraumKaufpreisZusatzChf = facts.hobbyraumImKaufpreisEnthalten ? 0 : facts.hobbyraumKaufpreisChf;
+  const parkierungKaufpreisZusatzChf = parkplatzKaufpreisZusatzChf + garagenplatzKaufpreisZusatzChf + hobbyraumKaufpreisZusatzChf;
   const kaufpreisChf = property.kaufpreisChf + parkierungKaufpreisZusatzChf;
+  // Kombinierte Nebenraum-Miete für die GESAMTRECHNUNG (Schnellcheck/Investment Case/
+  // 15-Jahres-Modell) — die drei Nebenraum-Mietefelder fliessen hier unverändert
+  // vollständig ein, nur zusätzlich unten (kategorienRenditen) einzeln ausgewiesen.
+  const nebenraeumeMieteChfPerMonth = facts.miete.parkplatzMieteChfPerMonth + facts.miete.garagenplatzMieteChfPerMonth + facts.miete.hobbyraumMieteChfPerMonth;
   const nebenkosten = calculateNebenkosten({ kaufpreisChf, handaenderungssteuerPercent, notariatGrundbuchPercent, maklerprovisionPercent });
 
   const renovationSummary = summarizeRenovationPositionen(facts.renovation.positionen);
@@ -306,7 +342,7 @@ export function computeBestandsrenditeAnalysis(
     parkplatzkaufpreisChf: parkierungKaufpreisZusatzChf,
     wohnflaecheM2: property.wohnflaecheM2,
     wohnungsMieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth,
-    parkplatzMieteChfPerMonth: facts.miete.parkplatzMieteChfPerMonth,
+    parkplatzMieteChfPerMonth: nebenraeumeMieteChfPerMonth,
     moeblierungsPremiumChfPerMonth,
     sonstigeEinnahmenChfPerYear: facts.miete.sonstigeEinnahmenChfPerYear,
     kaufnebenkostenPercent,
@@ -339,7 +375,7 @@ export function computeBestandsrenditeAnalysis(
     allInInvestitionChf,
     ertrag: {
       wohnungsMieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth,
-      parkplatzMieteChfPerMonth: facts.miete.parkplatzMieteChfPerMonth,
+      parkplatzMieteChfPerMonth: nebenraeumeMieteChfPerMonth,
       moeblierungsPremiumChfPerMonth,
       sonstigeEinnahmenChfPerYear: facts.miete.sonstigeEinnahmenChfPerYear,
       vermietungsmodell: facts.miete.vermietungsmodell,
@@ -481,6 +517,17 @@ export function computeBestandsrenditeAnalysis(
   // (Review-Fund: sähe wie ein echtes Ergebnis aus, ist aber ein Eingabefehler).
   if (belehnungPercent > 100) assumptionNotes.push(`Belehnung insgesamt über 100% (${belehnungPercent}%) — Eingabe prüfen, Kennzahlen unten sind unter dieser Annahme nicht aussagekräftig.`);
 
+  const kategorieRendite = (kategorieKaufpreisChf: number, mieteChfPerMonth: number): KategorieRendite => {
+    const jahresmieteChf = mieteChfPerMonth * 12;
+    return { kaufpreisChf: kategorieKaufpreisChf, jahresmieteChf, bruttoRenditePercent: kategorieKaufpreisChf > 0 ? (jahresmieteChf / kategorieKaufpreisChf) * 100 : 0 };
+  };
+  const kategorienRenditen: KategorienRenditen = {
+    wohnung: kategorieRendite(property.kaufpreisChf, facts.miete.wohnungsMieteChfPerMonth),
+    garage: kategorieRendite(facts.garagenplatzKaufpreisChf, facts.miete.garagenplatzMieteChfPerMonth),
+    aussenparkplatz: kategorieRendite(facts.parkplatzKaufpreisChf, facts.miete.parkplatzMieteChfPerMonth),
+    hobbyraum: kategorieRendite(facts.hobbyraumKaufpreisChf, facts.miete.hobbyraumMieteChfPerMonth),
+  };
+
   return {
     schnellcheck,
     allInInvestitionChf,
@@ -501,7 +548,13 @@ export function computeBestandsrenditeAnalysis(
     investmentTreiber,
     hypothek: { ersteHypothekChf, zweiteHypothekChf, ersteAmortisationChfPerYear, zweiteAmortisationChfPerYear },
     schnellcheckKostenBreakdown: { laufendeKostenChfPerYear: schnellcheckLaufendeKostenChfPerYear, zinsChf: schnellcheckZinsChf },
-    parkierung: { parkplatzZusatzChf: parkplatzKaufpreisZusatzChf, garagenplatzZusatzChf: garagenplatzKaufpreisZusatzChf, totalZusatzChf: parkierungKaufpreisZusatzChf },
+    parkierung: {
+      parkplatzZusatzChf: parkplatzKaufpreisZusatzChf,
+      garagenplatzZusatzChf: garagenplatzKaufpreisZusatzChf,
+      hobbyraumZusatzChf: hobbyraumKaufpreisZusatzChf,
+      totalZusatzChf: parkierungKaufpreisZusatzChf,
+    },
+    kategorienRenditen,
     stweg: facts.stweg,
     assumptionNotes,
   };
@@ -651,6 +704,8 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
       parkplatzImKaufpreisEnthalten: body.parkplatzImKaufpreisEnthalten === true,
       garagenplatzKaufpreisChf: num(body.garagenplatzKaufpreisChf) ?? 0,
       garagenplatzImKaufpreisEnthalten: body.garagenplatzImKaufpreisEnthalten === true,
+      hobbyraumKaufpreisChf: num(body.hobbyraumKaufpreisChf) ?? 0,
+      hobbyraumImKaufpreisEnthalten: body.hobbyraumImKaufpreisEnthalten === true,
       stweg,
       nebenkosten: {
         handaenderungssteuerPercent: num(nebenkosten.handaenderungssteuerPercent),
@@ -673,6 +728,8 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
       miete: {
         wohnungsMieteChfPerMonth: miete.wohnungsMieteChfPerMonth,
         parkplatzMieteChfPerMonth: num(miete.parkplatzMieteChfPerMonth) ?? 0,
+        garagenplatzMieteChfPerMonth: num(miete.garagenplatzMieteChfPerMonth) ?? 0,
+        hobbyraumMieteChfPerMonth: num(miete.hobbyraumMieteChfPerMonth) ?? 0,
         sonstigeEinnahmenChfPerYear: num(miete.sonstigeEinnahmenChfPerYear) ?? 0,
         vermietungsmodell: miete.vermietungsmodell as Vermietungsmodell,
         leerstandPercent: num(miete.leerstandPercent),
@@ -736,8 +793,11 @@ const ALLOWED_UPDATE_FIELDS = [
   "baujahr",
   "parkplatzKaufpreisChf",
   "garagenplatzKaufpreisChf",
+  "hobbyraumKaufpreisChf",
   "miete.wohnungsMieteChfPerMonth",
   "miete.parkplatzMieteChfPerMonth",
+  "miete.garagenplatzMieteChfPerMonth",
+  "miete.hobbyraumMieteChfPerMonth",
   "miete.sonstigeEinnahmenChfPerYear",
   "miete.leerstandPercent",
   "betriebskosten.stwegAkontobeitragChfPerYear",

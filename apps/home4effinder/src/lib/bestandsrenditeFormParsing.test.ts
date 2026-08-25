@@ -13,7 +13,10 @@ describe("buildBestandsrenditeFactsFromFormData", () => {
     const facts = buildBestandsrenditeFactsFromFormData(formDataFrom({}), "LANGFRISTIG_UNMOEBLIERT", []);
     expect(facts.parkplatzKaufpreisChf).toBe(0);
     expect(facts.garagenplatzKaufpreisChf).toBe(0);
+    expect(facts.hobbyraumKaufpreisChf).toBe(0);
     expect((facts.miete as Record<string, unknown>).wohnungsMieteChfPerMonth).toBe(0);
+    expect((facts.miete as Record<string, unknown>).garagenplatzMieteChfPerMonth).toBe(0);
+    expect((facts.miete as Record<string, unknown>).hobbyraumMieteChfPerMonth).toBe(0);
   });
 
   it("lässt optionale Zahlenfelder (num) bei leerer Eingabe undefined", () => {

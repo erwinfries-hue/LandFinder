@@ -130,11 +130,11 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             <Metric l="Kanton" v={property.canton} />
             <Metric l="Adresse" v={property.address_text} />
             <Metric
-              l={analysis && analysis.parkierung.totalZusatzChf > 0 ? "Kaufpreis (inkl. Parkplatz/Garage)" : "Kaufpreis"}
+              l={analysis && analysis.parkierung.totalZusatzChf > 0 ? "Kaufpreis (inkl. Garage/Aussenparkplatz/Hobbyraum)" : "Kaufpreis"}
               v={`CHF ${formatChf(analysis ? analysis.schnellcheck.kaufpreisChf : property.asking_price_chf)}`}
               sub={
                 analysis && analysis.parkierung.totalZusatzChf > 0
-                  ? `Basis CHF ${formatChf(property.asking_price_chf)} + Parkplatz/Garage CHF ${formatChf(analysis.parkierung.totalZusatzChf)}`
+                  ? `Basis CHF ${formatChf(property.asking_price_chf)} + Garage/Aussenparkplatz/Hobbyraum CHF ${formatChf(analysis.parkierung.totalZusatzChf)}`
                   : undefined
               }
             />

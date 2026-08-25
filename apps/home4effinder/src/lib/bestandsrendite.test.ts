@@ -74,11 +74,20 @@ const fullFacts: BestandsrenditeFacts = {
   parkplatzImKaufpreisEnthalten: false,
   garagenplatzKaufpreisChf: 0,
   garagenplatzImKaufpreisEnthalten: false,
+  hobbyraumKaufpreisChf: 0,
+  hobbyraumImKaufpreisEnthalten: false,
   stweg: { erneuerungsfondsSaldoChf: 180_000 },
   nebenkosten: {},
   renovation: { initialRenovationCostChf: 25_000, positionen: [{ betragChf: 25_000, kategorie: "WERTERHALTEND", jahr: 2026, steuerlicheAbzugsfaehigkeit: "UNKLAR" }] },
   moeblierung: { initialCostChf: 10_000, mietPremiumChfPerMonth: 300 },
-  miete: { wohnungsMieteChfPerMonth: 1_450, parkplatzMieteChfPerMonth: 150, sonstigeEinnahmenChfPerYear: 0, vermietungsmodell: "MITTELFRISTIG_MOEBLIERT" },
+  miete: {
+    wohnungsMieteChfPerMonth: 1_450,
+    parkplatzMieteChfPerMonth: 150,
+    garagenplatzMieteChfPerMonth: 0,
+    hobbyraumMieteChfPerMonth: 0,
+    sonstigeEinnahmenChfPerYear: 0,
+    vermietungsmodell: "MITTELFRISTIG_MOEBLIERT",
+  },
   betriebskosten: { stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0 },
   reserven: {},
   hypothek: {
@@ -206,12 +215,53 @@ describe("computeBestandsrenditeAnalysis", () => {
     const beide: BestandsrenditeFacts = { ...fullFacts, parkplatzKaufpreisChf: 20_000, garagenplatzKaufpreisChf: 35_000 };
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, beide);
     expect(result.schnellcheck.kaufpreisChf).toBe(925_000); // 870k + 20k Parkplatz + 35k Garage
-    expect(result.parkierung).toEqual({ parkplatzZusatzChf: 20_000, garagenplatzZusatzChf: 35_000, totalZusatzChf: 55_000 });
+    expect(result.parkierung).toEqual({ parkplatzZusatzChf: 20_000, garagenplatzZusatzChf: 35_000, hobbyraumZusatzChf: 0, totalZusatzChf: 55_000 });
 
     const nurGarageEnthalten: BestandsrenditeFacts = { ...beide, garagenplatzImKaufpreisEnthalten: true };
     const resultNurGarage = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, nurGarageEnthalten);
     expect(resultNurGarage.schnellcheck.kaufpreisChf).toBe(890_000); // nur der Parkplatz zählt zusätzlich, die Garage ist bereits im Kaufpreis
-    expect(resultNurGarage.parkierung).toEqual({ parkplatzZusatzChf: 20_000, garagenplatzZusatzChf: 0, totalZusatzChf: 20_000 });
+    expect(resultNurGarage.parkierung).toEqual({ parkplatzZusatzChf: 20_000, garagenplatzZusatzChf: 0, hobbyraumZusatzChf: 0, totalZusatzChf: 20_000 });
+  });
+
+  it("Hobbyraum verhält sich analog zu Parkplatz/Garage: addiert sich zusätzlich zum Kaufpreis, ausser wenn bereits enthalten", () => {
+    const mitHobbyraum: BestandsrenditeFacts = { ...fullFacts, hobbyraumKaufpreisChf: 15_000 };
+    const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, mitHobbyraum);
+    expect(result.schnellcheck.kaufpreisChf).toBe(915_000); // 870k Wohnung + 30k Parkplatz + 15k Hobbyraum
+    expect(result.parkierung).toEqual({ parkplatzZusatzChf: 30_000, garagenplatzZusatzChf: 0, hobbyraumZusatzChf: 15_000, totalZusatzChf: 45_000 });
+
+    const hobbyraumEnthalten: BestandsrenditeFacts = { ...mitHobbyraum, hobbyraumImKaufpreisEnthalten: true };
+    const resultEnthalten = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, hobbyraumEnthalten);
+    expect(resultEnthalten.schnellcheck.kaufpreisChf).toBe(900_000); // Hobbyraum bereits im Kaufpreis, kein Doppelzählen
+  });
+
+  describe("kategorienRenditen", () => {
+    it("berechnet für jede Kategorie eine eigene Brutto-Rendite aus deren eigenem Kaufpreis/Miete", () => {
+      const facts: BestandsrenditeFacts = {
+        ...fullFacts,
+        garagenplatzKaufpreisChf: 40_000,
+        hobbyraumKaufpreisChf: 10_000,
+        miete: { ...fullFacts.miete, parkplatzMieteChfPerMonth: 150, garagenplatzMieteChfPerMonth: 200, hobbyraumMieteChfPerMonth: 50 },
+      };
+      const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, facts);
+
+      expect(result.kategorienRenditen.wohnung).toEqual({ kaufpreisChf: 870_000, jahresmieteChf: 1_450 * 12, bruttoRenditePercent: ((1_450 * 12) / 870_000) * 100 });
+      expect(result.kategorienRenditen.aussenparkplatz).toEqual({ kaufpreisChf: 30_000, jahresmieteChf: 150 * 12, bruttoRenditePercent: ((150 * 12) / 30_000) * 100 });
+      expect(result.kategorienRenditen.garage).toEqual({ kaufpreisChf: 40_000, jahresmieteChf: 200 * 12, bruttoRenditePercent: ((200 * 12) / 40_000) * 100 });
+      expect(result.kategorienRenditen.hobbyraum).toEqual({ kaufpreisChf: 10_000, jahresmieteChf: 50 * 12, bruttoRenditePercent: ((50 * 12) / 10_000) * 100 });
+    });
+
+    it("liefert 0% Rendite statt eines Fehlers, wenn eine Kategorie keinen Kaufpreis hat", () => {
+      const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+      expect(result.kategorienRenditen.garage).toEqual({ kaufpreisChf: 0, jahresmieteChf: 0, bruttoRenditePercent: 0 });
+      expect(result.kategorienRenditen.hobbyraum).toEqual({ kaufpreisChf: 0, jahresmieteChf: 0, bruttoRenditePercent: 0 });
+    });
+
+    it("Garage-/Hobbyraum-Miete fliesst weiterhin vollständig in die Gesamtrechnung (Schnellcheck/Investment Case) ein, nicht nur in die Einzelkategorie", () => {
+      const ohne = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+      const mitGarageMiete: BestandsrenditeFacts = { ...fullFacts, garagenplatzKaufpreisChf: 40_000, miete: { ...fullFacts.miete, garagenplatzMieteChfPerMonth: 200 } };
+      const mit = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, mitGarageMiete);
+      expect(mit.schnellcheck.jahresnettomieteChf).toBe(ohne.schnellcheck.jahresnettomieteChf + 200 * 12);
+    });
   });
 
   it("ohne Miete vor/nach Renovation bleibt renovationRoi undefined, obwohl Renovationskosten gesetzt sind", () => {

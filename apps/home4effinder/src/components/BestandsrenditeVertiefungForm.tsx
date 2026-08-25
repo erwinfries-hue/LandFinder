@@ -6,6 +6,7 @@ import { Panel } from "@landfinder/ui";
 import type { Vermietungsmodell, RenovationPosition } from "@landfinder/financial-engine";
 import type { BestandsrenditeFacts, ParameterOverrides } from "@/lib/bestandsrendite";
 import { BestandsrenditeFactsFields, emptyRenovationPosition } from "./BestandsrenditeFactsFields";
+import { KaufpreisAufteilungFields } from "./KaufpreisAufteilungFields";
 import { buildBestandsrenditeFactsFromFormData } from "@/lib/bestandsrenditeFormParsing";
 
 /**
@@ -90,6 +91,12 @@ export function BestandsrenditeVertiefungForm({
         genauer weisst.
       </p>
       <form onSubmit={handleSubmit}>
+        <div className="eyebrow" style={{ marginBottom: ".5rem" }}>
+          Kaufpreis-Aufteilung
+        </div>
+        <div className="fieldgrid" style={{ marginBottom: "1rem" }}>
+          <KaufpreisAufteilungFields key={bestandsrenditeUpdatedAt ?? "new"} existing={existing} />
+        </div>
         <BestandsrenditeFactsFields
           key={bestandsrenditeUpdatedAt ?? "new"}
           existing={existing}

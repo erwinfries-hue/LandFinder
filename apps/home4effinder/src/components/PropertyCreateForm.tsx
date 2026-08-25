@@ -12,6 +12,7 @@ import { DOCUMENT_TYPE_CATALOG } from "@/lib/documentTypes";
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/dueDiligenceCategories";
 import { guessDocumentType } from "@/lib/documentTypeGuess";
 import { BestandsrenditeFactsFields, emptyRenovationPosition } from "./BestandsrenditeFactsFields";
+import { KaufpreisAufteilungFields } from "./KaufpreisAufteilungFields";
 import { buildBestandsrenditeFactsFromFormData } from "@/lib/bestandsrenditeFormParsing";
 import { BESTANDSRENDITE_KNOWN_FIELD_LABELS } from "@/lib/bestandsrenditeKnownFields";
 import { fetchJsonWithRetry } from "@/lib/fetchJsonWithRetry";
@@ -669,6 +670,7 @@ export function PropertyCreateForm({ parameterOverrides }: { parameterOverrides?
               onChange={(e) => setAskingPriceChf(e.target.value)}
             />
           </div>
+          <KaufpreisAufteilungFields key={factsFieldsVersion} existing={null} docProposals={docFieldProposals} />
           <div className="field">
             <label htmlFor="wohnflaecheM2">Wohnfläche (m²)</label>
             <input

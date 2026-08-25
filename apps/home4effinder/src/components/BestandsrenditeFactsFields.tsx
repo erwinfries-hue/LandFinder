@@ -152,10 +152,10 @@ export function BestandsrenditeFactsFields({
 
   const zimmerzahl = resolved("zimmerzahl", undefined);
   const baujahr = resolved("baujahr", undefined);
-  const parkplatzKaufpreisChf = resolved("parkplatzKaufpreisChf", 0);
-  const garagenplatzKaufpreisChf = resolved("garagenplatzKaufpreisChf", 0);
   const wohnungsMiete = resolved("miete.wohnungsMieteChfPerMonth", undefined);
   const parkplatzMiete = resolved("miete.parkplatzMieteChfPerMonth", 0);
+  const garagenplatzMiete = resolved("miete.garagenplatzMieteChfPerMonth", 0);
+  const hobbyraumMiete = resolved("miete.hobbyraumMieteChfPerMonth", 0);
   const sonstigeEinnahmen = resolved("miete.sonstigeEinnahmenChfPerYear", 0);
   const leerstand = resolved("miete.leerstandPercent", defaultLeerstandPercent);
   const stwegAkonto = resolved("betriebskosten.stwegAkontobeitragChfPerYear", 0);
@@ -186,52 +186,6 @@ export function BestandsrenditeFactsFields({
         <div className="field">
           <label htmlFor="baujahr">Baujahr{baujahr.fromDoc ? ` (aus Dokument: ${baujahr.value})` : ""}</label>
           <input id="baujahr" name="baujahr" type="number" step="1" defaultValue={existing?.baujahr ?? baujahr.value} />
-        </div>
-        <div className="field">
-          <label htmlFor="parkplatzKaufpreisChf">
-            Parkplatz-Kaufpreis, offen/aussen (CHF, {parkplatzKaufpreisChf.fromDoc ? `aus Dokument: ${parkplatzKaufpreisChf.value}` : "0 falls keiner"})
-          </label>
-          <input id="parkplatzKaufpreisChf" name="parkplatzKaufpreisChf" type="number" step="1000" defaultValue={existing?.parkplatzKaufpreisChf ?? parkplatzKaufpreisChf.value} />
-        </div>
-        <div className="field">
-          <label htmlFor="garagenplatzKaufpreisChf">
-            Tiefgaragenplatz-/Garage-Kaufpreis (CHF, {garagenplatzKaufpreisChf.fromDoc ? `aus Dokument: ${garagenplatzKaufpreisChf.value}` : "0 falls keiner"})
-          </label>
-          <input
-            id="garagenplatzKaufpreisChf"
-            name="garagenplatzKaufpreisChf"
-            type="number"
-            step="1000"
-            defaultValue={existing?.garagenplatzKaufpreisChf ?? garagenplatzKaufpreisChf.value}
-          />
-        </div>
-      </div>
-      <div className="field" style={{ marginTop: ".4rem" }}>
-        <div className="checkbox-row">
-          <input
-            id="parkplatzImKaufpreisEnthalten"
-            name="parkplatzImKaufpreisEnthalten"
-            type="checkbox"
-            defaultChecked={existing?.parkplatzImKaufpreisEnthalten ?? false}
-          />
-          <label htmlFor="parkplatzImKaufpreisEnthalten" style={{ marginBottom: 0 }}>
-            Parkplatz-Kaufpreis (offen/aussen) ist bereits im Kaufpreis oben (Objekt-Basisdaten) enthalten — sonst
-            wird er zusätzlich addiert
-          </label>
-        </div>
-      </div>
-      <div className="field" style={{ marginTop: ".4rem" }}>
-        <div className="checkbox-row">
-          <input
-            id="garagenplatzImKaufpreisEnthalten"
-            name="garagenplatzImKaufpreisEnthalten"
-            type="checkbox"
-            defaultChecked={existing?.garagenplatzImKaufpreisEnthalten ?? false}
-          />
-          <label htmlFor="garagenplatzImKaufpreisEnthalten" style={{ marginBottom: 0 }}>
-            Tiefgaragenplatz-/Garage-Kaufpreis ist bereits im Kaufpreis oben (Objekt-Basisdaten) enthalten — sonst
-            wird er zusätzlich addiert
-          </label>
         </div>
       </div>
 
@@ -279,13 +233,33 @@ export function BestandsrenditeFactsFields({
       </div>
       <div className="fieldgrid">
         <div className="field">
-          <label htmlFor="parkplatzMieteChfPerMonth">Miete Parkplatz (CHF/Monat){parkplatzMiete.fromDoc ? ` (aus Dokument: ${parkplatzMiete.value})` : ""}</label>
+          <label htmlFor="parkplatzMieteChfPerMonth">Miete Aussenparkplatz (CHF/Monat){parkplatzMiete.fromDoc ? ` (aus Dokument: ${parkplatzMiete.value})` : ""}</label>
           <input
             id="parkplatzMieteChfPerMonth"
             name="parkplatzMieteChfPerMonth"
             type="number"
             step="10"
             defaultValue={existing?.miete.parkplatzMieteChfPerMonth ?? parkplatzMiete.value}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="garagenplatzMieteChfPerMonth">Miete Garage (CHF/Monat){garagenplatzMiete.fromDoc ? ` (aus Dokument: ${garagenplatzMiete.value})` : ""}</label>
+          <input
+            id="garagenplatzMieteChfPerMonth"
+            name="garagenplatzMieteChfPerMonth"
+            type="number"
+            step="10"
+            defaultValue={existing?.miete.garagenplatzMieteChfPerMonth ?? garagenplatzMiete.value}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="hobbyraumMieteChfPerMonth">Miete Hobbyraum (CHF/Monat){hobbyraumMiete.fromDoc ? ` (aus Dokument: ${hobbyraumMiete.value})` : ""}</label>
+          <input
+            id="hobbyraumMieteChfPerMonth"
+            name="hobbyraumMieteChfPerMonth"
+            type="number"
+            step="10"
+            defaultValue={existing?.miete.hobbyraumMieteChfPerMonth ?? hobbyraumMiete.value}
           />
         </div>
         <div className="field">
