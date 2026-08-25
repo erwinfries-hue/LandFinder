@@ -2063,15 +2063,16 @@ Kontextkennzahlen (Leerstand, Preis-/Bevölkerungstrend). Rein informativ, nur
 sichtbar, wenn eine Region mit erfolgreich analysiertem Report für die Gemeinde des
 Objekts existiert.
 
-**Bekannte Einschränkung dieser Verifikation**: diese Remote-Session hat keinen
-`ANTHROPIC_API_KEY` — die Extraktionslogik (`regionExtraction.ts`) konnte deshalb NICHT
-live gegen den vom Nutzer bereitgestellten echten Wohlen-Report getestet werden,
-sondern nur per Unit-Tests der Parsing-/Validierungslogik und durch sorgfältigen
-Abgleich der Tool-Schema-Feldnamen/System-Prompt-Anweisungen gegen die tatsächlichen
-Tabellenüberschriften im Report (manuell gesichtet). Empfehlung: nach dem Merge einen
-echten Testupload mit dem Wohlen-Report durchführen und die extrahierten Werte auf der
-neuen Regions-Detailseite gegenprüfen, bevor in einem Folge-PR (PR B) Regionswerte in
-die Finanzberechnung einfliessen.
+**Update (2026-08-25, nach dem Upload-Fix unten)**: der Nutzer hat den echten
+Wohlen-Report erfolgreich live hochgeladen und analysiert. Extraktion gegen das
+Original gegengeprüft — alle Kennzahlen (Bevölkerung 17'816, Haushalte 7'490,
+Leerstand MFH 1.8%, Angebotsquote 3.0%, Preis-/Mietveränderungen 3J, Steuerbelastung,
+Bestandszahlen) UND die vollständigen Quantiltabellen (Mietwohnungen/
+Eigentumswohnungen/Einfamilienhäuser je Zimmerzahl) stimmen exakt mit dem Original
+überein. Die zuvor offene Einschränkung ("nicht live getestet, da kein
+ANTHROPIC_API_KEY in dieser Remote-Session") ist damit erledigt — die Extraktion ist
+verifiziert korrekt, PR B (Regionswerte in die Finanzberechnung) kann angegangen
+werden, sobald gewünscht.
 
 ## Nachgezogen (2026-08-25): Regionsreport-Upload scheiterte an Vercels 4.5-MB-Payload-Limit
 
@@ -2133,6 +2134,14 @@ neuen Vercel-Production-Build aus, damit der zur Build-Zeit fest eingebackene
 `NEXT_PUBLIC_`-Wert tatsächlich im ausgelieferten Browser-Code landet (ein reines
 Speichern des Env-Vars in Vercel wirkt sich erst auf den NÄCHSTEN Build aus, nicht auf
 bereits laufende Deployments).
+
+**Nachtrag, per Rückmeldung nach dem erfolgreichen Live-Test**: `RegionUploadForm.tsx`
+zeigte während des Wartens (Direct-Upload + Claude-Analyse, kann bei einem
+umfangreichen Report gut eine Minute dauern) nur Text ohne visuellen Lade-Indikator —
+wirkte dadurch, als würde nichts passieren. Bestehendes `.spinner`-Muster ergänzt
+(dasselbe, das schon in `PropertyCreateForm.tsx`/`DueDiligencePanel.tsx` für
+lang-laufende Claude-Aufrufe verwendet wird), sowohl am Status-Text als auch am
+Button.
 
 ## Bewusst weiterhin nicht gebaut
 

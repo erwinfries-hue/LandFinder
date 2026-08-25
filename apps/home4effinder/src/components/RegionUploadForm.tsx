@@ -131,11 +131,23 @@ export function RegionUploadForm() {
           <input id="region-file" type="file" accept="application/pdf,.pdf" ref={fileInputRef} required />
         </div>
       </div>
-      {status ? <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", marginTop: ".7rem" }}>{status}</p> : null}
+      {status ? (
+        <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", marginTop: ".7rem" }}>
+          <span className="spinner" aria-hidden="true" />
+          {status}
+        </p>
+      ) : null}
       {error ? <p style={{ color: "var(--bad)", fontSize: ".8125rem", marginTop: ".7rem" }}>{error}</p> : null}
       <div className="wizard-actions">
         <button type="submit" className="btn" style={{ width: "auto" }} disabled={uploading}>
-          {uploading ? "Wird hochgeladen…" : "Report hochladen"}
+          {uploading ? (
+            <>
+              <span className="spinner" aria-hidden="true" />
+              Wird hochgeladen…
+            </>
+          ) : (
+            "Report hochladen"
+          )}
         </button>
       </div>
     </form>
