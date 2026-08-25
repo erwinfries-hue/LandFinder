@@ -196,7 +196,7 @@ export function BestandsrenditeAnalysisView({
           <h2>Ebene B — Investment Case</h2>
         </div>
         <div className="metricgrid">
-          <Metric l="All-in-Investition" v={`CHF ${formatChf(Math.round(result.allInInvestitionChf))}`} sub="Kaufpreis + Nebenkosten + Renovation + Möblierung" />
+          <Metric l="All-in-Investition" v={`CHF ${formatChf(Math.round(result.allInInvestitionChf))}`} sub="Kaufpreis + Nebenkosten + Renovation + Reparatur + Möblierung" />
           <Metric
             l="Bruttorendite auf Kaufpreis"
             v={`${investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}%`}

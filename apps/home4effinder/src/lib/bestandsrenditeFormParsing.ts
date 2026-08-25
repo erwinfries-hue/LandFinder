@@ -56,11 +56,14 @@ export function buildBestandsrenditeFactsFromFormData(
       maklerprovisionPercent: num("maklerprovisionPercent"),
     },
     renovation: {
-      initialRenovationCostUnmoebliertChf: req("initialRenovationCostUnmoebliertChf"),
-      initialRenovationCostMoebliertChf: req("initialRenovationCostMoebliertChf"),
+      initialRenovationCostChf: req("initialRenovationCostChf"),
       positionen: renovationPositionen,
       mieteVorRenovationChfPerMonth: num("mieteVorRenovationChfPerMonth"),
       mieteNachRenovationChfPerMonth: num("mieteNachRenovationChfPerMonth"),
+    },
+    reparatur: {
+      initialUnmoebliertChf: req("reparaturInitialUnmoebliertChf"),
+      initialMoebliertChf: req("reparaturInitialMoebliertChf"),
     },
     moeblierung: {
       initialCostChf: req("moeblierungInitialCostChf"),

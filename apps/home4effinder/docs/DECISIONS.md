@@ -2355,6 +2355,39 @@ Paket den korrekten Betrag; bestehender Regressionstest zum Möblierungs-Gating
 entsprechend angepasst (Wechsel möbliert→unmöbliert lässt jetzt zusätzlich zur
 Möblierung auch die paket-spezifische Renovationsdifferenz wegfallen).
 
+## Nachgezogen (2026-08-25): Korrektur — Renovation zurück auf einen gemeinsamen Wert, stattdessen "Reparatur" je Paket
+
+Direkte Korrektur des vorigen Eintrags: "renovation wieder zurück mutieren, und bei den
+beiden Paketen anstelle Renovation den Posten Reparatur einfügen". Die
+Paket-1/2-Aufteilung von Reinigung/Service bleibt unverändert bestehen (die war richtig)
+— nur Renovation wird zurückgebaut, dafür ein neuer, eigenständiger Posten "Reparatur"
+eingeführt.
+
+- `BestandsrenditeFacts.renovation`: `initialRenovationCostUnmoebliertChf`/
+  `initialRenovationCostMoebliertChf` zurück zu einem einzelnen
+  `initialRenovationCostChf` — wieder EIN gemeinsamer Wert unabhängig vom
+  Vermietungsmodell, wie ursprünglich. Feld + Beschreibungstext zurück in die
+  "Renovation"-Sektion (Mietwirkung/Einzelpositionen fürs 15-Jahres-Modell waren dort
+  ohnehin unverändert geblieben). Renovation-ROI (`calculateRenovationRoi`) nutzt wieder
+  direkt diesen einzelnen Wert statt eines paketgegateten.
+- Neue, eigenständige Facts-Gruppe `reparatur: { initialUnmoebliertChf,
+  initialMoebliertChf }` — bewusst getrennt von `reserven.reparatur*` (das ist eine
+  laufende JÄHRLICHE Reserve für künftige Reparaturen; hier geht es um bereits bekannte,
+  einmalige Reparaturkosten beim Einstieg) und von der jetzt wieder ungegateten
+  Renovation. Gleiches Gating wie zuvor bei Renovation/Reinigung
+  (`moeblierungIstGewaehltesSzenario`) — nur der Betrag des gewählten Vermietungsmodells
+  fliesst ein. Kein eigener Engine-Parameter nötig: nutzt den bereits vorhandenen,
+  bisher immer auf 0 gesetzten `sonstigeInitialkostenChf`-Slot in
+  `calculateAllInInvestition` — `packages/financial-engine` bleibt unangetastet.
+- Formular: die Kaufpreis-Renovationsfelder in Paket 1/2 sind jetzt "Reparaturkosten
+  (CHF, einmalig)" (`reparaturInitialUnmoebliertChf`/`reparaturInitialMoebliertChf`),
+  Reinigung/Service bleibt daneben unverändert.
+
+Tests entsprechend korrigiert: Renovation-Tests wieder auf den ungegateten Einzelwert,
+neuer Test bestätigt, dass Renovation unverändert in beide Vermietungsmodelle einfliesst
+(nur die Möblierungskosten fallen beim Wechsel weg), Gating-Test für
+Reparatur/Reinigung ersetzt den vorigen Renovation/Reinigung-Test.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

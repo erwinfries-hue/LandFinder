@@ -338,13 +338,13 @@ export function BestandsrenditeFactsFields({
           ) : null}
         </div>
         <div className="field">
-          <label htmlFor="initialRenovationCostUnmoebliertChf">Initial-Renovationskosten (CHF, 0 falls bereits saniert)</label>
+          <label htmlFor="reparaturInitialUnmoebliertChf">Reparaturkosten (CHF, einmalig)</label>
           <input
-            id="initialRenovationCostUnmoebliertChf"
-            name="initialRenovationCostUnmoebliertChf"
+            id="reparaturInitialUnmoebliertChf"
+            name="reparaturInitialUnmoebliertChf"
             type="number"
             step="500"
-            defaultValue={existing?.renovation.initialRenovationCostUnmoebliertChf ?? 0}
+            defaultValue={existing?.reparatur.initialUnmoebliertChf ?? 0}
           />
         </div>
         <div className="field">
@@ -405,13 +405,13 @@ export function BestandsrenditeFactsFields({
           />
         </div>
         <div className="field">
-          <label htmlFor="initialRenovationCostMoebliertChf">Initial-Renovationskosten (CHF, 0 falls bereits saniert)</label>
+          <label htmlFor="reparaturInitialMoebliertChf">Reparaturkosten (CHF, einmalig)</label>
           <input
-            id="initialRenovationCostMoebliertChf"
-            name="initialRenovationCostMoebliertChf"
+            id="reparaturInitialMoebliertChf"
+            name="reparaturInitialMoebliertChf"
             type="number"
             step="500"
-            defaultValue={existing?.renovation.initialRenovationCostMoebliertChf ?? 0}
+            defaultValue={existing?.reparatur.initialMoebliertChf ?? 0}
           />
         </div>
         <div className="field">
@@ -429,12 +429,11 @@ export function BestandsrenditeFactsFields({
       <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
         Renovation
       </div>
-      <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .45rem" }}>
-        Initial-Renovationskosten werden je Paket oben erfasst (Paket 1/Paket 2, kurzfristig/möbliert braucht
-        oft eine andere Sanierungstiefe als langfristig/unmöbliert) — hier nur noch die Mietwirkung und
-        Einzelpositionen fürs 15-Jahres-Modell.
-      </p>
       <div className="fieldgrid">
+        <div className="field">
+          <label htmlFor="initialRenovationCostChf">Initial-Renovationskosten gesamt (CHF, 0 falls bereits saniert)</label>
+          <input id="initialRenovationCostChf" name="initialRenovationCostChf" type="number" step="500" defaultValue={existing?.renovation.initialRenovationCostChf ?? 0} />
+        </div>
         <div className="field">
           <label htmlFor="mieteVorRenovationChfPerMonth">
             Miete vor Renovation (CHF/Monat, für Renovation-ROI — leer = Nettomiete Wohnung oben)
@@ -460,9 +459,8 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
       <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: ".4rem 0" }}>
-        Nur wertvermehrende Positionen unten erhöhen den angenommenen Immobilienwert im 15-Jahres-Modell — die
-        Initial-Renovationskosten je Paket oben fliessen unabhängig davon immer in die Investitionssumme ein, ohne
-        Positionen aber ohne Werteffekt beim Exit.
+        Nur wertvermehrende Positionen unten erhöhen den angenommenen Immobilienwert im 15-Jahres-Modell — ohne
+        Positionen bleibt der Gesamtbetrag oben nur Teil der Investitionssumme, ohne Werteffekt beim Exit.
       </p>
       {renovationPositionen.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: ".6rem", marginBottom: ".8rem" }}>
