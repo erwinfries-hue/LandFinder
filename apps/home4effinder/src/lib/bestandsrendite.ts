@@ -70,7 +70,15 @@ export interface BestandsrenditeFacts {
   };
 
   renovation: {
-    initialRenovationCostChf: number;
+    /**
+     * Je Vermietungsmodell separat erfasst (Rückmeldung: "individuell erfassbar je Paket
+     * 1/2") — nur der Betrag des tatsächlich gewählten Modells (`miete.vermietungsmodell`)
+     * fliesst in Investitionssumme/Renovation-ROI ein, exakt dieselbe Gating-Regel wie bei
+     * den Möblierungskosten (siehe `moeblierungIstGewaehltesSzenario`). SHORT_STAY nutzt
+     * denselben Wert wie unmöbliert (keine eigene dritte Variante).
+     */
+    initialRenovationCostUnmoebliertChf: number;
+    initialRenovationCostMoebliertChf: number;
     positionen: RenovationPosition[];
     /** Für den Renovation-ROI (Mehrertrag ÷ Kosten) — beide optional, ohne sie kein ROI berechenbar. */
     mieteVorRenovationChfPerMonth?: number;
@@ -101,7 +109,9 @@ export interface BestandsrenditeFacts {
     stwegAkontobeitragChfPerYear: number;
     eigentuemerkostenChfPerYear: number;
     vermietungskostenChfPerYear: number;
-    reinigungServiceChfPerYear: number;
+    /** Je Vermietungsmodell separat erfasst, analog zu `renovation.initialRenovationCostUnmoebliertChf`/`...MoeblierteChf` — kurzfristig/möbliert vermietete Wohnungen brauchen typischerweise Reinigung zwischen Mietern, langfristig/unmöbliert meist nicht. */
+    reinigungServiceUnmoebliertChfPerYear: number;
+    reinigungServiceMoebliertChfPerYear: number;
   };
 
   reserven: {
@@ -316,11 +326,26 @@ export function computeBestandsrenditeAnalysis(
   const moeblierungIstGewaehltesSzenario = facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT";
   const moeblierungsPremiumChfPerMonth = moeblierungIstGewaehltesSzenario ? facts.moeblierung.mietPremiumChfPerMonth : 0;
   const moeblierungInitialChfEffective = moeblierungIstGewaehltesSzenario ? facts.moeblierung.initialCostChf : 0;
+  // Renovation/Reinigung sind je Vermietungsmodell separat erfasst (siehe BestandsrenditeFacts) —
+  // dieselbe Gating-Regel wie oben bei der Möblierung: nur der Betrag des tatsächlich
+  // gewählten Modells fliesst in die Berechnung ein.
+  const renovationInitialChfEffective = moeblierungIstGewaehltesSzenario
+    ? facts.renovation.initialRenovationCostMoebliertChf
+    : facts.renovation.initialRenovationCostUnmoebliertChf;
+  const reinigungServiceChfPerYearEffective = moeblierungIstGewaehltesSzenario
+    ? facts.betriebskosten.reinigungServiceMoebliertChfPerYear
+    : facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear;
+  const betriebskostenEffective = {
+    stwegAkontobeitragChfPerYear: facts.betriebskosten.stwegAkontobeitragChfPerYear,
+    eigentuemerkostenChfPerYear: facts.betriebskosten.eigentuemerkostenChfPerYear,
+    vermietungskostenChfPerYear: facts.betriebskosten.vermietungskostenChfPerYear,
+    reinigungServiceChfPerYear: reinigungServiceChfPerYearEffective,
+  };
 
   const allInInvestitionChf = calculateAllInInvestition({
     kaufpreisChf,
     nebenkosten,
-    renovationInitialChf: facts.renovation.initialRenovationCostChf,
+    renovationInitialChf: renovationInitialChfEffective,
     moeblierungInitialChf: moeblierungInitialChfEffective,
     sonstigeInitialkostenChf: 0,
   });
@@ -382,7 +407,7 @@ export function computeBestandsrenditeAnalysis(
       leerstandPercent: facts.miete.leerstandPercent ?? leerstandDefaultPercent,
       auslastungPercent: facts.miete.auslastungPercent,
     },
-    betriebskosten: facts.betriebskosten,
+    betriebskosten: betriebskostenEffective,
     hypothekChf,
     interestRatePercent: facts.hypothek.interestRatePercent,
     amortisationChfPerYear,
@@ -438,9 +463,9 @@ export function computeBestandsrenditeAnalysis(
   // eigentlich erzielbaren Marktniveaus liegt (z.B. Altmietvertrag).
   const mieteVorRenovationChfPerMonth = facts.renovation.mieteVorRenovationChfPerMonth ?? facts.miete.wohnungsMieteChfPerMonth;
   const renovationRoi =
-    facts.renovation.initialRenovationCostChf > 0 && facts.renovation.mieteNachRenovationChfPerMonth !== undefined
+    renovationInitialChfEffective > 0 && facts.renovation.mieteNachRenovationChfPerMonth !== undefined
       ? calculateRenovationRoi({
-          renovationCostChf: facts.renovation.initialRenovationCostChf,
+          renovationCostChf: renovationInitialChfEffective,
           mieteVorherChfPerMonth: mieteVorRenovationChfPerMonth,
           mieteNachherChfPerMonth: facts.renovation.mieteNachRenovationChfPerMonth,
         })
@@ -479,7 +504,7 @@ export function computeBestandsrenditeAnalysis(
     allInInvestitionChf,
     eigenkapitalChf,
     ertragJahr1: investmentCaseInput.ertrag,
-    betriebskostenJahr1: facts.betriebskosten,
+    betriebskostenJahr1: betriebskostenEffective,
     reparaturreserveJahr1Chf: reparaturreserveChf,
     leerstandsreserveJahr1Chf: leerstandsreserveChf,
     mietsteigerungPercentPerYear: facts.mehrjahresmodell.mietsteigerungPercentPerYear ?? P.mietsteigerungPercentPerYear,
@@ -713,7 +738,8 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
         maklerprovisionPercent: num(nebenkosten.maklerprovisionPercent),
       },
       renovation: {
-        initialRenovationCostChf: num(renovation.initialRenovationCostChf) ?? 0,
+        initialRenovationCostUnmoebliertChf: num(renovation.initialRenovationCostUnmoebliertChf) ?? 0,
+        initialRenovationCostMoebliertChf: num(renovation.initialRenovationCostMoebliertChf) ?? 0,
         positionen: Array.isArray(renovation.positionen) ? (renovation.positionen as RenovationPosition[]) : [],
         mieteVorRenovationChfPerMonth: num(renovation.mieteVorRenovationChfPerMonth),
         mieteNachRenovationChfPerMonth: num(renovation.mieteNachRenovationChfPerMonth),
@@ -739,7 +765,8 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
         stwegAkontobeitragChfPerYear: num(betriebskosten.stwegAkontobeitragChfPerYear) ?? 0,
         eigentuemerkostenChfPerYear: num(betriebskosten.eigentuemerkostenChfPerYear) ?? 0,
         vermietungskostenChfPerYear: num(betriebskosten.vermietungskostenChfPerYear) ?? 0,
-        reinigungServiceChfPerYear: num(betriebskosten.reinigungServiceChfPerYear) ?? 0,
+        reinigungServiceUnmoebliertChfPerYear: num(betriebskosten.reinigungServiceUnmoebliertChfPerYear) ?? 0,
+        reinigungServiceMoebliertChfPerYear: num(betriebskosten.reinigungServiceMoebliertChfPerYear) ?? 0,
       },
       reserven: {
         reparaturChfPerYear: num(reserven.reparaturChfPerYear),
