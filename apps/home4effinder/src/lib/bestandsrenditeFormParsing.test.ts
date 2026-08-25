@@ -17,25 +17,26 @@ describe("buildBestandsrenditeFactsFromFormData", () => {
     expect((facts.miete as Record<string, unknown>).wohnungsMieteChfPerMonth).toBe(0);
     expect((facts.miete as Record<string, unknown>).garagenplatzMieteChfPerMonth).toBe(0);
     expect((facts.miete as Record<string, unknown>).hobbyraumMieteChfPerMonth).toBe(0);
-    expect((facts.renovation as Record<string, unknown>).initialRenovationCostUnmoebliertChf).toBe(0);
-    expect((facts.renovation as Record<string, unknown>).initialRenovationCostMoebliertChf).toBe(0);
+    expect((facts.renovation as Record<string, unknown>).initialRenovationCostChf).toBe(0);
+    expect((facts.reparatur as Record<string, unknown>).initialUnmoebliertChf).toBe(0);
+    expect((facts.reparatur as Record<string, unknown>).initialMoebliertChf).toBe(0);
     expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceUnmoebliertChfPerYear).toBe(0);
     expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceMoebliertChfPerYear).toBe(0);
   });
 
-  it("liest die Paket-1/Paket-2-Renovations-/Reinigungskosten aus den je eigenen Formularfeldern", () => {
+  it("liest die Paket-1/Paket-2-Reparatur-/Reinigungskosten aus den je eigenen Formularfeldern", () => {
     const facts = buildBestandsrenditeFactsFromFormData(
       formDataFrom({
-        initialRenovationCostUnmoebliertChf: "8000",
-        initialRenovationCostMoebliertChf: "25000",
+        reparaturInitialUnmoebliertChf: "8000",
+        reparaturInitialMoebliertChf: "3000",
         reinigungServiceUnmoebliertChfPerYear: "0",
         reinigungServiceMoebliertChfPerYear: "2400",
       }),
       "MITTELFRISTIG_MOEBLIERT",
       [],
     );
-    expect((facts.renovation as Record<string, unknown>).initialRenovationCostUnmoebliertChf).toBe(8000);
-    expect((facts.renovation as Record<string, unknown>).initialRenovationCostMoebliertChf).toBe(25000);
+    expect((facts.reparatur as Record<string, unknown>).initialUnmoebliertChf).toBe(8000);
+    expect((facts.reparatur as Record<string, unknown>).initialMoebliertChf).toBe(3000);
     expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceUnmoebliertChfPerYear).toBe(0);
     expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceMoebliertChfPerYear).toBe(2400);
   });

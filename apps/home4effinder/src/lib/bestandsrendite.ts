@@ -70,19 +70,26 @@ export interface BestandsrenditeFacts {
   };
 
   renovation: {
-    /**
-     * Je Vermietungsmodell separat erfasst (Rückmeldung: "individuell erfassbar je Paket
-     * 1/2") — nur der Betrag des tatsächlich gewählten Modells (`miete.vermietungsmodell`)
-     * fliesst in Investitionssumme/Renovation-ROI ein, exakt dieselbe Gating-Regel wie bei
-     * den Möblierungskosten (siehe `moeblierungIstGewaehltesSzenario`). SHORT_STAY nutzt
-     * denselben Wert wie unmöbliert (keine eigene dritte Variante).
-     */
-    initialRenovationCostUnmoebliertChf: number;
-    initialRenovationCostMoebliertChf: number;
+    initialRenovationCostChf: number;
     positionen: RenovationPosition[];
     /** Für den Renovation-ROI (Mehrertrag ÷ Kosten) — beide optional, ohne sie kein ROI berechenbar. */
     mieteVorRenovationChfPerMonth?: number;
     mieteNachRenovationChfPerMonth?: number;
+  };
+
+  /**
+   * Einmalige Reparaturkosten — je Vermietungsmodell separat erfasst (Rückmeldung:
+   * "bei den beiden Paketen anstelle Renovation den Posten Reparatur einfügen"), nur der
+   * Betrag des tatsächlich gewählten Modells (`miete.vermietungsmodell`) fliesst in die
+   * Investitionssumme ein, exakt dieselbe Gating-Regel wie bei den Möblierungskosten
+   * (siehe `moeblierungIstGewaehltesSzenario`). SHORT_STAY nutzt denselben Wert wie
+   * unmöbliert (keine eigene dritte Variante). Bewusst getrennt von `reserven.reparatur*`
+   * (das ist eine laufende JÄHRLICHE Reserve für künftige Reparaturen, hier geht es um
+   * bereits bekannte, einmalige Reparaturkosten beim Einstieg).
+   */
+  reparatur: {
+    initialUnmoebliertChf: number;
+    initialMoebliertChf: number;
   };
 
   moeblierung: {
@@ -109,7 +116,7 @@ export interface BestandsrenditeFacts {
     stwegAkontobeitragChfPerYear: number;
     eigentuemerkostenChfPerYear: number;
     vermietungskostenChfPerYear: number;
-    /** Je Vermietungsmodell separat erfasst, analog zu `renovation.initialRenovationCostUnmoebliertChf`/`...MoeblierteChf` — kurzfristig/möbliert vermietete Wohnungen brauchen typischerweise Reinigung zwischen Mietern, langfristig/unmöbliert meist nicht. */
+    /** Je Vermietungsmodell separat erfasst, analog zu `reparatur.initialUnmoebliertChf`/`initialMoebliertChf` — kurzfristig/möbliert vermietete Wohnungen brauchen typischerweise Reinigung zwischen Mietern, langfristig/unmöbliert meist nicht. */
     reinigungServiceUnmoebliertChfPerYear: number;
     reinigungServiceMoebliertChfPerYear: number;
   };
@@ -326,12 +333,12 @@ export function computeBestandsrenditeAnalysis(
   const moeblierungIstGewaehltesSzenario = facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT";
   const moeblierungsPremiumChfPerMonth = moeblierungIstGewaehltesSzenario ? facts.moeblierung.mietPremiumChfPerMonth : 0;
   const moeblierungInitialChfEffective = moeblierungIstGewaehltesSzenario ? facts.moeblierung.initialCostChf : 0;
-  // Renovation/Reinigung sind je Vermietungsmodell separat erfasst (siehe BestandsrenditeFacts) —
+  // Reparatur/Reinigung sind je Vermietungsmodell separat erfasst (siehe BestandsrenditeFacts) —
   // dieselbe Gating-Regel wie oben bei der Möblierung: nur der Betrag des tatsächlich
   // gewählten Modells fliesst in die Berechnung ein.
-  const renovationInitialChfEffective = moeblierungIstGewaehltesSzenario
-    ? facts.renovation.initialRenovationCostMoebliertChf
-    : facts.renovation.initialRenovationCostUnmoebliertChf;
+  const reparaturInitialChfEffective = moeblierungIstGewaehltesSzenario
+    ? facts.reparatur.initialMoebliertChf
+    : facts.reparatur.initialUnmoebliertChf;
   const reinigungServiceChfPerYearEffective = moeblierungIstGewaehltesSzenario
     ? facts.betriebskosten.reinigungServiceMoebliertChfPerYear
     : facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear;
@@ -345,9 +352,12 @@ export function computeBestandsrenditeAnalysis(
   const allInInvestitionChf = calculateAllInInvestition({
     kaufpreisChf,
     nebenkosten,
-    renovationInitialChf: renovationInitialChfEffective,
+    renovationInitialChf: facts.renovation.initialRenovationCostChf,
     moeblierungInitialChf: moeblierungInitialChfEffective,
-    sonstigeInitialkostenChf: 0,
+    // Kein eigener Parameter in der Engine für Reparaturkosten (Rückmeldung: "anstelle
+    // Renovation den Posten Reparatur einfügen") — nutzt bewusst den bereits vorhandenen,
+    // generischen `sonstigeInitialkostenChf`-Slot statt die Engine anzufassen.
+    sonstigeInitialkostenChf: reparaturInitialChfEffective,
   });
 
   const ersteHypothekChf = kaufpreisChf * (facts.hypothek.ersteHypothek.belehnungPercent / 100);
@@ -463,9 +473,9 @@ export function computeBestandsrenditeAnalysis(
   // eigentlich erzielbaren Marktniveaus liegt (z.B. Altmietvertrag).
   const mieteVorRenovationChfPerMonth = facts.renovation.mieteVorRenovationChfPerMonth ?? facts.miete.wohnungsMieteChfPerMonth;
   const renovationRoi =
-    renovationInitialChfEffective > 0 && facts.renovation.mieteNachRenovationChfPerMonth !== undefined
+    facts.renovation.initialRenovationCostChf > 0 && facts.renovation.mieteNachRenovationChfPerMonth !== undefined
       ? calculateRenovationRoi({
-          renovationCostChf: renovationInitialChfEffective,
+          renovationCostChf: facts.renovation.initialRenovationCostChf,
           mieteVorherChfPerMonth: mieteVorRenovationChfPerMonth,
           mieteNachherChfPerMonth: facts.renovation.mieteNachRenovationChfPerMonth,
         })
@@ -714,6 +724,7 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
   const betriebskosten = (body.betriebskosten as Record<string, unknown>) ?? {};
   const nebenkosten = (body.nebenkosten as Record<string, unknown>) ?? {};
   const renovation = (body.renovation as Record<string, unknown>) ?? {};
+  const reparatur = (body.reparatur as Record<string, unknown>) ?? {};
   const moeblierung = (body.moeblierung as Record<string, unknown>) ?? {};
   const reserven = (body.reserven as Record<string, unknown>) ?? {};
   const mehrjahresmodell = (body.mehrjahresmodell as Record<string, unknown>) ?? {};
@@ -738,11 +749,14 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
         maklerprovisionPercent: num(nebenkosten.maklerprovisionPercent),
       },
       renovation: {
-        initialRenovationCostUnmoebliertChf: num(renovation.initialRenovationCostUnmoebliertChf) ?? 0,
-        initialRenovationCostMoebliertChf: num(renovation.initialRenovationCostMoebliertChf) ?? 0,
+        initialRenovationCostChf: num(renovation.initialRenovationCostChf) ?? 0,
         positionen: Array.isArray(renovation.positionen) ? (renovation.positionen as RenovationPosition[]) : [],
         mieteVorRenovationChfPerMonth: num(renovation.mieteVorRenovationChfPerMonth),
         mieteNachRenovationChfPerMonth: num(renovation.mieteNachRenovationChfPerMonth),
+      },
+      reparatur: {
+        initialUnmoebliertChf: num(reparatur.initialUnmoebliertChf) ?? 0,
+        initialMoebliertChf: num(reparatur.initialMoebliertChf) ?? 0,
       },
       moeblierung: {
         initialCostChf: num(moeblierung.initialCostChf) ?? 0,

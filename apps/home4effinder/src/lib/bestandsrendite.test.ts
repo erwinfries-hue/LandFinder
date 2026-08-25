@@ -54,7 +54,7 @@ describe("parseBestandsrenditeFacts", () => {
       kalkulatorischerSteuersatzPercent: 30,
       nebenkosten: { handaenderungssteuerPercent: 1.5 },
       moeblierung: { initialCostChf: 12_000, mietPremiumChfPerMonth: 300 },
-      renovation: { initialRenovationCostUnmoebliertChf: 25_000, mieteVorRenovationChfPerMonth: 1_200, mieteNachRenovationChfPerMonth: 1_450 },
+      renovation: { initialRenovationCostChf: 25_000, mieteVorRenovationChfPerMonth: 1_200, mieteNachRenovationChfPerMonth: 1_450 },
     });
     expect("facts" in result).toBe(true);
     if ("facts" in result) {
@@ -79,10 +79,10 @@ const fullFacts: BestandsrenditeFacts = {
   stweg: { erneuerungsfondsSaldoChf: 180_000 },
   nebenkosten: {},
   renovation: {
-    initialRenovationCostUnmoebliertChf: 0,
-    initialRenovationCostMoebliertChf: 25_000,
+    initialRenovationCostChf: 25_000,
     positionen: [{ betragChf: 25_000, kategorie: "WERTERHALTEND", jahr: 2026, steuerlicheAbzugsfaehigkeit: "UNKLAR" }],
   },
+  reparatur: { initialUnmoebliertChf: 0, initialMoebliertChf: 0 },
   moeblierung: { initialCostChf: 10_000, mietPremiumChfPerMonth: 300 },
   miete: {
     wohnungsMieteChfPerMonth: 1_450,
@@ -147,11 +147,11 @@ describe("computeBestandsrenditeAnalysis", () => {
     );
 
     // Dieselben erfassten Möblierungsdaten (300 Aufschlag, 10'000 Kosten) — nur das
-    // Vermietungsmodell unterscheidet sich. Renovation ist ebenfalls je Paket gegatet
-    // (fullFacts: 25'000 nur im möblierten Paket, 0 im unmöblierten), fällt beim Wechsel
-    // also zusätzlich zu den Möblierungskosten weg.
+    // Vermietungsmodell unterscheidet sich. Renovation ist bewusst NICHT paketgegatet
+    // (ein einzelner, gemeinsamer Wert, siehe BestandsrenditeFacts) — fliesst also
+    // unverändert in beide Szenarien ein, nur die Möblierungskosten fallen weg.
     expect(unmoebliertGewaehlt.schnellcheck.jahresnettomieteChf).toBe(moebliertGewaehlt.schnellcheck.jahresnettomieteChf - 300 * 12);
-    expect(unmoebliertGewaehlt.allInInvestitionChf).toBe(moebliertGewaehlt.allInInvestitionChf - 10_000 - 25_000);
+    expect(unmoebliertGewaehlt.allInInvestitionChf).toBe(moebliertGewaehlt.allInInvestitionChf - 10_000);
     expect(unmoebliertGewaehlt.investmentCase.wasserfall.noiChf).toBeLessThan(moebliertGewaehlt.investmentCase.wasserfall.noiChf);
     // moeblierungsVergleich zeigt trotzdem weiterhin BEIDE Szenarien im Detail — die
     // Gating-Regel betrifft nur die "Haupt"-Kennzahlen (Ebene A/B/C), nicht den Vergleich.
@@ -204,7 +204,7 @@ describe("computeBestandsrenditeAnalysis", () => {
   it("ohne Möblierung/Renovation bleibt die All-in-Investition beim Kaufpreis + Nebenkosten", () => {
     const noExtras: BestandsrenditeFacts = {
       ...fullFacts,
-      renovation: { initialRenovationCostUnmoebliertChf: 0, initialRenovationCostMoebliertChf: 0, positionen: [] },
+      renovation: { initialRenovationCostChf: 0, positionen: [] },
       moeblierung: { initialCostChf: 0, mietPremiumChfPerMonth: 0 },
     };
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, noExtras);
@@ -296,20 +296,27 @@ describe("computeBestandsrenditeAnalysis", () => {
     const werterhaltend = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
     const wertvermehrend: BestandsrenditeFacts = {
       ...fullFacts,
-      renovation: {
-        initialRenovationCostUnmoebliertChf: 0,
-        initialRenovationCostMoebliertChf: 25_000,
-        positionen: [{ betragChf: 25_000, kategorie: "WERTVERMEHREND", jahr: 2026, steuerlicheAbzugsfaehigkeit: "UNKLAR" }],
-      },
+      renovation: { initialRenovationCostChf: 25_000, positionen: [{ betragChf: 25_000, kategorie: "WERTVERMEHREND", jahr: 2026, steuerlicheAbzugsfaehigkeit: "UNKLAR" }] },
     };
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, wertvermehrend);
     expect(result.mehrjahresmodell.years[0].immobilienwertChf).toBeGreaterThan(werterhaltend.mehrjahresmodell.years[0].immobilienwertChf);
   });
 
-  it("Renovation/Reinigung sind je Vermietungsmodell (Paket 1/2) separat erfasst — nur der Betrag des gewählten Modells fliesst ein", () => {
+  it("Renovation ist EIN gemeinsamer Wert (nicht paketgegatet) — fliesst unverändert in beide Vermietungsmodelle ein", () => {
+    const moebliert = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    const unmoebliert = computeBestandsrenditeAnalysis(
+      { kaufpreisChf: 870_000, wohnflaecheM2: 75 },
+      { ...fullFacts, miete: { ...fullFacts.miete, vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT" } },
+    );
+    // Nur die Möblierungskosten (10'000) fallen beim Wechsel weg, die Renovationskosten
+    // (25'000, ein gemeinsamer Wert) bleiben in beiden Szenarien identisch enthalten.
+    expect(moebliert.allInInvestitionChf - unmoebliert.allInInvestitionChf).toBe(10_000);
+  });
+
+  it("Reparatur/Reinigung sind je Vermietungsmodell (Paket 1/2) separat erfasst — nur der Betrag des gewählten Modells fliesst ein", () => {
     const facts: BestandsrenditeFacts = {
       ...fullFacts,
-      renovation: { ...fullFacts.renovation, initialRenovationCostUnmoebliertChf: 8_000, initialRenovationCostMoebliertChf: 25_000 },
+      reparatur: { initialUnmoebliertChf: 8_000, initialMoebliertChf: 3_000 },
       betriebskosten: { ...fullFacts.betriebskosten, reinigungServiceUnmoebliertChfPerYear: 600, reinigungServiceMoebliertChfPerYear: 2_400 },
     };
     const moebliert = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, facts);
@@ -318,31 +325,12 @@ describe("computeBestandsrenditeAnalysis", () => {
       { ...facts, miete: { ...facts.miete, vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT" } },
     );
 
-    // All-in-Investition enthält je Paket nur dessen eigene Renovationskosten.
-    expect(moebliert.allInInvestitionChf - unmoebliert.allInInvestitionChf).toBeCloseTo(10_000 + (25_000 - 8_000), 5); // Möblierung + Renovationsdifferenz
+    // All-in-Investition enthält je Paket nur dessen eigene Reparaturkosten (zusätzlich zu den unveränderten Möblierungskosten).
+    expect(moebliert.allInInvestitionChf - unmoebliert.allInInvestitionChf).toBeCloseTo(10_000 + (3_000 - 8_000), 5); // Möblierung + Reparaturdifferenz
     // NOI (Investment Case) berücksichtigt je Paket nur dessen eigene Reinigungskosten —
     // höhere Reinigungskosten bei möbliert senken den NOI zusätzlich zur höheren Miete.
     expect(moebliert.noiBreakdown.reinigungServiceChfPerYear).toBe(2_400);
     expect(unmoebliert.noiBreakdown.reinigungServiceChfPerYear).toBe(600);
-  });
-
-  it("Renovation-ROI nutzt die Initial-Renovationskosten des aktuell gewählten Pakets", () => {
-    const facts: BestandsrenditeFacts = {
-      ...fullFacts,
-      renovation: {
-        ...fullFacts.renovation,
-        initialRenovationCostUnmoebliertChf: 10_000,
-        initialRenovationCostMoebliertChf: 25_000,
-        mieteVorRenovationChfPerMonth: 1_200,
-        mieteNachRenovationChfPerMonth: 1_450,
-      },
-    };
-    const moebliert = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, facts);
-    const unmoebliert = computeBestandsrenditeAnalysis(
-      { kaufpreisChf: 870_000, wohnflaecheM2: 75 },
-      { ...facts, miete: { ...facts.miete, vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT" } },
-    );
-    expect(moebliert.renovationRoi!.roiPercent).toBeCloseTo(unmoebliert.renovationRoi!.roiPercent * (10_000 / 25_000), 5);
   });
 });
 
