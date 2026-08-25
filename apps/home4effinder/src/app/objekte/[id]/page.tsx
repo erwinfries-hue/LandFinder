@@ -23,6 +23,8 @@ import { DueDiligencePanel, type DueDiligenceDocumentRow } from "@/components/Du
 import { PropertyDeleteButton } from "@/components/PropertyDeleteButton";
 import { PropertyEditForm } from "@/components/PropertyEditForm";
 import { ObjectSectionNav } from "@/components/ObjectSectionNav";
+import { MarktEinordnungView } from "@/components/MarktEinordnungView";
+import { getRegionByCantonGemeinde, getRegionMarketData } from "@/lib/regionMarketData";
 
 export const dynamic = "force-dynamic";
 
@@ -50,10 +52,12 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
   const factsParsed = property.bestandsrendite ? parseBestandsrenditeFacts(property.bestandsrendite) : null;
   const facts = factsParsed && "facts" in factsParsed ? factsParsed.facts : null;
 
-  const [documents, dueDiligence, parameterOverrides] = await Promise.all([
+  const [documents, dueDiligence, parameterOverrides, region, regionData] = await Promise.all([
     getPropertyDocuments(property.id),
     getPropertyDueDiligence(property.id),
     getParameterOverrides(),
+    property.gemeinde ? getRegionByCantonGemeinde(property.canton, property.gemeinde) : Promise.resolve(null),
+    property.gemeinde ? getRegionMarketData(property.canton, property.gemeinde) : Promise.resolve(null),
   ]);
 
   const propertyInput = { kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton };
@@ -85,6 +89,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
     ...(analysis ? [{ href: "#investment-case", label: "Investment" }] : []),
     ...(analysis ? [{ href: "#value-add-moeblierung", label: "Value-Add" }] : []),
     ...(analysis ? [{ href: "#mehrjahresmodell", label: "15 Jahre" }] : []),
+    ...(regionData ? [{ href: "#markteinordnung", label: "Markt" }] : []),
     { href: "#due-diligence", label: "Due Diligence" },
   ];
 
@@ -162,6 +167,16 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             moeblierungsAlternative={moeblierungsAlternative}
             bruttoRenditeZielPercent={effectiveParams.bruttoRenditeZielPercent}
             nettoRenditeZielPercent={effectiveParams.nettoRenditeZielPercent}
+          />
+        ) : null}
+
+        {regionData && region && analysis && facts && property.wohnflaeche_m2 > 0 ? (
+          <MarktEinordnungView
+            regionId={region.id}
+            regionData={regionData}
+            zimmerzahl={facts.zimmerzahl}
+            mieteChfPerM2PerYear={(facts.miete.wohnungsMieteChfPerMonth * 12) / property.wohnflaeche_m2}
+            kaufpreisChfPerM2={analysis.schnellcheck.preisProM2Chf}
           />
         ) : null}
         <details style={{ marginTop: "0.9rem" }} open={!facts}>

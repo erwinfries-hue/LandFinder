@@ -10,7 +10,7 @@ import type { PropertyRow } from "@/lib/properties";
 export function PropertyEditForm({
   property,
 }: {
-  property: Pick<PropertyRow, "id" | "address_text" | "canton" | "asking_price_chf" | "wohnflaeche_m2" | "listing_url" | "market_reference_notes">;
+  property: Pick<PropertyRow, "id" | "address_text" | "canton" | "gemeinde" | "asking_price_chf" | "wohnflaeche_m2" | "listing_url" | "market_reference_notes">;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +24,7 @@ export function PropertyEditForm({
     const form = new FormData(event.currentTarget);
     const addressText = String(form.get("addressText") ?? "").trim();
     const canton = String(form.get("canton") ?? "");
+    const gemeinde = String(form.get("gemeinde") ?? "").trim();
     const askingPriceChf = Number(form.get("askingPriceChf"));
     const wohnflaecheM2 = Number(form.get("wohnflaecheM2"));
     const listingUrl = String(form.get("listingUrl") ?? "").trim();
@@ -33,7 +34,7 @@ export function PropertyEditForm({
       const res = await fetch(`/api/properties/${property.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ addressText, canton, askingPriceChf, wohnflaecheM2, listingUrl, marketReferenceNotes }),
+        body: JSON.stringify({ addressText, canton, gemeinde, askingPriceChf, wohnflaecheM2, listingUrl, marketReferenceNotes }),
       });
       const body = (await res.json()) as { saved?: boolean; error?: string };
       if (!res.ok || !body.saved) {
@@ -66,6 +67,10 @@ export function PropertyEditForm({
                 </option>
               ))}
             </select>
+          </div>
+          <div className="field">
+            <label htmlFor="edit-gemeinde">Gemeinde</label>
+            <input id="edit-gemeinde" name="gemeinde" type="text" placeholder="z.B. Wohlen" defaultValue={property.gemeinde ?? ""} />
           </div>
           <div className="field">
             <label htmlFor="edit-askingPriceChf">Kaufpreis (CHF, Wohnung — ggf. inkl. Parkplatz/Garage, falls im Preis enthalten)</label>

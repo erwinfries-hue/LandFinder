@@ -6,6 +6,8 @@ export interface PropertyRow {
   title: string | null;
   address_text: string;
   canton: string;
+  /** Best-effort aus der Adresse abgeleitet, aber immer manuell korrigierbar (siehe gemeindeParsing.ts) — Grundlage für die Regionen-Marktdaten-Zuordnung (Migration 0008). `null`, solange nicht erfasst. */
+  gemeinde: string | null;
   asking_price_chf: number;
   wohnflaeche_m2: number;
   /** Rein informativer Referenz-Link zum Original-Inserat — wird nie automatisch abgerufen/ausgelesen (siehe docs/DECISIONS.md, Homegate-Blockade-Erfahrung aus LandFinder). */

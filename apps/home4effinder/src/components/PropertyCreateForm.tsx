@@ -7,6 +7,7 @@ import type { DocumentExtractionResult, DueDiligenceDocumentType, DueDiligenceRe
 import type { RenovationPosition, Vermietungsmodell } from "@landfinder/financial-engine";
 import type { ParameterOverrides } from "@/lib/bestandsrendite";
 import { AVAILABLE_CANTONS } from "@/lib/cantons";
+import { guessGemeindeFromAddress } from "@/lib/gemeindeParsing";
 import { DOCUMENT_TYPE_CATALOG } from "@/lib/documentTypes";
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/dueDiligenceCategories";
 import { guessDocumentType } from "@/lib/documentTypeGuess";
@@ -77,6 +78,9 @@ export function PropertyCreateForm({ parameterOverrides }: { parameterOverrides?
 
   const [addressText, setAddressText] = useState("");
   const [canton, setCanton] = useState("");
+  const [gemeinde, setGemeinde] = useState("");
+  /** Solange der Nutzer das Gemeinde-Feld nicht selbst angefasst hat, wird es bei jeder Adressänderung neu aus der Adresse abgeleitet (siehe handleAddressChange) — kein stilles Überschreiben einer bewussten Korrektur, sobald einmal manuell editiert. */
+  const [gemeindeTouched, setGemeindeTouched] = useState(false);
   const [askingPriceChf, setAskingPriceChf] = useState("");
   const [wohnflaecheM2, setWohnflaecheM2] = useState("");
   const [listingUrl, setListingUrl] = useState("");
@@ -307,6 +311,7 @@ export function PropertyCreateForm({ parameterOverrides }: { parameterOverrides?
           body: JSON.stringify({
             addressText: addressText.trim(),
             canton,
+            gemeinde: gemeinde.trim(),
             askingPriceChf: Number(askingPriceChf),
             wohnflaecheM2: Number(wohnflaecheM2),
             listingUrl: listingUrl.trim(),
@@ -616,7 +621,27 @@ export function PropertyCreateForm({ parameterOverrides }: { parameterOverrides?
               required
               placeholder="z.B. Obere Haldenstrasse 42, 5610 Wohlen"
               value={addressText}
-              onChange={(e) => setAddressText(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setAddressText(next);
+                if (!gemeindeTouched) setGemeinde(guessGemeindeFromAddress(next) ?? "");
+              }}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="gemeinde">
+              Gemeinde{" "}
+              <span style={{ fontWeight: 400, color: "var(--ink-faint)" }}>(aus Adresse abgeleitet, bei Bedarf korrigieren)</span>
+            </label>
+            <input
+              id="gemeinde"
+              type="text"
+              placeholder="z.B. Wohlen"
+              value={gemeinde}
+              onChange={(e) => {
+                setGemeindeTouched(true);
+                setGemeinde(e.target.value);
+              }}
             />
           </div>
           <div className="field">

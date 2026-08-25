@@ -15,6 +15,8 @@ export async function POST(request: Request): Promise<Response> {
 
   const addressText = typeof b.addressText === "string" ? b.addressText.trim() : "";
   const canton = typeof b.canton === "string" ? b.canton.trim() : "";
+  const gemeindeRaw = typeof b.gemeinde === "string" ? b.gemeinde.trim() : "";
+  const gemeinde = gemeindeRaw ? gemeindeRaw : null;
   const askingPriceChf = typeof b.askingPriceChf === "number" ? b.askingPriceChf : undefined;
   const wohnflaecheM2 = typeof b.wohnflaecheM2 === "number" ? b.wohnflaecheM2 : undefined;
   const listingUrlRaw = typeof b.listingUrl === "string" ? b.listingUrl.trim() : "";
@@ -41,6 +43,7 @@ export async function POST(request: Request): Promise<Response> {
       title: addressText,
       address_text: addressText,
       canton,
+      gemeinde,
       asking_price_chf: askingPriceChf,
       wohnflaeche_m2: wohnflaecheM2,
       listing_url: listingUrl,
