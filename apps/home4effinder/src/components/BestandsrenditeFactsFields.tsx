@@ -159,6 +159,7 @@ export function BestandsrenditeFactsFields({
   const sonstigeEinnahmen = resolved("miete.sonstigeEinnahmenChfPerYear", 0);
   const leerstand = resolved("miete.leerstandPercent", defaultLeerstandPercent);
   const stwegAkonto = resolved("betriebskosten.stwegAkontobeitragChfPerYear", 0);
+  const stwegAkontoUeberwaelzbar = resolved("betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear", 0);
   const erneuerungsfondsSaldo = resolved("stweg.erneuerungsfondsSaldoChf", undefined);
   const erneuerungsfondsWohnungsanteil = resolved("stweg.erneuerungsfondsWohnungsanteilChf", undefined);
   const erneuerungsfondsZielwert = resolved("stweg.erneuerungsfondsZielwertChf", undefined);
@@ -539,17 +540,32 @@ export function BestandsrenditeFactsFields({
       </div>
       <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: "0 0 .45rem" }}>
         Reinigung/Service wird je Paket oben erfasst (Paket 1/Paket 2) — kurzfristig/möbliert braucht typischerweise
-        Reinigung zwischen Mietern, langfristig/unmöbliert meist nicht.
+        Reinigung zwischen Mietern, langfristig/unmöbliert meist nicht. Vom STWEG-Akontobeitrag zählt nur der NICHT
+        überwälzbare Anteil als Eigentümerkosten in die Rendite — der überwälzbare Anteil (z.B. Heizkosten,
+        allgemeiner Unterhalt) wird bei korrektem Mietvertrag über die Nebenkosten vom Mieter getragen.
       </p>
       <div className="fieldgrid">
         <div className="field">
-          <label htmlFor="stwegAkontobeitragChfPerYear">STWEG-Akontobeitrag{stwegAkonto.fromDoc ? ` (aus Dokument: ${stwegAkonto.value})` : ""}</label>
+          <label htmlFor="stwegAkontobeitragChfPerYear">STWEG-Akontobeitrag (gesamt){stwegAkonto.fromDoc ? ` (aus Dokument: ${stwegAkonto.value})` : ""}</label>
           <input
             id="stwegAkontobeitragChfPerYear"
             name="stwegAkontobeitragChfPerYear"
             type="number"
             step="100"
             defaultValue={existing?.betriebskosten.stwegAkontobeitragChfPerYear ?? stwegAkonto.value}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="stwegAkontobeitragUeberwaelzbarChfPerYear">
+            davon überwälzbar (Nebenkosten)
+            {stwegAkontoUeberwaelzbar.fromDoc ? ` (aus Dokument: ${stwegAkontoUeberwaelzbar.value})` : ""}
+          </label>
+          <input
+            id="stwegAkontobeitragUeberwaelzbarChfPerYear"
+            name="stwegAkontobeitragUeberwaelzbarChfPerYear"
+            type="number"
+            step="100"
+            defaultValue={existing?.betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear ?? stwegAkontoUeberwaelzbar.value}
           />
         </div>
         <div className="field">

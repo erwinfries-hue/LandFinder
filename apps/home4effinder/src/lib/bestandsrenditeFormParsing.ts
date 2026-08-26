@@ -84,6 +84,7 @@ export function buildBestandsrenditeFactsFromFormData(
     },
     betriebskosten: {
       stwegAkontobeitragChfPerYear: req("stwegAkontobeitragChfPerYear"),
+      stwegAkontobeitragUeberwaelzbarChfPerYear: req("stwegAkontobeitragUeberwaelzbarChfPerYear"),
       eigentuemerkostenChfPerYear: req("eigentuemerkostenChfPerYear"),
       vermietungskostenChfPerYear: req("vermietungskostenChfPerYear"),
       reinigungServiceUnmoebliertChfPerYear: req("reinigungServiceUnmoebliertChfPerYear"),
