@@ -2388,6 +2388,42 @@ neuer Test bestätigt, dass Renovation unverändert in beide Vermietungsmodelle 
 (nur die Möblierungskosten fallen beim Wechsel weg), Gating-Test für
 Reparatur/Reinigung ersetzt den vorigen Renovation/Reinigung-Test.
 
+## Nachgezogen (2026-08-26): Verhandlungskorridor — Preisobergrenze (Nettorendite) ergänzt
+
+Auslöser: kritischer Benchmark-Vergleich mit einer ChatGPT/SIPIS-Analyse für dasselbe
+Objekt (Bollmoosweg 18) auf ausdrücklichen Wunsch des Auftraggebers ("finale Lauf […]
+nimm dir zeit um aus sicht investor das beste analysetool zu entwickeln"). Kernbefund:
+das bisherige `Verhandlungskorridor`-"Maximum" (Kaufpreis, bei dem der nachhaltige
+Cashflow gerade CHF 0 erreicht) lag im Testfall rund CHF 270'000 über der von SIPIS
+berechneten, an einem Nettorenditeziel ausgerichteten Preisobergrenze — bei tiefem Zins
+und hoher Belehnung kauft billiges Fremdkapital sehr viel Preis-Spielraum, bevor der
+Cashflow negativ wird, ohne dass das noch etwas über die Renditequalität des Deals
+aussagt. HOME4efFINDER berechnete bereits eine "Nettorendite vor Finanzierung" samt
+eigenem, gespeichertem Nettorenditeziel (`nettoRenditeZielPercent`, Annahmen-Reiter) —
+dieses floss aber nirgends in den Verhandlungskorridor ein; der bisherige "Zielpreis"
+basiert ausschliesslich auf der (grosszügigeren) Bruttorendite.
+
+- `computeVerhandlungskorridor` (`bestandsrendite.ts`): neues Feld `nettoZielChf` —
+  Kaufpreis, bei dem `investmentCase.nettoRenditeVorFinanzierungPercent` genau
+  `nettoRenditeZielPercent` erreicht. Anders als beim bruttorenditebasierten `zielChf`
+  lässt sich das nicht algebraisch auflösen (die All-in-Investition enthält
+  kaufpreisabhängige Kaufnebenkosten-Prozentsätze) — daher per Bisektion, exakt wie
+  beim bestehenden `maximumChf`. Nach oben weiterhin durch `maximumChf` gedeckelt.
+- UI (`BestandsrenditeAnalysisView.tsx`) und Management-Summary-PDF
+  (`managementSummaryPdf.tsx`): neue Kachel "Preisobergrenze (Nettorendite)" neben
+  Zielpreis/Maximum; Erklärtext im Panel stellt jetzt klar, dass das Maximum eine reine
+  Solvenzgrenze ("ab wann geht das Geld aus"), keine Kaufempfehlung ist.
+- Bewusst NICHT geändert: welches Szenario (unmöbliert/möbliert) der Korridor
+  standardmässig verwendet — das folgt weiterhin `facts.miete.vermietungsmodell`, dem
+  tatsächlich für das Objekt hinterlegten Vermietungsmodell. Ein Vorschlag aus dem
+  Benchmark-Vergleich war, den Korridor generell auf das konservativere unmöblierte
+  Szenario umzustellen — das würde aber die explizite Objekteinstellung überschreiben,
+  statt nur eine Darstellungsfrage zu sein; nicht umgesetzt.
+
+Neue Tests: `nettoZielChf` trifft am gefundenen Preis exakt das Nettorenditeziel, liegt
+nicht über `zielChf`/`maximumChf`, und reagiert wie erwartet auf ein strengeres
+Nettorenditeziel (tieferer Preis).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

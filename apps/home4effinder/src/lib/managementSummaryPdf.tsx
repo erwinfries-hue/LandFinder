@@ -258,6 +258,12 @@ function ManagementSummaryDocument({
                 </Text>
               </View>
               <View style={styles.metric}>
+                <Text style={styles.metricLabel}>Preisobergrenze (Nettorendite)</Text>
+                <Text style={styles.metricValue}>
+                  {verhandlungskorridor.nettoZielChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.nettoZielChf))}` : "—"}
+                </Text>
+              </View>
+              <View style={styles.metric}>
                 <Text style={styles.metricLabel}>Maximum</Text>
                 <Text style={styles.metricValue}>CHF {formatChf(Math.round(verhandlungskorridor.maximumChf))}</Text>
                 {alt && alt.verhandlungskorridor.maximumChf !== undefined ? (
