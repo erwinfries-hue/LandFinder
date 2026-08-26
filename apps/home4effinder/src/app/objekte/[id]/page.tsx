@@ -16,6 +16,8 @@ import {
   isAllowedUpdateField,
   isProposalAlreadyApplied,
 } from "@/lib/bestandsrendite";
+import { computeBewertungsAmpeln } from "@/lib/bewertungsAmpel";
+import { BewertungsuebersichtView } from "@/components/BewertungsuebersichtView";
 import { computeInvestmentScore, scoreTone } from "@/lib/investmentScore";
 import { getParameterOverrides } from "@/lib/parameterOverrides";
 import { BestandsrenditeVertiefungForm } from "@/components/BestandsrenditeVertiefungForm";
@@ -79,6 +81,17 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
           cashflowChf: analysis.schnellcheck.groberCashflowChf,
         })
       : undefined;
+
+  const bewertungsAmpeln = analysis
+    ? computeBewertungsAmpeln({
+        nettoRenditePercent: analysis.investmentCase.nettoRenditeVorFinanzierungPercent,
+        nettoRenditeZielPercent: effectiveParams.nettoRenditeZielPercent,
+        nachhaltigerCashflowChf: analysis.investmentCase.wasserfall.nachhaltigerCashflowChf,
+        dueDiligenceOverallStatus: dueDiligence?.result?.overallStatus,
+        moeblierungFurnitureRoiPercent: analysis.furnitureRoi?.roiPercent,
+        regionMarkt: regionData ? { regionData, zimmerzahl: facts?.zimmerzahl, kaufpreisChfPerM2: analysis.schnellcheck.preisProM2Chf } : undefined,
+      })
+    : [];
 
   // Nur Anker zu Abschnitten, die auf dieser Seite tatsächlich gerendert werden (z.B. kein
   // "Verhandlungskorridor"-Link, wenn dafür keine Bisektionslösung gefunden wurde) — siehe
@@ -161,6 +174,8 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             </div>
           ) : null}
         </Panel>
+
+        <BewertungsuebersichtView ampeln={bewertungsAmpeln} />
 
         <details style={{ marginTop: "0.9rem" }}>
           <summary style={{ cursor: "pointer", fontSize: ".85rem", color: "var(--accent)" }}>Objekt-Basisdaten bearbeiten</summary>
