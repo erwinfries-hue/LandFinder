@@ -4,6 +4,7 @@ import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, MoeblierungsA
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "./dueDiligenceCategories";
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
 import { formatChf } from "./format";
+import { computeBewertungsAmpeln, type AmpelStatus } from "./bewertungsAmpel";
 
 /**
  * Management-Summary als druckbarer One-Pager — Wunsch: "ein zusätzliches management
@@ -47,6 +48,9 @@ const styles = StyleSheet.create({
   categoryRow: { flexDirection: "row", marginBottom: 1.5, alignItems: "flex-start" },
   categoryDot: { width: 5.5, height: 5.5, borderRadius: 2.75, marginTop: 2, marginRight: 5 },
   categoryLabel: { width: 125, fontFamily: "Helvetica-Bold" },
+  ampelRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 6 },
+  ampelItem: { flexDirection: "row", alignItems: "center", gap: 3 },
+  ampelDot: { width: 5.5, height: 5.5, borderRadius: 2.75 },
   listItem: { marginBottom: 1.5 },
   footer: { position: "absolute", bottom: 14, left: 26, right: 26, fontSize: 6.3, color: "#7c8880", borderTop: "0.5pt solid #cdd5cb", paddingTop: 3 },
 });
@@ -67,6 +71,9 @@ function renditeAmpelColorPdf(istPercent: number, zielPercent: number): string {
   if (istPercent >= zielPercent - 1) return "#93641a";
   return "#9b3b30";
 }
+
+/** Dieselbe Farbzuordnung wie `scoreColor`/`SEVERITY_COLOR` oben, nur für `AmpelStatus` statt Score/Severity. */
+const AMPEL_STATUS_COLOR: Record<AmpelStatus, string> = { good: "#4f6e38", warn: "#93641a", bad: "#9b3b30" };
 
 export interface ManagementSummaryInput {
   addressText: string;
@@ -103,6 +110,17 @@ function ManagementSummaryDocument({
   const alt = moeblierungsAlternative;
   const altLabel = alt ? `Alt. (${alt.label})` : "";
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
+  // Kein `regionMarkt` hier — der One-Pager bleibt bewusst kompakt und ohne den
+  // zusätzlichen (asynchronen) Regionsreport-Datenzugriff, siehe DECISIONS.md. Auf der
+  // Objektseite selbst (BewertungsuebersichtView) ist die Kaufpreis-vs-Markt-Ampel
+  // zusätzlich vorhanden.
+  const ampeln = computeBewertungsAmpeln({
+    nettoRenditePercent: investmentCase.nettoRenditeVorFinanzierungPercent,
+    nettoRenditeZielPercent,
+    nachhaltigerCashflowChf: investmentCase.wasserfall.nachhaltigerCashflowChf,
+    dueDiligenceOverallStatus: dueDiligence?.overallStatus,
+    moeblierungFurnitureRoiPercent: analysis.furnitureRoi?.roiPercent,
+  });
 
   return (
     <Document title={`Management Summary — ${addressText}`}>
@@ -122,6 +140,19 @@ function ManagementSummaryDocument({
           )}
           {dueDiligence?.overallSummary ? <Text style={{ flex: 1 }}>{dueDiligence.overallSummary}</Text> : null}
         </View>
+
+        {ampeln.length > 0 ? (
+          <View style={styles.ampelRow}>
+            {ampeln.map((a) => (
+              <View key={a.key} style={styles.ampelItem}>
+                <View style={[styles.ampelDot, { backgroundColor: AMPEL_STATUS_COLOR[a.status] }]} />
+                <Text>
+                  {a.label}: {a.detail}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Kennzahlen</Text>
         <View style={styles.metricsGrid}>

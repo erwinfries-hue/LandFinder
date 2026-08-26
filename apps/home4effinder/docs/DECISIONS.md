@@ -2532,6 +2532,51 @@ Neue Tests: Stufen aufsteigend sortiert, genau eine Zeile exakt als aktueller Ka
 markiert, jede Zeile deckt sich mit einer direkten Neuberechnung bei diesem Kaufpreis,
 leeres Ergebnis ohne Renditeziel bzw. bei zusammenfallendem Ziel-/Ist-Preis nach Rundung.
 
+## Nachgezogen (2026-08-26): Ampelsystem ausgebaut — konsolidierte "Bewertungsübersicht"
+
+Wunsch: "kannst du das ampelsystem noch ausbauen und optisch darstellen im summary und
+objektdetailseite?" — inspiriert vom SIPIS-"Risiko-Radar" aus dem Benchmark-Vergleich
+(mehrere Ampeln nebeneinander: Markt, Kaufpreis, Rendite, Cashflow,
+Möblierungs-Upside, STWEG, Energie, Exit). HOME4efFINDER hatte bereits einzelne Ampeln
+(Investment-Score-Chip, `renditeAmpelColor` je Kennzahl, Due-Diligence-Kategorie-Chips in
+`DueDiligencePanel`, farbige Dots im PDF) — aber verstreut über die Seite statt an einer
+Stelle auf einen Blick zusammengefasst.
+
+- Neue Datei `bewertungsAmpel.ts`: `computeBewertungsAmpeln` — bewusst NUR aus bereits
+  vorhandenen, selbst berechneten Werten (wie beim Investment-Score: "nichts wird
+  erfunden", keine neue KI-Einschätzung). Fünf Dimensionen, jede nur gezeigt, wenn die
+  zugrundeliegenden Daten tatsächlich vorliegen (kein Platzhalter-Rot ohne Datenbasis):
+  - **Rendite** (Nettorendite vor Finanzierung vs. Nettorenditeziel) — dieselben
+    Schwellen wie das bestehende `renditeAmpelColor`.
+  - **Cashflow** (nachhaltiger Cashflow ≥0/<0) — bewusst zweistufig statt einer
+    erfundenen "knapp positiv"-Schwelle.
+  - **Kaufpreis vs. Markt** (Quantil-Position Kaufpreis/m² der Gemeinde, Regionsreport) —
+    nur wenn ein Regionsreport für die Gemeinde vorliegt; ≤50%-Quantil grün, bis 75%
+    gelb, darüber rot.
+  - **Möblierungs-Upside** (`furnitureRoi.roiPercent`) — nur wenn Möblierungskosten
+    erfasst sind; ≥50% ROI grün, ≥20% gelb, sonst rot.
+  - **Due Diligence** (`dueDiligence.overallStatus`) — direkte Übernahme der bereits
+    vorhandenen Severity (OK/KLAERUNGSBEDARF/RISIKO → good/warn/bad), hier zusätzlich in
+    der Übersicht sichtbar statt nur weiter unten im Due-Diligence-Panel.
+  - `AmpelStatus` nutzt bewusst dieselben drei Werte wie `ChipTone`
+    ("good"/"warn"/"bad") statt eigener Begriffe, damit sich jede Dimension direkt als
+    `<Chip tone={...}>` (Web) bzw. mit identischer Farbzuordnung im PDF darstellen lässt.
+- Neue Komponente `BewertungsuebersichtView.tsx` — Panel mit einer Reihe farbiger Chips
+  + Detailtext, direkt nach dem Objektdaten-Header auf der Objektseite (vor "Objekt-
+  Basisdaten bearbeiten"), damit die Übersicht ohne Scrollen sichtbar ist.
+- `managementSummaryPdf.tsx`: kompakte Ampel-Zeile (farbige Dots, `ampelRow`/`ampelItem`-
+  Styles nach demselben Muster wie die bestehenden Due-Diligence-Kategorie-Dots) direkt
+  unter dem Score-Badge. Bewusst OHNE die Kaufpreis-vs-Markt-Dimension — der One-Pager
+  bleibt kompakt und bekommt keinen zusätzlichen (asynchronen) Regionsreport-Zugriff in
+  der PDF-Route; auf der Objektseite selbst ist diese Dimension zusätzlich vorhanden.
+- Objektseite (`objekte/[id]/page.tsx`): `computeBewertungsAmpeln` mit den bereits
+  vorhandenen `analysis`/`dueDiligence`/`regionData`/`effectiveParams`-Werten aufgerufen,
+  kein neuer Datenzugriff.
+
+Neue Tests (`bewertungsAmpel.test.ts`): jede Dimension einzeln auf ihre Schwellenwerte
+geprüft (Rendite/Cashflow immer vorhanden, Kaufpreis-vs-Markt/Möblierung/Due-Diligence
+nur bei vorhandenen Daten), inkl. eines Falls mit allen fünf Dimensionen gleichzeitig.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
