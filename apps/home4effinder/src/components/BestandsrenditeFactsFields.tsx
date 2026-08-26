@@ -13,6 +13,9 @@ import {
 } from "@landfinder/financial-engine";
 import type { BestandsrenditeFacts, ParameterOverrides } from "@/lib/bestandsrendite";
 import { getCantonDefaults } from "@/lib/cantonDefaults";
+import { estimateQuantilePosition, findClosestQuantileRow, quantileLabel } from "@/lib/regionMarketData";
+import type { RegionExtractionResult } from "@/lib/regionExtraction";
+import { formatChf } from "@/lib/format";
 
 export const RENOVATION_KATEGORIE_LABEL: Record<RenovationKategorie, string> = {
   WERTERHALTEND: "Werterhaltend",
@@ -76,6 +79,7 @@ export function BestandsrenditeFactsFields({
   onUpdateRenovationPosition,
   onRemoveRenovationPosition,
   parameterOverrides,
+  regionMarkt,
 }: {
   existing: BestandsrenditeFacts | null;
   canton?: string;
@@ -88,6 +92,13 @@ export function BestandsrenditeFactsFields({
   onRemoveRenovationPosition: (index: number) => void;
   /** Überschreibungen aus dem "Annahmen"-Reiter (`app_settings`, Migration 0007) — fehlt ein Schlüssel, gilt der Registry-Default aus BESTANDSRENDITE_PARAMETERS. */
   parameterOverrides?: ParameterOverrides;
+  /**
+   * Für den Markt-Feedback-Loop direkt am Nettomiete-Feld (Quantil-Einordnung gegen den
+   * Regionsreport der Gemeinde) — nur auf der Objekt-Bearbeiten-Seite verfügbar, wo
+   * `regionData` bereits serverseitig geladen ist (siehe objekte/[id]/page.tsx); im
+   * Neu-Erfassen-Flow (`PropertyCreateForm`) bewusst nicht verdrahtet, siehe DECISIONS.md.
+   */
+  regionMarkt?: { regionData: RegionExtractionResult; wohnflaecheM2: number };
 }) {
   const P: Record<BestandsrenditeParameterKey, number> = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
   const [ersteAmortisationModus, setErsteAmortisationModus] = useState<AmortisationModus>(existing?.hypothek.ersteHypothek.amortisation.modus ?? "PROZENT_PRO_JAHR");
@@ -126,6 +137,9 @@ export function BestandsrenditeFactsFields({
       }
       if (wohnungsMieteInputRef.current) wohnungsMieteInputRef.current.value = String(body.wohnungsMieteChfPerMonth);
       setRentEstimate({ value: body.wohnungsMieteChfPerMonth, rationale: body.rationale ?? "" });
+      // Setzt den Wert direkt per Ref (kein synthetisches onChange-Event) — Markt-Hinweis
+      // manuell nachziehen, sonst bliebe er auf dem Stand vor der Schätzung stehen.
+      if (regionMarkt) handleMieteOrZimmerzahlChange();
     } catch {
       setRentEstimateError("Schätzung fehlgeschlagen (Netzwerkfehler).");
     } finally {
@@ -165,6 +179,31 @@ export function BestandsrenditeFactsFields({
   const erneuerungsfondsZielwert = resolved("stweg.erneuerungsfondsZielwertChf", undefined);
   const wertquote = resolved("stweg.wertquotePromille", undefined);
 
+  /**
+   * Markt-Feedback-Loop: Quantil-Einordnung direkt am Nettomiete-Feld statt nur weiter
+   * unten in einem separaten Panel (`MarktEinordnungView`) — Lücke aus dem
+   * SIPIS/ChatGPT-Benchmark-Vergleich. Berechnet bei jeder Änderung von Miete ODER
+   * Zimmerzahl neu (beide unkontrollierte Felder, per Ref/Event gelesen statt als
+   * State geführt — konsistent mit dem bestehenden Marktschätzungs-Button oben).
+   */
+  function computeMarktHinweis(mieteChfPerMonth: number, zimmerzahlValue: number | undefined): string | null {
+    if (!regionMarkt || regionMarkt.wohnflaecheM2 <= 0 || mieteChfPerMonth <= 0 || zimmerzahlValue === undefined) return null;
+    const row = findClosestQuantileRow(regionMarkt.regionData.preise.mietwohnungen, zimmerzahlValue);
+    if (!row) return null;
+    const mieteChfPerM2PerYear = (mieteChfPerMonth * 12) / regionMarkt.wohnflaecheM2;
+    const position = estimateQuantilePosition(mieteChfPerM2PerYear, row);
+    return `${quantileLabel(position)} der Gemeinde ${regionMarkt.regionData.gemeinde} (${zimmerzahlValue}-Zimmer, 50%: CHF ${formatChf(row.q50)}/m²/Jahr)`;
+  }
+  const [marktHinweis, setMarktHinweis] = useState<string | null>(() =>
+    computeMarktHinweis(existing?.miete.wohnungsMieteChfPerMonth ?? wohnungsMiete.value ?? 0, existing?.zimmerzahl ?? zimmerzahl.value),
+  );
+  function handleMieteOrZimmerzahlChange() {
+    const mieteValue = Number(wohnungsMieteInputRef.current?.value) || 0;
+    const zimmerzahlRaw = zimmerzahlInputRef.current?.value;
+    const zimmerzahlValue = zimmerzahlRaw ? Number(zimmerzahlRaw) : undefined;
+    setMarktHinweis(computeMarktHinweis(mieteValue, zimmerzahlValue));
+  }
+
   return (
     <>
       <NumberOptions id="dl-zimmerzahl" values={ZIMMERZAHL_OPTIONS} />
@@ -182,7 +221,16 @@ export function BestandsrenditeFactsFields({
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="zimmerzahl">Zimmerzahl{zimmerzahl.fromDoc ? ` (aus Dokument: ${zimmerzahl.value})` : ""}</label>
-          <input id="zimmerzahl" name="zimmerzahl" type="number" step="0.5" list="dl-zimmerzahl" ref={zimmerzahlInputRef} defaultValue={existing?.zimmerzahl ?? zimmerzahl.value} />
+          <input
+            id="zimmerzahl"
+            name="zimmerzahl"
+            type="number"
+            step="0.5"
+            list="dl-zimmerzahl"
+            ref={zimmerzahlInputRef}
+            defaultValue={existing?.zimmerzahl ?? zimmerzahl.value}
+            onChange={regionMarkt ? handleMieteOrZimmerzahlChange : undefined}
+          />
         </div>
         <div className="field">
           <label htmlFor="baujahr">Baujahr{baujahr.fromDoc ? ` (aus Dokument: ${baujahr.value})` : ""}</label>
@@ -317,7 +365,11 @@ export function BestandsrenditeFactsFields({
             required
             ref={wohnungsMieteInputRef}
             defaultValue={existing?.miete.wohnungsMieteChfPerMonth ?? wohnungsMiete.value}
+            onChange={regionMarkt ? handleMieteOrZimmerzahlChange : undefined}
           />
+          {marktHinweis ? (
+            <div style={{ color: "var(--ink-soft)", fontSize: ".74rem", marginTop: ".25rem" }}>Markteinordnung: {marktHinweis}</div>
+          ) : null}
           {!wohnungsMiete.fromDoc && !existing?.miete.wohnungsMieteChfPerMonth ? (
             <div style={{ marginTop: ".3rem" }}>
               <button

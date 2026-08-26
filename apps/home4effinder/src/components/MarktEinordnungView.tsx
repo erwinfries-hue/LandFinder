@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Panel, InfoHint } from "@landfinder/ui";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
-import { estimateQuantilePosition, findClosestQuantileRow, type QuantilePosition } from "@/lib/regionMarketData";
+import { estimateQuantilePosition, findClosestQuantileRow, quantileLabel } from "@/lib/regionMarketData";
 import type { RegionExtractionResult, RegionQuantileRow } from "@/lib/regionExtraction";
 
 /**
@@ -12,12 +12,6 @@ import type { RegionExtractionResult, RegionQuantileRow } from "@/lib/regionExtr
  * analysiertem Report für die Gemeinde des Objekts existiert (siehe
  * objekte/[id]/page.tsx).
  */
-
-function quantileLabel(position: QuantilePosition): string {
-  if (position.kind === "below") return "< 10%-Quantil";
-  if (position.kind === "above") return "> 90%-Quantil";
-  return `≈ ${Math.round(position.percent)}%-Quantil`;
-}
 
 function QuantileMetric({ label, ownValue, row, roomLabel }: { label: string; ownValue: number; row: RegionQuantileRow | undefined; roomLabel: string }) {
   if (!row) return null;

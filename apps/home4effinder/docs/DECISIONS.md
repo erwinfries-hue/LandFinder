@@ -2577,6 +2577,48 @@ Neue Tests (`bewertungsAmpel.test.ts`): jede Dimension einzeln auf ihre Schwelle
 geprüft (Rendite/Cashflow immer vorhanden, Kaufpreis-vs-Markt/Möblierung/Due-Diligence
 nur bei vorhandenen Daten), inkl. eines Falls mit allen fünf Dimensionen gleichzeitig.
 
+## Nachgezogen (2026-08-26): Markt-Feedback-Loop direkt am Nettomiete-Feld
+
+Wunsch: "mach den Markt-Feedback-Loop bei den Mietfeldern" — eine der drei ursprünglich
+aus dem SIPIS/ChatGPT-Benchmark-Vergleich zurückgestellten Erweiterungen. Die
+Quantil-Einordnung gegen den Regionsreport der Gemeinde (`regionMarketData.ts`,
+`estimateQuantilePosition`/`findClosestQuantileRow`) existierte bereits, aber nur
+gebündelt in einem separaten Panel weiter unten auf der Objektseite
+(`MarktEinordnungView.tsx`) — nicht direkt dort, wo die Miete tatsächlich erfasst wird.
+
+- **`regionMarketData.ts`**: `quantileLabel(position)` (Formatierung "< 10%-Quantil" /
+  "≈ X%-Quantil" / "> 90%-Quantil") aus `MarktEinordnungView.tsx` extrahiert und exportiert
+  — Single Source of Truth, jetzt von beiden Stellen verwendet statt dupliziert.
+- **`BestandsrenditeFactsFields.tsx`**: neuer optionaler Prop `regionMarkt?: { regionData,
+  wohnflaecheM2 }`. Direkt unter dem Feld "Nettomiete Wohnung unmöbliert" erscheint bei
+  gesetzter Zimmerzahl ein Live-Hinweis ("Markteinordnung: ≈ 43%-Quantil der Gemeinde
+  Wohlen (3.5-Zimmer, 50%: CHF 245/m²/Jahr)"), neu berechnet bei jeder Änderung von Miete
+  ODER Zimmerzahl (`onChange`-Handler auf beiden bereits vorhandenen unkontrollierten
+  Feldern, gleiches Ref-Muster wie beim bestehenden "Marktschätzung vorschlagen"-Button —
+  der ruft den Hinweis nach dem Befüllen jetzt ebenfalls manuell nach, da er den Wert
+  direkt per Ref statt per Nutzereingabe setzt und dadurch kein `onChange`-Event auslöst).
+  Bewusst NUR am unmöblierten Nettomiete-Feld (Paket 1) — die Regionsreport-Quantile
+  (`preise.mietwohnungen`) spiegeln reguläre unmöblierte Marktmiete; ein Vergleich der
+  möblierten Miete (Paket 2, strukturell höher wegen Möblierungsaufschlag) gegen dieselbe
+  Tabelle wäre systematisch irreführend. Aussenparkplatz-/Garage-/Hobbyraum-Miete bleiben
+  ebenfalls ohne Hinweis — der Regionsreport deckt diese Kategorien gar nicht ab.
+- **`BestandsrenditeVertiefungForm.tsx`** / **`objekte/[id]/page.tsx`**: `regionMarkt`
+  durchgereicht, mit denselben bereits serverseitig geladenen `regionData`/`facts`-Werten,
+  die auch `MarktEinordnungView` und das Ampelsystem verwenden — kein neuer Datenzugriff.
+- **Bewusst NICHT im Neu-Erfassen-Flow (`PropertyCreateForm.tsx`) verdrahtet.** Dort ist
+  beim Ausfüllen noch keine Region-Zuordnung vorhanden (Gemeinde wird live eingetippt,
+  `regionData` wird bisher ausschliesslich serverseitig für ein bereits gespeichertes
+  Objekt geladen) — das hätte eine neue client-seitige Region-Lookup-API-Route gebraucht,
+  eine spürbar grössere Erweiterung als das hier angefragte Feedback an den bestehenden
+  Feldern. Gleiche Begründungslinie wie beim PDF-Ampelsystem (siehe Eintrag oben): der
+  Markt-Feedback-Loop gilt für bereits erfasste Objekte auf der Bearbeiten-Seite, nicht für
+  die Ersterfassung.
+
+Neue Tests (`regionMarketData.test.ts`): `quantileLabel` für alle drei `QuantilePosition`-
+Ausprägungen. Kein Komponententest für `BestandsrenditeFactsFields.tsx` selbst — die App
+hat bislang keine React-Komponententests etabliert (ausschliesslich Logik-Tests auf
+lib-Ebene), dieses Feature bricht mit dieser Konvention bewusst nicht.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
