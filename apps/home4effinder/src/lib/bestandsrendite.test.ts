@@ -94,6 +94,7 @@ const fullFacts: BestandsrenditeFacts = {
   },
   betriebskosten: {
     stwegAkontobeitragChfPerYear: 4_800,
+    stwegAkontobeitragUeberwaelzbarChfPerYear: 0,
     eigentuemerkostenChfPerYear: 300,
     vermietungskostenChfPerYear: 200,
     reinigungServiceUnmoebliertChfPerYear: 0,
@@ -169,6 +170,34 @@ describe("computeBestandsrenditeAnalysis", () => {
       6,
     );
     expect(b.effektiverJahresertragChf - b.betriebskostenTotalChf).toBeCloseTo(b.noiChf, 6);
+  });
+
+  it("STWEG-Akontobeitrag: nur der NICHT überwälzbare Anteil fliesst in Schnellcheck/NOI/Mehrjahresmodell ein — Regressionstest, siehe SIPIS/ChatGPT-Benchmark-Vergleich in DECISIONS.md (vorher zählte der gesamte Akontobeitrag als Eigentümerkosten)", () => {
+    const ohneAufteilung = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    const mitAufteilung = computeBestandsrenditeAnalysis(
+      { kaufpreisChf: 870_000, wohnflaecheM2: 75 },
+      { ...fullFacts, betriebskosten: { ...fullFacts.betriebskosten, stwegAkontobeitragUeberwaelzbarChfPerYear: 2_000 } },
+    );
+
+    // 4'800 (gesamt) − 2'000 (überwälzbar) = 2'800 nicht überwälzbar, statt der vollen 4'800.
+    expect(mitAufteilung.noiBreakdown.stwegAkontobeitragChfPerYear).toBe(2_800);
+    expect(mitAufteilung.noiBreakdown.stwegAkontobeitragUeberwaelzbarChfPerYear).toBe(2_000);
+    expect(ohneAufteilung.noiBreakdown.stwegAkontobeitragChfPerYear).toBe(4_800);
+    expect(ohneAufteilung.noiBreakdown.stwegAkontobeitragUeberwaelzbarChfPerYear).toBe(0);
+
+    // Der überwälzbare Anteil entlastet konsistent NOI, Schnellcheck-Cashflow UND das Mehrjahresmodell —
+    // nicht nur eine einzelne Anzeige.
+    expect(mitAufteilung.investmentCase.wasserfall.noiChf).toBe(ohneAufteilung.investmentCase.wasserfall.noiChf + 2_000);
+    expect(mitAufteilung.schnellcheck.groberCashflowChf).toBe(ohneAufteilung.schnellcheck.groberCashflowChf + 2_000);
+    expect(mitAufteilung.mehrjahresmodell.years[0].noiChf).toBe(ohneAufteilung.mehrjahresmodell.years[0].noiChf + 2_000);
+  });
+
+  it("STWEG-Akontobeitrag: ein überwälzbarer Anteil über dem Gesamtbeitrag wird auf 0 gedeckelt, kein negativer Eigentümerkosten-Anteil", () => {
+    const result = computeBestandsrenditeAnalysis(
+      { kaufpreisChf: 870_000, wohnflaecheM2: 75 },
+      { ...fullFacts, betriebskosten: { ...fullFacts.betriebskosten, stwegAkontobeitragUeberwaelzbarChfPerYear: 9_999 } },
+    );
+    expect(result.noiBreakdown.stwegAkontobeitragChfPerYear).toBe(0);
   });
 
   it("dokumentiert jede verwendete Platzhalter-Annahme in assumptionNotes", () => {

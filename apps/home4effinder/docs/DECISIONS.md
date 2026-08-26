@@ -2424,6 +2424,74 @@ Neue Tests: `nettoZielChf` trifft am gefundenen Preis exakt das Nettorenditeziel
 nicht über `zielChf`/`maximumChf`, und reagiert wie erwartet auf ein strengeres
 Nettorenditeziel (tieferer Preis).
 
+## Nachgezogen (2026-08-26): STWEG-Kostenaufteilung (überwälzbar/nicht überwälzbar) + kleinere Politur aus dem Benchmark-Vergleich
+
+Zweite Umsetzungsrunde aus demselben SIPIS/ChatGPT-Benchmark-Vergleich (siehe voriger
+Eintrag) — Auftraggeber: "setzt alles um was du gefunden hast". Drei Punkte, alle
+UI-/App-Ebene, `packages/financial-engine` bleibt unangetastet:
+
+**1. STWEG-Akontobeitrag: überwälzbarer Anteil.** Bisher zählte der GESAMTE
+STWEG-Akontobeitrag als Vermieterkosten in NOI/Schnellcheck/Mehrjahresmodell. SIPIS
+trennt explizit: nur ein Teil (typischerweise Erneuerungsfonds-Einlage,
+STWEG-Verwaltung) bleibt beim Eigentümer, der Rest ist bei korrektem Mietvertrag über
+die Nebenkosten auf den Mieter überwälzbar (z.B. Heizkosten, allgemeiner Unterhalt) —
+und bezeichnet diese Trennung ausdrücklich als "zentralen Sensitivitätspunkt".
+
+- Neues Feld `BestandsrenditeFacts.betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear`
+  (Default 0 — unverändertes Verhalten, solange nicht erfasst: voller Betrag gilt weiter
+  als nicht überwälzbar).
+- `computeBestandsrenditeAnalysis`: neue Grösse
+  `stwegAkontobeitragNichtUeberwaelzbarChfPerYear = max(0, gesamt − überwälzbar)`, ersetzt
+  den bisherigen vollen Akontobeitrag in `betriebskostenEffective` (fliesst dadurch
+  konsistent in Investment Case, Mehrjahresmodell UND Verhandlungskorridor — alle drei
+  nutzen `betriebskostenEffective`/leiten sich davon ab) sowie in
+  `schnellcheckLaufendeKostenChfPerYear` (Ebene A).
+- `NoiBreakdown`: neues Feld `stwegAkontobeitragUeberwaelzbarChfPerYear` rein informativ
+  für die Herleitungs-Anzeige — `stwegAkontobeitragChfPerYear` selbst ist jetzt bereits
+  der bereinigte (nicht überwälzbare) Betrag.
+- Formular (`BestandsrenditeFactsFields.tsx`): neues Feld "davon überwälzbar
+  (Nebenkosten)" neben dem bestehenden STWEG-Akontobeitrag-Feld (jetzt "STWEG-
+  Akontobeitrag (gesamt)" beschriftet); Feldwert-Übernahme-Vorschläge (Due-Diligence)
+  unterstützen das neue Feld ebenso wie das bestehende.
+- UI (`BestandsrenditeAnalysisView.tsx`, NOI-Aufschlüsselung): Zeile umbenannt zu "−
+  STWEG-Akontobeitrag (nicht überwälzbar)", zusätzliche Info-Zeile zeigt den
+  überwälzbaren (nicht in der Rechnung enthaltenen) Anteil, wenn erfasst.
+
+Neue Tests: der überwälzbare Anteil entlastet NOI/Schnellcheck-Cashflow/Mehrjahresmodell
+konsistent um denselben Betrag; ein überwälzbarer Anteil über dem Gesamtbeitrag wird auf
+0 gedeckelt (kein negativer Eigentümerkosten-Anteil).
+
+**2. Bruttorendite-Label-Konsistenz.** Dieselbe Bezeichnung "Bruttorendite" wurde an
+zwei Stellen mit unterschiedlicher Formel verwendet — Schnellcheck/Investment Case auf
+Basis der Sollmiete (ohne Leerstandsabzug), die Value-Add-Möblierung-Tabelle auf Basis
+des effektiven (leerstandsbereinigten) Jahresertrags — ohne dass das ohne Hover/Tap auf
+den Info-Hint ersichtlich war. Labels umbenannt: "Bruttorendite (Kaufpreis, Sollmiete)"/
+"Bruttorendite auf Kaufpreis (Sollmiete)"/"Bruttorendite auf All-in (Sollmiete)" vs.
+"Bruttorendite (effektiv)" in der Value-Add-Tabelle, mit gegenseitigem Verweis in den
+Hint-Texten. Reine Beschriftungsänderung, keine Formeländerung.
+
+**3. Zinssensitivität.** SIPIS zeigt explizit "+1 Prozentpunkt Zins = CHF X/Jahr
+Cashflow" neben der reinen Break-even-Zins-Zahl. Neuer Sub-Text unter "Break-even-Zins"
+("≈ CHF X/Jahr je 1 Prozentpunkt Zins" = 1% der aktuellen Gesamthypothekarsumme) — reine
+Anzeige-Ergänzung, keine neue Berechnung im engeren Sinn (linear aus bereits
+vorhandenen `hypothek.ersteHypothekChf`/`zweiteHypothekChf` hergeleitet).
+
+**Bewusst weiterhin nicht umgesetzt** aus demselben Benchmark-Vergleich:
+- Standardmässiger Wechsel des Verhandlungskorridors/Schnellchecks auf das unmöblierte
+  Szenario — würde die tatsächlich am Objekt hinterlegte `vermietungsmodell`-Einstellung
+  überschreiben, keine reine Darstellungsfrage (bereits im vorigen Eintrag begründet).
+- Markt-Feedback-Loop direkt an den Mietfeldern (Quantil-Einordnung inline statt nur im
+  separaten, bereits bestehenden Markteinordnung-Panel) — grössere UX-Änderung, die die
+  Regionsreport-Daten in die Formularkomponenten verdrahten müsste; zurückgestellt statt
+  überstürzt umgesetzt.
+- Preis-Stufentabelle (Rendite/Cashflow/Urteil über mehrere Kaufpreis-Schritte) im
+  Verhandlungskorridor — grössere UI-Ergänzung, aus Zeitgründen in dieser Runde nicht
+  umgesetzt.
+- Verlässlichere Cross-Dokument-Konflikterkennung für Attribute wie Baujahr — das ist
+  eine Frage der Due-Diligence-Synthese-Prompt-Qualität (LLM-Verhalten), kein
+  deterministischer Code-Fix; nicht angefasst, um nicht unverifiziert an einer
+  produktiven Extraktion zu schrauben.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

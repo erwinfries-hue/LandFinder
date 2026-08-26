@@ -114,6 +114,19 @@ export interface BestandsrenditeFacts {
 
   betriebskosten: {
     stwegAkontobeitragChfPerYear: number;
+    /**
+     * Anteil von `stwegAkontobeitragChfPerYear`, der bei korrektem Mietvertrag über die
+     * Nebenkosten auf den Mieter überwälzbar ist (z.B. Heizkosten, allgemeiner
+     * Unterhalt) — NICHT der gesamte STWEG-Akontobeitrag ist Vermieterkosten, ein Teil
+     * (typischerweise Erneuerungsfonds-Einlage, STWEG-Verwaltung, wertvermehrender
+     * Unterhalt) bleibt beim Eigentümer (Rückmeldung aus dem SIPIS/ChatGPT-Benchmark-
+     * Vergleich, siehe DECISIONS.md: dort wird dieselbe Trennung explizit vorgenommen
+     * und als "zentraler Sensitivitätspunkt" bezeichnet — HOME4efFINDER buchte bisher
+     * den kompletten Akontobeitrag als Eigentümerkosten). Default 0 (unverändertes
+     * Verhalten, solange nicht erfasst: voller Betrag gilt als nicht überwälzbar).
+     * Auf `stwegAkontobeitragChfPerYear` gedeckelt (kein negativer Eigentümerkosten-Anteil).
+     */
+    stwegAkontobeitragUeberwaelzbarChfPerYear: number;
     eigentuemerkostenChfPerYear: number;
     vermietungskostenChfPerYear: number;
     /** Je Vermietungsmodell separat erfasst, analog zu `reparatur.initialUnmoebliertChf`/`initialMoebliertChf` — kurzfristig/möbliert vermietete Wohnungen brauchen typischerweise Reinigung zwischen Mietern, langfristig/unmöbliert meist nicht. */
@@ -193,7 +206,10 @@ export interface NoiBreakdown {
   /** = potenziellerJahresertragChf − effektiverJahresertragChf (Leerstand bei Langfristvermietung, Nicht-Auslastung bei Short-Stay). */
   leerstandAbzugChf: number;
   effektiverJahresertragChf: number;
+  /** Bereits um `stwegAkontobeitragUeberwaelzbarChfPerYear` bereinigt — das ist der Anteil, der tatsächlich als Eigentümerkosten in den NOI fliesst, nicht der volle Akontobeitrag. */
   stwegAkontobeitragChfPerYear: number;
+  /** Rein informativ zur Herleitung: der als überwälzbar erfasste Anteil, der NICHT in `stwegAkontobeitragChfPerYear`/den NOI einfliesst. 0, wenn nicht erfasst. */
+  stwegAkontobeitragUeberwaelzbarChfPerYear: number;
   eigentuemerkostenChfPerYear: number;
   vermietungskostenChfPerYear: number;
   reinigungServiceChfPerYear: number;
@@ -342,8 +358,16 @@ export function computeBestandsrenditeAnalysis(
   const reinigungServiceChfPerYearEffective = moeblierungIstGewaehltesSzenario
     ? facts.betriebskosten.reinigungServiceMoebliertChfPerYear
     : facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear;
+  // Nur der NICHT überwälzbare Anteil des STWEG-Akontobeitrags ist Vermieterkosten (siehe
+  // BestandsrenditeFacts.betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear) — der
+  // überwälzbare Anteil wird bei korrektem Mietvertrag 1:1 über die Nebenkosten vom
+  // Mieter getragen und fliesst daher weder in den NOI noch in den Schnellcheck.
+  const stwegAkontobeitragNichtUeberwaelzbarChfPerYear = Math.max(
+    0,
+    facts.betriebskosten.stwegAkontobeitragChfPerYear - facts.betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear,
+  );
   const betriebskostenEffective = {
-    stwegAkontobeitragChfPerYear: facts.betriebskosten.stwegAkontobeitragChfPerYear,
+    stwegAkontobeitragChfPerYear: stwegAkontobeitragNichtUeberwaelzbarChfPerYear,
     eigentuemerkostenChfPerYear: facts.betriebskosten.eigentuemerkostenChfPerYear,
     vermietungskostenChfPerYear: facts.betriebskosten.vermietungskostenChfPerYear,
     reinigungServiceChfPerYear: reinigungServiceChfPerYearEffective,
@@ -371,7 +395,7 @@ export function computeBestandsrenditeAnalysis(
 
   const kaufnebenkostenPercent = handaenderungssteuerPercent + notariatGrundbuchPercent + maklerprovisionPercent;
   const schnellcheckLaufendeKostenChfPerYear =
-    facts.betriebskosten.stwegAkontobeitragChfPerYear + facts.betriebskosten.eigentuemerkostenChfPerYear + facts.betriebskosten.vermietungskostenChfPerYear;
+    stwegAkontobeitragNichtUeberwaelzbarChfPerYear + facts.betriebskosten.eigentuemerkostenChfPerYear + facts.betriebskosten.vermietungskostenChfPerYear;
   const schnellcheck = calculateSchnellcheck({
     wohnungskaufpreisChf: property.kaufpreisChf,
     parkplatzkaufpreisChf: parkierungKaufpreisZusatzChf,
@@ -436,6 +460,7 @@ export function computeBestandsrenditeAnalysis(
     leerstandAbzugChf: jahresertrag.potenziellerJahresertragChf - jahresertrag.effektiverJahresertragChf,
     effektiverJahresertragChf: jahresertrag.effektiverJahresertragChf,
     stwegAkontobeitragChfPerYear: investmentCaseInput.betriebskosten.stwegAkontobeitragChfPerYear,
+    stwegAkontobeitragUeberwaelzbarChfPerYear: facts.betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear,
     eigentuemerkostenChfPerYear: investmentCaseInput.betriebskosten.eigentuemerkostenChfPerYear,
     vermietungskostenChfPerYear: investmentCaseInput.betriebskosten.vermietungskostenChfPerYear,
     reinigungServiceChfPerYear: investmentCaseInput.betriebskosten.reinigungServiceChfPerYear,
@@ -809,6 +834,7 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
       },
       betriebskosten: {
         stwegAkontobeitragChfPerYear: num(betriebskosten.stwegAkontobeitragChfPerYear) ?? 0,
+        stwegAkontobeitragUeberwaelzbarChfPerYear: num(betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear) ?? 0,
         eigentuemerkostenChfPerYear: num(betriebskosten.eigentuemerkostenChfPerYear) ?? 0,
         vermietungskostenChfPerYear: num(betriebskosten.vermietungskostenChfPerYear) ?? 0,
         reinigungServiceUnmoebliertChfPerYear: num(betriebskosten.reinigungServiceUnmoebliertChfPerYear) ?? 0,
@@ -874,6 +900,7 @@ const ALLOWED_UPDATE_FIELDS = [
   "miete.sonstigeEinnahmenChfPerYear",
   "miete.leerstandPercent",
   "betriebskosten.stwegAkontobeitragChfPerYear",
+  "betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear",
   "stweg.erneuerungsfondsSaldoChf",
   "stweg.erneuerungsfondsWohnungsanteilChf",
   "stweg.erneuerungsfondsZielwertChf",

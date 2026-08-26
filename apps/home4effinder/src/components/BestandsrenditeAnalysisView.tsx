@@ -100,7 +100,7 @@ export function BestandsrenditeAnalysisView({
           <Metric l="Preis/m²" v={`CHF ${formatChf(Math.round(schnellcheck.preisProM2Chf))}`} hint="= Kaufpreis ÷ Wohnfläche (m²)." />
           <Metric l="Jahresnettomiete" v={`CHF ${formatChf(schnellcheck.jahresnettomieteChf)}`} hint="= (Nettomiete Wohnung + Miete Garage/Aussenparkplatz/Hobbyraum) × 12." />
           <Metric
-            l="Bruttorendite (Kaufpreis)"
+            l="Bruttorendite (Kaufpreis, Sollmiete)"
             v={`${schnellcheck.bruttoRenditePercent.toFixed(2)}%`}
             valueColor={renditeAmpelColor(schnellcheck.bruttoRenditePercent, bruttoRenditeZielPercent)}
             sub={
@@ -212,7 +212,7 @@ export function BestandsrenditeAnalysisView({
         <div className="metricgrid">
           <Metric l="All-in-Investition" v={`CHF ${formatChf(Math.round(result.allInInvestitionChf))}`} sub="Kaufpreis + Nebenkosten + Renovation + Reparatur + Möblierung" />
           <Metric
-            l="Bruttorendite auf Kaufpreis"
+            l="Bruttorendite auf Kaufpreis (Sollmiete)"
             v={`${investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}%`}
             valueColor={renditeAmpelColor(investmentCase.bruttoRenditeKaufpreisPercent, bruttoRenditeZielPercent)}
             sub={
@@ -220,12 +220,12 @@ export function BestandsrenditeAnalysisView({
                 ? `${altLabel}: ${alt.analysis.investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}% · Ziel: ${bruttoRenditeZielPercent}%`
                 : `Ziel: ${bruttoRenditeZielPercent}%`
             }
-            hint="= potenzieller Jahresertrag (Mieten × 12 + sonstige Einnahmen, OHNE Leerstand-/Auslastungsabzug) ÷ Kaufpreis × 100. Farbe relativ zum Bruttorendite-Ziel (Annahmen-Reiter)."
+            hint="= potenzieller Jahresertrag (Mieten × 12 + sonstige Einnahmen, OHNE Leerstand-/Auslastungsabzug — die Sollmiete) ÷ Kaufpreis × 100. Farbe relativ zum Bruttorendite-Ziel (Annahmen-Reiter). Nicht zu verwechseln mit der effektiv-basierten Bruttorendite im Value-Add-Möblierung-Panel unten (die zieht den Leerstand bereits ab)."
           />
           <Metric
-            l="Bruttorendite auf All-in"
+            l="Bruttorendite auf All-in (Sollmiete)"
             v={`${investmentCase.bruttoRenditeAllInPercent.toFixed(2)}%`}
-            hint="= potenzieller Jahresertrag ÷ All-in-Investition × 100."
+            hint="= potenzieller Jahresertrag (Sollmiete, OHNE Leerstandsabzug) ÷ All-in-Investition × 100."
           />
           <Metric
             l="Nettorendite vor Finanzierung"
@@ -290,9 +290,20 @@ export function BestandsrenditeAnalysisView({
                         </td>
                       </tr>
                       <tr>
-                        <td>− STWEG-Akontobeitrag</td>
+                        <td>
+                          − STWEG-Akontobeitrag (nicht überwälzbar){" "}
+                          <InfoHint text="Nur der Anteil des STWEG-Akontobeitrags, der NICHT über die Nebenkosten auf den Mieter überwälzbar ist (z.B. Erneuerungsfonds-Einlage, STWEG-Verwaltung) — siehe Bestandsrendite-Fakten, Abschnitt „Betriebskosten“." />
+                        </td>
                         <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.stwegAkontobeitragChfPerYear))}</td>
                       </tr>
+                      {noiBreakdown.stwegAkontobeitragUeberwaelzbarChfPerYear > 0 ? (
+                        <tr>
+                          <td style={{ color: "var(--ink-soft)", fontSize: ".78rem" }}>davon überwälzbar (Nebenkosten, nicht Teil dieser Rechnung)</td>
+                          <td className="num mono" style={{ color: "var(--ink-soft)", fontSize: ".78rem" }}>
+                            CHF {formatChf(Math.round(noiBreakdown.stwegAkontobeitragUeberwaelzbarChfPerYear))}
+                          </td>
+                        </tr>
+                      ) : null}
                       <tr>
                         <td>− Sonstige Eigentümerkosten</td>
                         <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.eigentuemerkostenChfPerYear))}</td>
@@ -365,7 +376,8 @@ export function BestandsrenditeAnalysisView({
           <Metric
             l="Break-even-Zins"
             v={breakEven.zinsPercent !== undefined ? `${breakEven.zinsPercent.toFixed(2)}%` : "—"}
-            hint="Hypothekarzins, bei dem der nachhaltige Cashflow (Jahr 1) genau 0 erreicht — alle anderen Annahmen bleiben unverändert."
+            sub={`≈ CHF ${formatChf(Math.round((hypothek.ersteHypothekChf + hypothek.zweiteHypothekChf) * 0.01))}/Jahr je 1 Prozentpunkt Zins`}
+            hint="Hypothekarzins, bei dem der nachhaltige Cashflow (Jahr 1) genau 0 erreicht — alle anderen Annahmen bleiben unverändert. Sub-Wert: wie stark sich der Cashflow bei unverändertem NOI durch einen Zinsanstieg/-rückgang um 1 Prozentpunkt auf der aktuellen Hypothekarsumme verändert (linear, unabhängig vom Break-even-Wert selbst)."
           />
           {breakEven.auslastungPercent !== undefined ? (
             <Metric
@@ -413,7 +425,8 @@ export function BestandsrenditeAnalysisView({
               </tr>
               <tr>
                 <td>
-                  Bruttorendite <InfoHint text="= effektiver Jahresertrag ÷ Kaufpreis × 100." />
+                  Bruttorendite (effektiv){" "}
+                  <InfoHint text="= effektiver Jahresertrag (nach Leerstand/Auslastung) ÷ Kaufpreis × 100 — anders als die Bruttorendite-Kennzahlen in Schnellcheck/Investment Case oben, die auf der Sollmiete (ohne Leerstandsabzug) basieren, daher nicht direkt vergleichbar." />
                 </td>
                 <td className="num mono">{moeblierungsVergleich.unmoebliert.bruttoRenditePercent.toFixed(2)}%</td>
                 <td className="num mono">{moeblierungsVergleich.moebliert.bruttoRenditePercent.toFixed(2)}%</td>
