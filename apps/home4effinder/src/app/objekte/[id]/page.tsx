@@ -10,6 +10,7 @@ import { BESTANDSRENDITE_PARAMETERS, defaultsOf } from "@landfinder/financial-en
 import {
   computeBestandsrenditeAnalysis,
   computeVerhandlungskorridor,
+  computePreisStufentabelle,
   computeMoeblierungsAlternative,
   parseBestandsrenditeFacts,
   isAllowedUpdateField,
@@ -64,6 +65,8 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
   const propertyInput = { kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton };
   const analysis = facts ? computeBestandsrenditeAnalysis(propertyInput, facts, parameterOverrides) : null;
   const verhandlungskorridor = facts ? computeVerhandlungskorridor(propertyInput, facts, parameterOverrides) : null;
+  const preisStufentabelle =
+    facts && verhandlungskorridor ? computePreisStufentabelle(propertyInput, facts, verhandlungskorridor, parameterOverrides) : [];
   const moeblierungsAlternative = facts ? computeMoeblierungsAlternative(propertyInput, facts, parameterOverrides) : null;
   const effectiveParams = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
 
@@ -168,6 +171,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
           <BestandsrenditeAnalysisView
             result={analysis}
             verhandlungskorridor={verhandlungskorridor}
+            preisStufentabelle={preisStufentabelle}
             moeblierungsAlternative={moeblierungsAlternative}
             bruttoRenditeZielPercent={effectiveParams.bruttoRenditeZielPercent}
             nettoRenditeZielPercent={effectiveParams.nettoRenditeZielPercent}

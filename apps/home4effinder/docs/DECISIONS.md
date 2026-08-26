@@ -2492,6 +2492,46 @@ vorhandenen `hypothek.ersteHypothekChf`/`zweiteHypothekChf` hergeleitet).
   deterministischer Code-Fix; nicht angefasst, um nicht unverifiziert an einer
   produktiven Extraktion zu schrauben.
 
+## Nachgezogen (2026-08-26): Preis-Stufentabelle im Verhandlungskorridor
+
+Dritte Umsetzungsrunde aus dem SIPIS/ChatGPT-Benchmark-Vergleich — der im vorigen Eintrag
+noch zurückgestellte Punkt "Preis-Stufentabelle" auf Auftraggeber-Wunsch nachgezogen. SIPIS
+zeigt neben den drei Korridor-Eckwerten (Ideal/Grenze/Maximum) eine durchgehende Tabelle
+mit Rendite/Cashflow über mehrere Kaufpreis-Schritte — für eine echte Verhandlung
+brauchbarer als nur die Endpunkte, weil sichtbar wird, wie stark sich die Kennzahlen bei
+kleinen Preiszugeständnissen bewegen.
+
+- Neue Funktion `computePreisStufentabelle` (`bestandsrendite.ts`), Rückgabetyp
+  `PreisStufe[]`. Spanne: von der strengsten gesetzten Zielgrösse
+  (`verhandlungskorridor.nettoZielChf`, sonst `zielChf`) bis zum aktuellen Kaufpreis —
+  bewusst NICHT bis `maximumChf`, das ist wie im vorigen Eintrag beschrieben eine reine
+  Cashflow-Solvenzgrenze, die bei tiefen Zinsen weit ausserhalb jeder sinnvollen
+  Verhandlungsspanne liegen und die Tabelle unbrauchbar strecken würde. Beide Enden auf
+  CHF 5'000 gerundet für "runde" Stufenpreise; der tatsächliche aktuelle Kaufpreis wird der
+  gerundeten Stufenliste zusätzlich exakt (ungerundet) hinzugefügt und als
+  `istAktuellerKaufpreis: true` markiert, damit die UI ihn zuverlässig hervorheben kann,
+  statt zu hoffen, dass eine gerundete Stufe zufällig genau trifft. `[]`, wenn kein
+  Renditeziel gesetzt ist oder Ziel-Preis und aktueller Kaufpreis nach Rundung
+  zusammenfallen (kein sinnvoller Bereich).
+- Jede Zeile ist eine vollständige Neuberechnung (`computeBestandsrenditeAnalysis` bei
+  diesem Kaufpreis) — keine separate, potenziell abweichende Formel, dieselbe Garantie wie
+  bei `maximumChf`/`nettoZielChf`.
+- Wiring: `objekte/[id]/page.tsx` berechnet die Tabelle serverseitig (wie
+  `verhandlungskorridor` selbst) und reicht sie als neue Prop `preisStufentabelle` an
+  `BestandsrenditeAnalysisView` durch. Bewusst NICHT ins Management-Summary-PDF
+  übernommen — das PDF ist ein kompakter One-Pager, eine mehrzeilige Stufentabelle würde
+  dort schlecht passen; die drei Korridor-Eckwerte bleiben dort ausreichend.
+- UI: neue Tabelle innerhalb des bestehenden Verhandlungskorridor-Panels (`stresstable`,
+  gleiches Muster wie die Value-Add-Möblierung-Tabelle) mit den Spalten Kaufpreis /
+  Bruttorendite / Nettorendite / Nachhaltiger Cashflow. Farbcodierung wiederverwendet das
+  bestehende `renditeAmpelColor` (dieselbe Ampel-Logik wie bei den übrigen Rendite-
+  Kennzahlen), negativer Cashflow zusätzlich rot hervorgehoben. Aktuelle-Kaufpreis-Zeile
+  fett markiert.
+
+Neue Tests: Stufen aufsteigend sortiert, genau eine Zeile exakt als aktueller Kaufpreis
+markiert, jede Zeile deckt sich mit einer direkten Neuberechnung bei diesem Kaufpreis,
+leeres Ergebnis ohne Renditeziel bzw. bei zusammenfallendem Ziel-/Ist-Preis nach Rundung.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

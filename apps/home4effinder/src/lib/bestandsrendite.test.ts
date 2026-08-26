@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, parseBestandsrenditeFacts, applyFieldUpdate, isAllowedUpdateField, type BestandsrenditeFacts } from "./bestandsrendite";
+import {
+  computeBestandsrenditeAnalysis,
+  computeVerhandlungskorridor,
+  computePreisStufentabelle,
+  parseBestandsrenditeFacts,
+  applyFieldUpdate,
+  isAllowedUpdateField,
+  type BestandsrenditeFacts,
+} from "./bestandsrendite";
 
 const minimalValidInput = {
   miete: { wohnungsMieteChfPerMonth: 1450, vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT" },
@@ -421,6 +429,44 @@ describe("computeVerhandlungskorridor", () => {
     const tiefesZiel = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts, { nettoRenditeZielPercent: 2 });
     const hohesZiel = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts, { nettoRenditeZielPercent: 4 });
     expect(hohesZiel.nettoZielChf!).toBeLessThan(tiefesZiel.nettoZielChf!);
+  });
+});
+
+describe("computePreisStufentabelle", () => {
+  const property = { kaufpreisChf: 870_000, wohnflaecheM2: 75 };
+
+  it("liefert mehrere Stufen zwischen Preisobergrenze (Nettorendite) und aktuellem Kaufpreis, mit genau einer exakt als aktuell markierten Zeile — Wunsch aus dem SIPIS/ChatGPT-Benchmark-Vergleich, siehe DECISIONS.md", () => {
+    const korridor = computeVerhandlungskorridor(property, fullFacts);
+    const stufen = computePreisStufentabelle(property, fullFacts, korridor);
+
+    expect(stufen.length).toBeGreaterThanOrEqual(2);
+    // Aufsteigend sortiert.
+    for (let i = 1; i < stufen.length; i++) expect(stufen[i].kaufpreisChf).toBeGreaterThan(stufen[i - 1].kaufpreisChf);
+
+    const aktuelleZeilen = stufen.filter((s) => s.istAktuellerKaufpreis);
+    expect(aktuelleZeilen).toHaveLength(1);
+    expect(aktuelleZeilen[0].kaufpreisChf).toBe(870_000);
+
+    // Jede Zeile stimmt mit einer direkten Neuberechnung bei diesem Kaufpreis überein
+    // (keine eigenständige, potenziell abweichende Formel).
+    for (const stufe of stufen) {
+      const direkt = computeBestandsrenditeAnalysis({ ...property, kaufpreisChf: stufe.kaufpreisChf }, fullFacts);
+      expect(stufe.bruttoRenditePercent).toBeCloseTo(direkt.investmentCase.bruttoRenditeKaufpreisPercent, 6);
+      expect(stufe.nettoRenditeVorFinanzierungPercent).toBeCloseTo(direkt.investmentCase.nettoRenditeVorFinanzierungPercent, 6);
+      expect(stufe.nachhaltigerCashflowChf).toBeCloseTo(direkt.investmentCase.wasserfall.nachhaltigerCashflowChf, 2);
+    }
+  });
+
+  it("ist leer, wenn weder Netto- noch Bruttorenditeziel gesetzt sind (kein Ankerpunkt für die Spanne)", () => {
+    const korridorOhneZiele = computeVerhandlungskorridor(property, fullFacts, { bruttoRenditeZielPercent: 0, nettoRenditeZielPercent: 0 });
+    expect(korridorOhneZiele.zielChf).toBeUndefined();
+    expect(korridorOhneZiele.nettoZielChf).toBeUndefined();
+    expect(computePreisStufentabelle(property, fullFacts, korridorOhneZiele)).toEqual([]);
+  });
+
+  it("ist leer, wenn Ziel-Preis und aktueller Kaufpreis nach Rundung auf CHF 5'000 zusammenfallen", () => {
+    const korridorAmZiel = { maximumChf: 900_000, zielChf: 871_000, nettoZielChf: 871_000, eroeffnungChf: undefined };
+    expect(computePreisStufentabelle(property, fullFacts, korridorAmZiel)).toEqual([]);
   });
 });
 

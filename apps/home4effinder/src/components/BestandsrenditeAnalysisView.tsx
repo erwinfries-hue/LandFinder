@@ -2,7 +2,7 @@ import { Panel, Chip, InfoHint } from "@landfinder/ui";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
 import { renditeAmpelColor } from "@/lib/investmentScore";
-import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, MoeblierungsAlternative } from "@/lib/bestandsrendite";
+import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, PreisStufe, MoeblierungsAlternative } from "@/lib/bestandsrendite";
 
 /**
  * Reine Anzeige der drei Ebenen — die Berechnung selbst
@@ -13,6 +13,7 @@ import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, MoeblierungsA
 export function BestandsrenditeAnalysisView({
   result,
   verhandlungskorridor,
+  preisStufentabelle,
   moeblierungsAlternative,
   bruttoRenditeZielPercent,
   nettoRenditeZielPercent,
@@ -20,6 +21,8 @@ export function BestandsrenditeAnalysisView({
   result: BestandsrenditeAnalysisResult;
   /** `undefined`/`null`, wenn `computeVerhandlungskorridor` keine Bisektionslösung fand (Objekt trägt sich unter keinen Umständen). */
   verhandlungskorridor?: Verhandlungskorridor | null;
+  /** Siehe `computePreisStufentabelle` — leer, wenn kein Renditeziel gesetzt ist oder Ziel-Preis und aktueller Kaufpreis nach Rundung zusammenfallen. Dann wird keine Tabelle gerendert. */
+  preisStufentabelle?: PreisStufe[];
   /**
    * Für die "Schattenrechnung" (Rückmeldung: "wo dieser Vergleich überall durchschlägt")
    * — das jeweils andere Szenario (möbliert/unmöbliert), komplett durchgerechnet.
@@ -202,6 +205,49 @@ export function BestandsrenditeAnalysisView({
               hint="Kaufpreis, bei dem der nachhaltige Cashflow (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) gerade CHF 0 erreicht — reine Solvenzgrenze, keine Kaufempfehlung: mehr zu zahlen ist unter den aktuellen Annahmen rechnerisch nicht mehr cashflow-tragfähig, sagt aber nichts über die Renditequalität des Deals aus."
             />
           </div>
+
+          {preisStufentabelle && preisStufentabelle.length > 0 ? (
+            <div style={{ marginTop: "1rem" }}>
+              <div className="eyebrow" style={{ marginBottom: ".4rem" }}>
+                Preis-Stufentabelle
+              </div>
+              <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".5rem" }}>
+                Wie sich Rendite und Cashflow zwischen der Preisobergrenze (Nettorendite) bzw. dem Zielpreis und dem
+                aktuellen Kaufpreis entwickeln — für die Verhandlung selbst, nicht nur die drei Eckwerte oben.
+              </p>
+              <div style={{ overflowX: "auto" }}>
+                <table className="stresstable">
+                  <thead>
+                    <tr>
+                      <th>Kaufpreis</th>
+                      <th>Bruttorendite</th>
+                      <th>Nettorendite</th>
+                      <th>Nachhaltiger Cashflow</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preisStufentabelle.map((stufe) => (
+                      <tr key={stufe.kaufpreisChf} style={stufe.istAktuellerKaufpreis ? { fontWeight: 600 } : undefined}>
+                        <td className="num mono">
+                          CHF {formatChf(stufe.kaufpreisChf)}
+                          {stufe.istAktuellerKaufpreis ? " (aktuell)" : ""}
+                        </td>
+                        <td className="num mono" style={{ color: renditeAmpelColor(stufe.bruttoRenditePercent, bruttoRenditeZielPercent) }}>
+                          {stufe.bruttoRenditePercent.toFixed(2)}%
+                        </td>
+                        <td className="num mono" style={{ color: renditeAmpelColor(stufe.nettoRenditeVorFinanzierungPercent, nettoRenditeZielPercent) }}>
+                          {stufe.nettoRenditeVorFinanzierungPercent.toFixed(2)}%
+                        </td>
+                        <td className="num mono" style={{ color: stufe.nachhaltigerCashflowChf < 0 ? "var(--bad)" : undefined }}>
+                          CHF {formatChf(Math.round(stufe.nachhaltigerCashflowChf))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
         </Panel>
       ) : null}
 

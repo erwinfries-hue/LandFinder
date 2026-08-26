@@ -697,6 +697,69 @@ export function computeVerhandlungskorridor(
   return { maximumChf, zielChf, nettoZielChf, eroeffnungChf };
 }
 
+/** Eine einzelne Zeile der Preis-Stufentabelle (siehe `computePreisStufentabelle`) — dieselben drei Kennzahlen, die auch den Verhandlungskorridor bestimmen (Bruttorendite → Zielpreis, Nettorendite → Preisobergrenze, nachhaltiger Cashflow → Maximum), hier für mehrere Kaufpreise nebeneinander statt nur an den drei Korridor-Punkten. */
+export interface PreisStufe {
+  kaufpreisChf: number;
+  bruttoRenditePercent: number;
+  nettoRenditeVorFinanzierungPercent: number;
+  nachhaltigerCashflowChf: number;
+  /** `true` für genau die Zeile, die exakt dem aktuellen Kaufpreis (`property.kaufpreisChf`) entspricht — dieser wird der (auf CHF 5'000 gerundeten) Stufenliste immer exakt hinzugefügt, statt darauf zu hoffen, dass ihn eine Rundung zufällig trifft, damit die UI ihn zuverlässig hervorheben kann. */
+  istAktuellerKaufpreis: boolean;
+}
+
+/**
+ * Preis-Stufentabelle — Wunsch aus dem SIPIS/ChatGPT-Benchmark-Vergleich (siehe
+ * DECISIONS.md): der Verhandlungskorridor liefert nur drei diskrete Ankerpunkte
+ * (Zielpreis/Preisobergrenze/Maximum), SIPIS zeigt zusätzlich eine durchgehende Tabelle
+ * "was passiert mit Rendite/Cashflow bei diesem Kaufpreis" über mehrere Preisschritte —
+ * genau die Kurve, die man in einer echten Verhandlung braucht, nicht nur die Endpunkte.
+ *
+ * Die Spanne ergibt sich aus den bereits vorhandenen Korridor-Werten: von der
+ * strengsten gesetzten Zielgrösse (`nettoZielChf`, sonst `zielChf`) bis zum aktuellen
+ * Kaufpreis — unabhängig davon, ob der aktuelle Preis über oder unter dem Ziel liegt
+ * (Reihenfolge wird über min/max hergestellt, nicht angenommen). Bewusst NICHT bis
+ * `maximumChf`: das ist eine reine Cashflow-Solvenzgrenze, die bei tiefen Zinsen weit
+ * ausserhalb jeder sinnvollen Verhandlungsspanne liegen kann (siehe Verhandlungskorridor-
+ * Dokumentation) und die Tabelle unbrauchbar strecken würde. Beide Enden werden auf CHF
+ * 5'000 gerundet, damit die Stufen "runde", verhandlungstaugliche Preise zeigen statt
+ * krummer Bisektions-Zwischenwerte.
+ *
+ * `[]`, wenn kein sinnvoller Bereich existiert (kein Renditeziel gesetzt und Maximum
+ * `undefined`, oder Ziel-Preis und aktueller Kaufpreis fallen nach Rundung zusammen).
+ */
+export function computePreisStufentabelle(
+  property: BestandsrenditePropertyInput,
+  facts: BestandsrenditeFacts,
+  verhandlungskorridor: Verhandlungskorridor,
+  parameterOverrides?: ParameterOverrides,
+  steps = 6,
+): PreisStufe[] {
+  const zielAnker = verhandlungskorridor.nettoZielChf ?? verhandlungskorridor.zielChf;
+  if (zielAnker === undefined) return [];
+
+  const rundenAuf5000 = (chf: number): number => Math.round(chf / 5_000) * 5_000;
+  const tiefChf = rundenAuf5000(Math.min(zielAnker, property.kaufpreisChf));
+  const hochChf = rundenAuf5000(Math.max(zielAnker, property.kaufpreisChf));
+  if (tiefChf >= hochChf || steps < 2) return [];
+
+  const gerundeteStufenpreise = Array.from({ length: steps }, (_, i) => Math.round(tiefChf + ((hochChf - tiefChf) * i) / (steps - 1)));
+  // Aktuellen Kaufpreis EXAKT ergänzen (nicht gerundet) statt darauf zu hoffen, dass ihn
+  // eine der gerundeten Stufen zufällig trifft — sonst liesse sich "aktueller Kaufpreis"
+  // in der UI nicht zuverlässig hervorheben.
+  const alleKaufpreise = Array.from(new Set([...gerundeteStufenpreise, property.kaufpreisChf])).sort((a, b) => a - b);
+
+  return alleKaufpreise.map((kaufpreisChf) => {
+    const analysis = computeBestandsrenditeAnalysis({ ...property, kaufpreisChf }, facts, parameterOverrides);
+    return {
+      kaufpreisChf,
+      bruttoRenditePercent: analysis.investmentCase.bruttoRenditeKaufpreisPercent,
+      nettoRenditeVorFinanzierungPercent: analysis.investmentCase.nettoRenditeVorFinanzierungPercent,
+      nachhaltigerCashflowChf: analysis.investmentCase.wasserfall.nachhaltigerCashflowChf,
+      istAktuellerKaufpreis: kaufpreisChf === property.kaufpreisChf,
+    };
+  });
+}
+
 export interface MoeblierungsAlternative {
   label: "unmöbliert" | "möbliert";
   analysis: BestandsrenditeAnalysisResult;
