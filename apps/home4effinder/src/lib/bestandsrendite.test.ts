@@ -372,6 +372,27 @@ describe("computeVerhandlungskorridor", () => {
     const hohesZiel = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts, { bruttoRenditeZielPercent: 6 });
     expect(hohesZiel.zielChf!).toBeLessThan(tiefesZiel.zielChf!);
   });
+
+  it("nettoZielChf: Kaufpreis, bei dem die Nettorendite vor Finanzierung das Nettorenditeziel erreicht — regressionsrelevant, siehe SIPIS/ChatGPT-Benchmark-Vergleich in DECISIONS.md (Maximum war rechnerisch korrekt, aber als Solvenzgrenze allein irreführend, da weit über einem an der Nettorendite gemessenen sinnvollen Kaufpreis)", () => {
+    const korridor = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts);
+    expect(korridor.nettoZielChf).toBeDefined();
+    expect(korridor.nettoZielChf!).toBeLessThanOrEqual(korridor.maximumChf!);
+
+    // Am gefundenen Preis erreicht die Nettorendite vor Finanzierung exakt das Nettorenditeziel (Default 3%).
+    const amNettoZiel = computeBestandsrenditeAnalysis({ kaufpreisChf: korridor.nettoZielChf!, wohnflaecheM2: 75 }, fullFacts);
+    expect(amNettoZiel.investmentCase.nettoRenditeVorFinanzierungPercent).toBeCloseTo(3, 0);
+
+    // Die Nettorendite zieht zusätzlich Leerstand/Betriebskosten/Eigentümerkosten ab und
+    // braucht daher i.d.R. einen tieferen Preis als die reine Bruttorendite, um dasselbe
+    // Ziel-Niveau zu erreichen — nettoZielChf liegt darum nicht über zielChf.
+    expect(korridor.nettoZielChf!).toBeLessThanOrEqual(korridor.zielChf!);
+  });
+
+  it("ein höheres Nettorenditeziel senkt die Preisobergrenze (Nettorendite) analog zum Bruttorenditeziel", () => {
+    const tiefesZiel = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts, { nettoRenditeZielPercent: 2 });
+    const hohesZiel = computeVerhandlungskorridor({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts, { nettoRenditeZielPercent: 4 });
+    expect(hohesZiel.nettoZielChf!).toBeLessThan(tiefesZiel.nettoZielChf!);
+  });
 });
 
 describe("isAllowedUpdateField / applyFieldUpdate", () => {

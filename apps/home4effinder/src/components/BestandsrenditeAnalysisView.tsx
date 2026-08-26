@@ -163,10 +163,12 @@ export function BestandsrenditeAnalysisView({
             <h2>Verhandlungskorridor</h2>
           </div>
           <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".6rem" }}>
-            Maximum ist der Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht. Zielpreis ist der
-            Kaufpreis, bei dem die Bruttorendite das gespeicherte Renditeziel erreicht (Annahmen-Reiter). Eröffnungsangebot
-            ist deine eigene, per Marktrecherche bestimmte Einschätzung (Bestandsrendite-Fakten, Abschnitt
-            &quot;Verhandlung&quot;) — kein Rechenwert.
+            Maximum ist der Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht — eine reine
+            Solvenzgrenze, keine Kaufempfehlung: bei tiefen Zinsen kann sie weit über einem Preis liegen, der unter
+            dem eigenen Renditeziel noch lohnt. Zielpreis ist der Kaufpreis, bei dem die Bruttorendite das
+            gespeicherte Renditeziel erreicht; Preisobergrenze (Nettorendite) derselbe Punkt für die Nettorendite vor
+            Finanzierung (beide Annahmen-Reiter). Eröffnungsangebot ist deine eigene, per Marktrecherche bestimmte
+            Einschätzung (Bestandsrendite-Fakten, Abschnitt &quot;Verhandlung&quot;) — kein Rechenwert.
           </p>
           <div className="metricgrid">
             <Metric
@@ -182,10 +184,22 @@ export function BestandsrenditeAnalysisView({
               hint="= Kaufpreis, bei dem die Bruttorendite (Kaufpreis) das Renditeziel erreicht (Annahmen-Reiter), gedeckelt auf das Maximum."
             />
             <Metric
+              l="Preisobergrenze (Nettorendite)"
+              v={verhandlungskorridor.nettoZielChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.nettoZielChf))}` : "—"}
+              sub={
+                verhandlungskorridor.nettoZielChf === undefined
+                  ? "kein Nettorenditeziel gesetzt (Annahmen-Reiter)"
+                  : alt?.verhandlungskorridor.nettoZielChf !== undefined
+                    ? `${altLabel}: CHF ${formatChf(Math.round(alt.verhandlungskorridor.nettoZielChf))}`
+                    : undefined
+              }
+              hint="= Kaufpreis, bei dem die Nettorendite vor Finanzierung das Nettorenditeziel erreicht (Annahmen-Reiter), gedeckelt auf das Maximum — im Gegensatz zum Zielpreis inkl. Leerstand/Betriebskosten/Eigentümerkosten, meist die strengere Grenze."
+            />
+            <Metric
               l="Maximum"
               v={`CHF ${formatChf(Math.round(verhandlungskorridor.maximumChf))}`}
               sub={alt?.verhandlungskorridor.maximumChf !== undefined ? `${altLabel}: CHF ${formatChf(Math.round(alt.verhandlungskorridor.maximumChf))}` : undefined}
-              hint="Kaufpreis, bei dem der nachhaltige Cashflow (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) gerade CHF 0 erreicht — mehr zu zahlen ist unter den aktuellen Annahmen rechnerisch nicht mehr cashflow-tragfähig."
+              hint="Kaufpreis, bei dem der nachhaltige Cashflow (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) gerade CHF 0 erreicht — reine Solvenzgrenze, keine Kaufempfehlung: mehr zu zahlen ist unter den aktuellen Annahmen rechnerisch nicht mehr cashflow-tragfähig, sagt aber nichts über die Renditequalität des Deals aus."
             />
           </div>
         </Panel>

@@ -596,10 +596,24 @@ export function computeBestandsrenditeAnalysis(
 }
 
 export interface Verhandlungskorridor {
-  /** Rechnerisches Maximum — Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht (alles darüber ist rechnerisch nicht mehr cashflow-tragfähig unter den aktuellen Annahmen). `undefined`, wenn selbst ein Kaufpreis nahe CHF 0 keinen positiven Cashflow ergibt (Objekt trägt sich unter keinen Umständen). */
+  /** Rechnerisches Maximum — Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht (alles darüber ist rechnerisch nicht mehr cashflow-tragfähig unter den aktuellen Annahmen). Das ist eine reine Solvenzgrenze ("ab wann geht bei diesem Fremdkapitalzins das Geld aus") — bei tiefen Zinsen und hoher Belehnung liegt sie oft weit über dem, was unter dem eigenen Renditeziel noch eine gute Investition wäre; für die Preisverhandlung ist meist `nettoZielChf` die relevantere Obergrenze. `undefined`, wenn selbst ein Kaufpreis nahe CHF 0 keinen positiven Cashflow ergibt (Objekt trägt sich unter keinen Umständen). */
   maximumChf: number | undefined;
   /** Kaufpreis, bei dem die Bruttorendite (Kaufpreis) genau das gespeicherte Renditeziel (Annahmen-Reiter, `bruttoRenditeZielPercent`) erreicht — algebraisch hergeleitet aus der ohnehin konstanten Jahresnettomiete, nicht als Sicherheitsmarge vom Maximum. Nach oben durch `maximumChf` gedeckelt (ein Ziel über dem cashflow-neutralen Maximum wäre widersinnig). `undefined`, wenn kein Renditeziel gesetzt ist oder `maximumChf` selbst `undefined` ist. */
   zielChf: number | undefined;
+  /**
+   * Kaufpreis, bei dem die Nettorendite vor Finanzierung genau das gespeicherte
+   * Nettorenditeziel (Annahmen-Reiter, `nettoRenditeZielPercent`) erreicht — per Bisektion,
+   * da die Nettorendite (anders als die Bruttorendite) über die kaufpreisabhängigen
+   * Kaufnebenkosten in der All-in-Investition nicht rein algebraisch nach dem Kaufpreis
+   * auflösbar ist. Ergänzt `zielChf` (der nur die Bruttorendite trifft): weil die
+   * Nettorendite zusätzlich Leerstand/Betriebskosten/Eigentümerkosten abzieht, liegt
+   * `nettoZielChf` in aller Regel deutlich UNTER `zielChf` und oft auch deutlich unter
+   * `maximumChf` — anders als die reine Cashflow-Solvenzgrenze bildet er tatsächlich ab,
+   * ob der Kauf beim eigenen Nettorenditeziel noch lohnt. Nach oben durch `maximumChf`
+   * gedeckelt. `undefined`, wenn kein Nettorenditeziel gesetzt ist oder `maximumChf` selbst
+   * `undefined` ist.
+   */
+  nettoZielChf: number | undefined;
   /** Eigene, per Marktrecherche bestimmte Einschätzung (`facts.eroeffnungsangebotChf`) — bewusst NICHT rechnerisch hergeleitet (Rückmeldung: "eröffnungspreis vom markt her (research) bestimmt", vorher waren das frei erfundene Prozentzahlen ohne Marktbezug). `undefined`, solange nicht erfasst. */
   eroeffnungChf: number | undefined;
 }
@@ -613,6 +627,14 @@ export interface Verhandlungskorridor {
  * `breakEvenZinsPercent`. Variiert bewusst nur den Basis-Kaufpreis der Wohnung
  * (property.kaufpreisChf) — Parkplatz/Garage/Möblierung/alle übrigen Fakten bleiben fix,
  * das ist der Teil des Pakets, über den tatsächlich verhandelt wird.
+ *
+ * `nettoZielChf` (Rückmeldung aus dem SIPIS/ChatGPT-Benchmark-Vergleich, siehe
+ * DECISIONS.md): das cashflow-basierte Maximum beantwortet nur "ab wann trägt sich das
+ * Objekt nicht mehr", nicht "ab wann ist es noch eine gute Investition nach meinem
+ * Nettorenditeziel" — bei tiefen Zinsen kann das Maximum daher weit über einem Preis
+ * liegen, den ein diszipliniertes Renditeziel noch zuliesse. `nettoZielChf` schliesst
+ * diese Lücke mit derselben Bisektionslogik, nur gegen die Nettorendite statt gegen den
+ * Cashflow.
  */
 export function computeVerhandlungskorridor(
   property: BestandsrenditePropertyInput,
@@ -625,7 +647,7 @@ export function computeVerhandlungskorridor(
 
   const maximumChf = bisectRoot(nachhaltigerCashflowFuerKaufpreis, 1_000, property.kaufpreisChf * 5 + 500_000);
   const eroeffnungChf = facts.eroeffnungsangebotChf;
-  if (maximumChf === undefined) return { maximumChf: undefined, zielChf: undefined, eroeffnungChf };
+  if (maximumChf === undefined) return { maximumChf: undefined, zielChf: undefined, nettoZielChf: undefined, eroeffnungChf };
 
   // Bruttorendite (Kaufpreis) = Jahresnettomiete ÷ (Basis-Kaufpreis + Parkplatz/Garage) —
   // die Jahresnettomiete selbst hängt nicht vom (verhandelbaren) Basis-Kaufpreis ab, daher
@@ -637,7 +659,17 @@ export function computeVerhandlungskorridor(
     zielRenditePercent > 0 ? referenz.schnellcheck.jahresnettomieteChf / (zielRenditePercent / 100) - referenz.parkierung.totalZusatzChf : undefined;
   const zielChf = zielRenditeKaufpreisChf !== undefined ? Math.min(Math.max(0, zielRenditeKaufpreisChf), maximumChf) : undefined;
 
-  return { maximumChf, zielChf, eroeffnungChf };
+  // Nettorendite vor Finanzierung = NOI ÷ All-in-Investition — die All-in-Investition
+  // enthält kaufpreisabhängige Kaufnebenkosten (Handänderungssteuer/Notariat/Makler als
+  // Prozentsatz des Kaufpreises), daher keine geschlossene Formel wie bei der
+  // Bruttorendite: numerische Bisektion, analog zu `maximumChf`.
+  const nettoRenditeFuerKaufpreis = (kaufpreisChf: number): number =>
+    computeBestandsrenditeAnalysis({ ...property, kaufpreisChf }, facts, parameterOverrides).investmentCase.nettoRenditeVorFinanzierungPercent -
+    P.nettoRenditeZielPercent;
+  const nettoZielRohChf = P.nettoRenditeZielPercent > 0 ? bisectRoot(nettoRenditeFuerKaufpreis, 1_000, property.kaufpreisChf * 5 + 500_000) : undefined;
+  const nettoZielChf = nettoZielRohChf !== undefined ? Math.min(Math.max(0, nettoZielRohChf), maximumChf) : undefined;
+
+  return { maximumChf, zielChf, nettoZielChf, eroeffnungChf };
 }
 
 export interface MoeblierungsAlternative {
