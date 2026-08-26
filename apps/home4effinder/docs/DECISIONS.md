@@ -2577,6 +2577,46 @@ Neue Tests (`bewertungsAmpel.test.ts`): jede Dimension einzeln auf ihre Schwelle
 geprüft (Rendite/Cashflow immer vorhanden, Kaufpreis-vs-Markt/Möblierung/Due-Diligence
 nur bei vorhandenen Daten), inkl. eines Falls mit allen fünf Dimensionen gleichzeitig.
 
+## Nachgezogen (2026-08-26): Code-Review der PRs #65–#68 (Verhandlungskorridor/STWEG-Split/Preis-Stufentabelle/Ampelsystem) — drei Funde behoben
+
+Nach Abschluss des ChatGPT/SIPIS-Benchmark-Vergleichs und dem Merge der vier daraus
+resultierenden PRs wurde die kumulative Änderung nochmals mit einem eigenständigen
+Code-Review-Durchgang geprüft (unabhängig vom Feature-Entwicklungspfad). Drei Funde,
+alle behoben:
+
+1. **`noiBreakdown.stwegAkontobeitragUeberwaelzbarChfPerYear` war ungedeckelt.** Die
+   nicht-überwälzbare NOI-Abzugsgrösse selbst wurde bereits korrekt auf 0 gedeckelt
+   (`Math.max(0, gesamt - überwälzbar)`, siehe PR #66), aber der rein informative
+   "davon überwälzbar"-Ausweis in `noiBreakdown` übernahm ungeprüft den rohen
+   Nutzereingabewert. Bei einem inkonsistent erfassten Wert (überwälzbar > Gesamtbeitrag,
+   z.B. Tippfehler oder ein KI-Feldvorschlag ohne Cross-Feld-Validierung) zeigte die
+   NOI-Aufschlüsselung dadurch z.B. "nicht überwälzbar: CHF 0" direkt über "davon
+   überwälzbar: CHF 9'999" bei einem Gesamtbeitrag von nur CHF 4'800 — logisch
+   unmöglich. Fix: `Math.min(überwälzbar, gesamt)` beim Aufbau von `noiBreakdown` in
+   `bestandsrendite.ts`. Regressionstest ergänzt (`bestandsrendite.test.ts`).
+2. **`computePreisStufentabelle`s unterer Tabellen-Anker bevorzugte `nettoZielChf`
+   unconditional statt der tatsächlich strengeren (tieferen) der beiden Zielgrössen.**
+   Die Funktion dokumentiert selbst "von der strengsten gesetzten Zielgrösse", und ein
+   früherer DECISIONS.md-Eintrag hielt fest, dass `nettoZielChf` "in aller Regel deutlich
+   unter `zielChf`" liegt — das gilt aber nur, solange `nettoRenditeZielPercent` nicht
+   deutlich lockerer als `bruttoRenditeZielPercent` gesetzt wird (beide auf dem
+   Annahmen-Reiter frei überschreibbar). In diesem Fall wäre `zielChf` die eigentlich
+   strengere/tiefere Grenze gewesen und wurde bislang stillschweigend aus der
+   Preis-Stufentabelle verdrängt. Fix: `zielAnker = Math.min(nettoZielChf, zielChf)`,
+   wenn beide definiert sind (sonst weiterhin der jeweils einzeln definierte Wert).
+   Zwei Regressionstests ergänzt (beide Richtungen: lockereres Netto- bzw.
+   Bruttorenditeziel).
+3. **Drei duplizierte Hex-Farb-Zuordnungen im PDF.** `managementSummaryPdf.tsx` (react-pdf
+   kann keine CSS-Variablen auflösen) definierte dieselben drei Ampel-Hex-Farben
+   (`#4f6e38`/`#93641a`/`#9b3b30`) viermal unabhängig — `SEVERITY_COLOR`, `scoreColor`,
+   `renditeAmpelColorPdf`, `AMPEL_STATUS_COLOR`. Eine künftige Palettenänderung hätte
+   leicht eine der vier Stellen vergessen können. Fix: eine einzige `STATUS_COLOR:
+   Record<AmpelStatus, string>`-Konstante als Single Source of Truth, alle vier Stellen
+   leiten sich jetzt davon ab (funktional unverändert, reines Code-Qualitäts-Nit).
+
+Kein Verhalten ausserhalb der drei beschriebenen Korrekturfälle geändert — alle
+bestehenden Tests bleiben unverändert grün.
+
 ## Nachgezogen (2026-08-26): Markt-Feedback-Loop direkt am Nettomiete-Feld
 
 Wunsch: "mach den Markt-Feedback-Loop bei den Mietfeldern" — eine der drei ursprünglich

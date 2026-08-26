@@ -21,7 +21,12 @@ import { computeBewertungsAmpeln, type AmpelStatus } from "./bewertungsAmpel";
  */
 
 const SEVERITY_LABEL: Record<DueDiligenceSeverity, string> = { OK: "Unauffällig", KLAERUNGSBEDARF: "Klärungsbedarf", RISIKO: "Risiko" };
-const SEVERITY_COLOR: Record<DueDiligenceSeverity, string> = { OK: "#4f6e38", KLAERUNGSBEDARF: "#93641a", RISIKO: "#9b3b30" };
+// Single Source of Truth für die drei Ampel-Hex-Farben im PDF (react-pdf kann keine CSS-
+// Variablen auflösen) — SEVERITY_COLOR/scoreColor/renditeAmpelColorPdf/AMPEL_STATUS_COLOR
+// leiten sich alle hiervon ab, statt dieselben drei Hex-Werte mehrfach zu duplizieren
+// (Review-Fund: eine künftige Palettenänderung hätte sonst leicht eine Stelle vergessen können).
+const STATUS_COLOR: Record<AmpelStatus, string> = { good: "#4f6e38", warn: "#93641a", bad: "#9b3b30" };
+const SEVERITY_COLOR: Record<DueDiligenceSeverity, string> = { OK: STATUS_COLOR.good, KLAERUNGSBEDARF: STATUS_COLOR.warn, RISIKO: STATUS_COLOR.bad };
 
 /**
  * Bewusst sehr kompakt (kleine Fonts/Abstände) — Rückmeldung: "es soll auf einer Seite
@@ -56,24 +61,21 @@ const styles = StyleSheet.create({
 });
 
 function scoreColor(totalScore: number): string {
-  if (totalScore >= 70) return "#4f6e38";
-  if (totalScore >= 40) return "#93641a";
-  return "#9b3b30";
+  if (totalScore >= 70) return STATUS_COLOR.good;
+  if (totalScore >= 40) return STATUS_COLOR.warn;
+  return STATUS_COLOR.bad;
 }
 
 /**
  * PDF-Variante von `renditeAmpelColor` (lib/investmentScore.ts) — react-pdf kann keine
  * CSS-Variablen auflösen, daher hier dieselben Schwellenwerte mit den bereits im PDF
- * verwendeten Hex-Farben (siehe scoreColor/SEVERITY_COLOR oben).
+ * verwendeten Hex-Farben (siehe STATUS_COLOR oben).
  */
 function renditeAmpelColorPdf(istPercent: number, zielPercent: number): string {
-  if (istPercent >= zielPercent) return "#4f6e38";
-  if (istPercent >= zielPercent - 1) return "#93641a";
-  return "#9b3b30";
+  if (istPercent >= zielPercent) return STATUS_COLOR.good;
+  if (istPercent >= zielPercent - 1) return STATUS_COLOR.warn;
+  return STATUS_COLOR.bad;
 }
-
-/** Dieselbe Farbzuordnung wie `scoreColor`/`SEVERITY_COLOR` oben, nur für `AmpelStatus` statt Score/Severity. */
-const AMPEL_STATUS_COLOR: Record<AmpelStatus, string> = { good: "#4f6e38", warn: "#93641a", bad: "#9b3b30" };
 
 export interface ManagementSummaryInput {
   addressText: string;
@@ -145,7 +147,7 @@ function ManagementSummaryDocument({
           <View style={styles.ampelRow}>
             {ampeln.map((a) => (
               <View key={a.key} style={styles.ampelItem}>
-                <View style={[styles.ampelDot, { backgroundColor: AMPEL_STATUS_COLOR[a.status] }]} />
+                <View style={[styles.ampelDot, { backgroundColor: STATUS_COLOR[a.status] }]} />
                 <Text>
                   {a.label}: {a.detail}
                 </Text>

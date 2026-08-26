@@ -206,6 +206,10 @@ describe("computeBestandsrenditeAnalysis", () => {
       { ...fullFacts, betriebskosten: { ...fullFacts.betriebskosten, stwegAkontobeitragUeberwaelzbarChfPerYear: 9_999 } },
     );
     expect(result.noiBreakdown.stwegAkontobeitragChfPerYear).toBe(0);
+    // Der informative "überwälzbar"-Ausweis darf ebenfalls nicht grösser als der
+    // Gesamtbeitrag (4'800, siehe fullFacts) erscheinen — sonst zeigte die UI einen
+    // überwälzbaren Anteil, der grösser als das Gesamt-Akontobeitrag ist (Review-Fund).
+    expect(result.noiBreakdown.stwegAkontobeitragUeberwaelzbarChfPerYear).toBe(4_800);
   });
 
   it("dokumentiert jede verwendete Platzhalter-Annahme in assumptionNotes", () => {
@@ -467,6 +471,18 @@ describe("computePreisStufentabelle", () => {
   it("ist leer, wenn Ziel-Preis und aktueller Kaufpreis nach Rundung auf CHF 5'000 zusammenfallen", () => {
     const korridorAmZiel = { maximumChf: 900_000, zielChf: 871_000, nettoZielChf: 871_000, eroeffnungChf: undefined };
     expect(computePreisStufentabelle(property, fullFacts, korridorAmZiel)).toEqual([]);
+  });
+
+  it("verwendet als unteren Anker die STRENGERE (tiefere) der beiden Zielgrössen, nicht unbedingt nettoZielChf — Review-Fund: nettoRenditeZielPercent kann auf dem Annahmen-Reiter lockerer als bruttoRenditeZielPercent gesetzt werden, dann ist zielChf die strengere/tiefere Grenze", () => {
+    // nettoZielChf (850k) locker gesetzt, zielChf (800k) ist hier die strengere/tiefere Grenze.
+    const korridorNettoWenigerStreng = { maximumChf: 900_000, zielChf: 800_000, nettoZielChf: 850_000, eroeffnungChf: undefined };
+    const stufen = computePreisStufentabelle(property, fullFacts, korridorNettoWenigerStreng);
+    expect(stufen[0].kaufpreisChf).toBe(800_000);
+
+    // Umgekehrter Fall (nettoZielChf ist die strengere Grenze) bleibt wie zuvor korrekt.
+    const korridorZielWenigerStreng = { maximumChf: 900_000, zielChf: 850_000, nettoZielChf: 800_000, eroeffnungChf: undefined };
+    const stufenUmgekehrt = computePreisStufentabelle(property, fullFacts, korridorZielWenigerStreng);
+    expect(stufenUmgekehrt[0].kaufpreisChf).toBe(800_000);
   });
 });
 
