@@ -212,6 +212,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             canton={property.canton}
             bestandsrenditeUpdatedAt={property.bestandsrendite_updated_at}
             parameterOverrides={parameterOverrides}
+            regionMarkt={regionData && property.wohnflaeche_m2 > 0 ? { regionData, wohnflaecheM2: property.wohnflaeche_m2 } : undefined}
           />
         </details>
 

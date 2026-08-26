@@ -8,6 +8,7 @@ import type { BestandsrenditeFacts, ParameterOverrides } from "@/lib/bestandsren
 import { BestandsrenditeFactsFields, emptyRenovationPosition } from "./BestandsrenditeFactsFields";
 import { KaufpreisAufteilungFields } from "./KaufpreisAufteilungFields";
 import { buildBestandsrenditeFactsFromFormData } from "@/lib/bestandsrenditeFormParsing";
+import type { RegionExtractionResult } from "@/lib/regionExtraction";
 
 /**
  * Erfassungsmaske für die Bestandsrendite-Fakten (`properties.bestandsrendite`,
@@ -23,12 +24,15 @@ export function BestandsrenditeVertiefungForm({
   canton,
   bestandsrenditeUpdatedAt,
   parameterOverrides,
+  regionMarkt,
 }: {
   propertyId: string;
   existing: BestandsrenditeFacts | null;
   canton?: string;
   /** Überschreibungen aus dem "Annahmen"-Reiter — steuert die Vorschlagswerte für neu ausgefüllte Felder. */
   parameterOverrides?: ParameterOverrides;
+  /** Markt-Feedback-Loop am Nettomiete-Feld — siehe BestandsrenditeFactsFields.tsx. */
+  regionMarkt?: { regionData: RegionExtractionResult; wohnflaecheM2: number };
   /**
    * Ändert sich, sobald `bestandsrendite` serverseitig neu geschrieben wurde (z.B. durch
    * "Übernehmen" eines Feldwert-Vorschlags/Widerspruchs im Due-Diligence-Panel weiter
@@ -108,6 +112,7 @@ export function BestandsrenditeVertiefungForm({
           onAddRenovationPosition={() => setRenovationPositionen((prev) => [...prev, emptyRenovationPosition()])}
           onUpdateRenovationPosition={updateRenovationPosition}
           onRemoveRenovationPosition={removeRenovationPosition}
+          regionMarkt={regionMarkt}
         />
 
         {error ? <p style={{ color: "var(--bad)", fontSize: ".8125rem", marginTop: "1rem" }}>{error}</p> : null}

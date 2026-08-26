@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { estimateQuantilePosition, findClosestQuantileRow } from "./regionMarketData";
+import { estimateQuantilePosition, findClosestQuantileRow, quantileLabel } from "./regionMarketData";
 import type { RegionQuantileRow } from "./regionExtraction";
 
 const row: RegionQuantileRow = { zimmerzahl: 4, q10: 187, q30: 212, q50: 239, q70: 266, q90: 301 };
@@ -53,5 +53,19 @@ describe("findClosestQuantileRow", () => {
 
   it("liefert undefined bei leerer Liste", () => {
     expect(findClosestQuantileRow([], 4)).toBeUndefined();
+  });
+});
+
+describe("quantileLabel", () => {
+  // Single Source of Truth für MarktEinordnungView UND den Markt-Feedback-Loop an den
+  // Mietfeldern (BestandsrenditeFactsFields) — beide müssen exakt denselben Text zeigen.
+  it("formatiert 'below' als '< 10%-Quantil'", () => {
+    expect(quantileLabel({ kind: "below", boundaryPercent: 10 })).toBe("< 10%-Quantil");
+  });
+  it("formatiert 'above' als '> 90%-Quantil'", () => {
+    expect(quantileLabel({ kind: "above", boundaryPercent: 90 })).toBe("> 90%-Quantil");
+  });
+  it("formatiert 'interpolated' gerundet als '≈ X%-Quantil'", () => {
+    expect(quantileLabel({ kind: "interpolated", percent: 42.6 })).toBe("≈ 43%-Quantil");
   });
 });

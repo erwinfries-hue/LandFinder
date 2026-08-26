@@ -150,3 +150,14 @@ export function findClosestQuantileRow(rows: RegionQuantileRow[], zimmerzahl: nu
   if (rows.length === 0) return undefined;
   return rows.reduce((closest, row) => (Math.abs(row.zimmerzahl - zimmerzahl) < Math.abs(closest.zimmerzahl - zimmerzahl) ? row : closest));
 }
+
+/**
+ * Kurzform einer `QuantilePosition` für die Anzeige — Single Source of Truth, verwendet
+ * von `MarktEinordnungView` (Objektseite) und `BestandsrenditeFactsFields` (Markt-Feedback
+ * direkt am Mietfeld), damit beide Stellen exakt dieselbe Formulierung zeigen.
+ */
+export function quantileLabel(position: QuantilePosition): string {
+  if (position.kind === "below") return "< 10%-Quantil";
+  if (position.kind === "above") return "> 90%-Quantil";
+  return `≈ ${Math.round(position.percent)}%-Quantil`;
+}
