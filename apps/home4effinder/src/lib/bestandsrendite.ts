@@ -460,7 +460,14 @@ export function computeBestandsrenditeAnalysis(
     leerstandAbzugChf: jahresertrag.potenziellerJahresertragChf - jahresertrag.effektiverJahresertragChf,
     effektiverJahresertragChf: jahresertrag.effektiverJahresertragChf,
     stwegAkontobeitragChfPerYear: investmentCaseInput.betriebskosten.stwegAkontobeitragChfPerYear,
-    stwegAkontobeitragUeberwaelzbarChfPerYear: facts.betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear,
+    // Auf den Gesamtbeitrag gedeckelt — ein inkonsistent erfasster Wert (überwälzbar >
+    // Gesamtbeitrag) darf hier nicht grösser als das Gesamt-Akontobeitrag erscheinen
+    // (Review-Fund: sonst zeigte die UI z.B. "nicht überwälzbar: CHF 0" direkt über
+    // "davon überwälzbar: CHF 9'999" bei Gesamtbeitrag CHF 4'800 — logisch unmöglich).
+    stwegAkontobeitragUeberwaelzbarChfPerYear: Math.min(
+      facts.betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear,
+      facts.betriebskosten.stwegAkontobeitragChfPerYear,
+    ),
     eigentuemerkostenChfPerYear: investmentCaseInput.betriebskosten.eigentuemerkostenChfPerYear,
     vermietungskostenChfPerYear: investmentCaseInput.betriebskosten.vermietungskostenChfPerYear,
     reinigungServiceChfPerYear: investmentCaseInput.betriebskosten.reinigungServiceChfPerYear,
@@ -734,7 +741,17 @@ export function computePreisStufentabelle(
   parameterOverrides?: ParameterOverrides,
   steps = 6,
 ): PreisStufe[] {
-  const zielAnker = verhandlungskorridor.nettoZielChf ?? verhandlungskorridor.zielChf;
+  // Strengste (= tiefste) der beiden gesetzten Zielgrössen als unteren Anker verwenden,
+  // nicht unconditional nettoZielChf bevorzugen — in aller Regel liegt nettoZielChf zwar
+  // deutlich unter zielChf (Nettorendite ist die strengere Grösse), das kehrt sich aber
+  // um, wenn nettoRenditeZielPercent auf dem Annahmen-Reiter deutlich lockerer gesetzt
+  // wird als bruttoRenditeZielPercent (beide frei überschreibbar) — dann wäre zielChf die
+  // strengere/tiefere Grenze und würde ohne diesen Vergleich fälschlich aus der Tabelle
+  // fallen (Review-Fund).
+  const zielAnker =
+    verhandlungskorridor.nettoZielChf !== undefined && verhandlungskorridor.zielChf !== undefined
+      ? Math.min(verhandlungskorridor.nettoZielChf, verhandlungskorridor.zielChf)
+      : (verhandlungskorridor.nettoZielChf ?? verhandlungskorridor.zielChf);
   if (zielAnker === undefined) return [];
 
   const rundenAuf5000 = (chf: number): number => Math.round(chf / 5_000) * 5_000;
