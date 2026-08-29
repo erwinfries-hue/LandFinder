@@ -63,6 +63,42 @@ describe("parseRegionExtractionResponse", () => {
     expect(result.kennzahlen.mietwohnungsbestand).toBe(4798);
   });
 
+  it("parst kantonKennzahlen zusätzlich zu den Gemeinde-Kennzahlen, wenn vorhanden", () => {
+    const json = JSON.stringify({
+      gemeinde: "Wohlen",
+      canton: "AG",
+      kennzahlen: { bevoelkerungAnzahl: 17816 },
+      kantonKennzahlen: { bevoelkerungAnzahl: 720000, steuerbelastungSingle60kPercent: 10.2 },
+      preise: { mietwohnungen: [], eigentumswohnungen: [], einfamilienhaeuser: [] },
+    });
+    const result = parseRegionExtractionResponse(json);
+    expect(result.kennzahlen.bevoelkerungAnzahl).toBe(17816);
+    expect(result.kantonKennzahlen).toEqual({ bevoelkerungAnzahl: 720000, steuerbelastungSingle60kPercent: 10.2 });
+  });
+
+  it("lässt kantonKennzahlen weg statt eines leeren Objekts, wenn kein einziges Feld erkannt wurde", () => {
+    const json = JSON.stringify({
+      gemeinde: "Wohlen",
+      canton: "AG",
+      kennzahlen: { bevoelkerungAnzahl: 17816 },
+      kantonKennzahlen: {},
+      preise: { mietwohnungen: [], eigentumswohnungen: [], einfamilienhaeuser: [] },
+    });
+    const result = parseRegionExtractionResponse(json);
+    expect(result.kantonKennzahlen).toBeUndefined();
+  });
+
+  it("lässt kantonKennzahlen weg, wenn das Feld im Rohresultat ganz fehlt", () => {
+    const json = JSON.stringify({
+      gemeinde: "Wohlen",
+      canton: "AG",
+      kennzahlen: { bevoelkerungAnzahl: 17816 },
+      preise: { mietwohnungen: [], eigentumswohnungen: [], einfamilienhaeuser: [] },
+    });
+    const result = parseRegionExtractionResponse(json);
+    expect(result.kantonKennzahlen).toBeUndefined();
+  });
+
   it("ignoriert ein ungültig formatiertes reportDatum statt einen falschen Wert zu übernehmen", () => {
     const json = JSON.stringify({
       gemeinde: "Wohlen",

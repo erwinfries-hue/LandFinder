@@ -9,10 +9,12 @@ import { AVAILABLE_CANTONS } from "./cantons";
  * kein Due-Diligence-Findings-Schema (Regionsdaten sind reine Marktkennzahlen, keine
  * Risikoprüfung eines konkreten Objekts).
  *
- * Bewusst nur die GEMEINDE-Spalte extrahiert, nicht die MS-Region/Kanton/Schweiz-
- * Vergleichsspalten, die solche Reports zusätzlich enthalten — die App vergleicht ein
- * Objekt gegen seine eigene Gemeinde, nicht gegen grössere Vergleichsräume (siehe
- * regionMarketData.ts).
+ * Extrahiert primär die GEMEINDE-Spalte (die App vergleicht ein Objekt gegen seine
+ * eigene Gemeinde, siehe regionMarketData.ts) — zusätzlich, in derselben Kennziffern-
+ * Tabelle, auch die KANTON-Vergleichsspalte (`kantonKennzahlen`), als grobe Einordnung
+ * "Stadt vs. Kanton" auf der Regionsseite. Die MS-Region-/Schweiz-Vergleichsspalten,
+ * die solche Reports zusätzlich enthalten, bleiben bewusst unextrahiert (kein
+ * konkreter Bedarf dafür bislang).
  */
 
 export { MAX_DOCUMENT_SIZE_BYTES };
@@ -59,6 +61,8 @@ export interface RegionExtractionResult {
   /** "Abfragedatum" aus dem Report, ISO (YYYY-MM-DD), falls erkennbar. */
   reportDatum?: string;
   kennzahlen: RegionKennzahlen;
+  /** Dieselben Kennzahlen, aber für die Kanton-Vergleichsspalte derselben Tabelle — für die Gemeinde/Kanton-Umschaltung auf der Regionsseite. */
+  kantonKennzahlen?: RegionKennzahlen;
   preise: RegionPreisTabelle;
   /** Kurze Fliesstext-Zusammenfassung der Makrolagenbeschreibung, falls im Report vorhanden. */
   makrolagenbeschreibung?: string;
@@ -85,15 +89,38 @@ function quantileRowSchema() {
 function buildSystemPrompt(): string {
   return `Du extrahierst strukturierte Marktdaten aus einem Gemeinde-/Regions-Standortreport für den Schweizer Immobilienmarkt (z.B. Wüest Partner "Standortinformation").
 
-Solche Reports vergleichen typischerweise mehrere Regionsebenen nebeneinander (Gemeinde, MS-Region, Kanton, Schweiz) in denselben Tabellen. Extrahiere AUSSCHLIESSLICH die Spalte/Werte der GEMEINDE (die kleinste, spezifischste gewählte Region — meist die erste Spalte oder explizit als "Gemeinde XY" bezeichnet), NICHT die Vergleichsspalten für MS-Region/Kanton/Schweiz.
+Solche Reports vergleichen typischerweise mehrere Regionsebenen nebeneinander (Gemeinde, MS-Region, Kanton, Schweiz) in denselben Tabellen. Extrahiere für \`kennzahlen\` AUSSCHLIESSLICH die Spalte/Werte der GEMEINDE (die kleinste, spezifischste gewählte Region — meist die erste Spalte oder explizit als "Gemeinde XY" bezeichnet). Zusätzlich, aus DERSELBEN Tabelle, für \`kantonKennzahlen\` die Spalte/Werte des KANTONS (derselben Feldstruktur wie \`kennzahlen\`) — NICHT die MS-Region- oder Schweiz-Vergleichsspalten, die solche Reports zusätzlich enthalten.
 
-Für \`kennzahlen\`: nimm die Werte aus der Zusammenfassungs-/Kennziffern-Tabelle (meist am Anfang des Reports betitelt "Zusammenfassung" oder "Kennziffern Wohnen").
+Für \`kennzahlen\`/\`kantonKennzahlen\`: nimm die Werte aus der Zusammenfassungs-/Kennziffern-Tabelle (meist am Anfang des Reports betitelt "Zusammenfassung" oder "Kennziffern Wohnen").
 
 Für \`preise\`: extrahiere die VOLLSTÄNDIGEN Quantil-Tabellen (10/30/50/70/90%-Quantil) je Zimmerzahl aus dem Abschnitt "Preise" — getrennt für Mietwohnungen (Nettomiete CHF/m²/Jahr), Eigentumswohnungen (Kaufpreis CHF/m²) und Einfamilienhäuser (Kaufpreis CHF/m²), jeweils für ALLE im Report vorkommenden Zimmerzahlen dieser Gemeinde (nicht nur eine).
 
 Erfinde NIE einen Wert, der nicht im Dokument steht — fehlt eine Information, lasse das Feld weg statt zu schätzen.
 
 Rufe AUSSCHLIESSLICH das Tool "${EXTRACTION_TOOL_NAME}" mit den extrahierten Daten auf, ohne zusätzlichen Erklärtext.`;
+}
+
+function kennzahlenSchema(scopeDescription: string) {
+  return {
+    type: "object",
+    description: `${scopeDescription} aus der Zusammenfassungs-/Kennziffern-Tabelle — nur tatsächlich vorhandene Felder mitgeben.`,
+    properties: {
+      mietePreisVeraenderung3JahrePercent: { type: "number" },
+      eigentumswohnungPreisVeraenderung3JahrePercent: { type: "number" },
+      einfamilienhausPreisVeraenderung3JahrePercent: { type: "number" },
+      bevoelkerungAnzahl: { type: "number" },
+      bevoelkerungsentwicklung3JahrePercent: { type: "number" },
+      anzahlHaushalte: { type: "number" },
+      steuerbelastungSingle60kPercent: { type: "number" },
+      steuerbelastungPaar120kPercent: { type: "number" },
+      mietwohnungsbestand: { type: "number" },
+      eigentumswohnungsbestand: { type: "number" },
+      einfamilienhausbestand: { type: "number" },
+      neuErstellteWohnungenProJahr: { type: "number" },
+      leerstandMehrfamilienhaeuserPercent: { type: "number", description: "Wohnungsleerstände im Verhältnis zum Bestand, Mehrfamilienhäuser." },
+      angebotsquoteMietwohnungenPercent: { type: "number" },
+    },
+  };
 }
 
 function buildExtractionToolSchema(): { type: "object"; properties: Record<string, unknown>; required: string[] } {
@@ -103,26 +130,8 @@ function buildExtractionToolSchema(): { type: "object"; properties: Record<strin
       gemeinde: { type: "string", description: "Name der Gemeinde, für die dieser Report erstellt wurde." },
       canton: { type: "string", enum: CANTON_CODES, description: "Zweistelliges Kantonskürzel der Gemeinde." },
       reportDatum: { type: "string", description: "Abfragedatum des Reports, als ISO-Datum YYYY-MM-DD, falls im Dokument angegeben." },
-      kennzahlen: {
-        type: "object",
-        description: "Gemeinde-Kennzahlen aus der Zusammenfassungs-/Kennziffern-Tabelle — nur tatsächlich vorhandene Felder mitgeben.",
-        properties: {
-          mietePreisVeraenderung3JahrePercent: { type: "number" },
-          eigentumswohnungPreisVeraenderung3JahrePercent: { type: "number" },
-          einfamilienhausPreisVeraenderung3JahrePercent: { type: "number" },
-          bevoelkerungAnzahl: { type: "number" },
-          bevoelkerungsentwicklung3JahrePercent: { type: "number" },
-          anzahlHaushalte: { type: "number" },
-          steuerbelastungSingle60kPercent: { type: "number" },
-          steuerbelastungPaar120kPercent: { type: "number" },
-          mietwohnungsbestand: { type: "number" },
-          eigentumswohnungsbestand: { type: "number" },
-          einfamilienhausbestand: { type: "number" },
-          neuErstellteWohnungenProJahr: { type: "number" },
-          leerstandMehrfamilienhaeuserPercent: { type: "number", description: "Wohnungsleerstände im Verhältnis zum Bestand, Mehrfamilienhäuser." },
-          angebotsquoteMietwohnungenPercent: { type: "number" },
-        },
-      },
+      kennzahlen: kennzahlenSchema("Gemeinde-Kennzahlen"),
+      kantonKennzahlen: kennzahlenSchema("Kanton-Vergleichsspalten-Kennzahlen (derselbe Report, dieselbe Tabelle, Kanton statt Gemeinde)"),
       preise: {
         type: "object",
         properties: {
@@ -214,11 +223,17 @@ export function parseRegionExtractionResponse(jsonText: string): RegionExtractio
 
   const makrolagenbeschreibung = typeof parsed.makrolagenbeschreibung === "string" && parsed.makrolagenbeschreibung.trim() ? parsed.makrolagenbeschreibung.trim() : undefined;
 
+  // Nur mitgeben, wenn tatsächlich mindestens ein Feld erkannt wurde — sonst würde die
+  // Gemeinde/Kanton-Umschaltung auf der Regionsseite einen leeren "Kanton"-Tab anzeigen.
+  const kantonKennzahlenParsed = parseKennzahlen(parsed.kantonKennzahlen);
+  const kantonKennzahlen = Object.keys(kantonKennzahlenParsed).length > 0 ? kantonKennzahlenParsed : undefined;
+
   return {
     gemeinde,
     canton,
     ...(reportDatum ? { reportDatum } : {}),
     kennzahlen: parseKennzahlen(parsed.kennzahlen),
+    ...(kantonKennzahlen ? { kantonKennzahlen } : {}),
     preise,
     ...(makrolagenbeschreibung ? { makrolagenbeschreibung } : {}),
   };
