@@ -3064,6 +3064,65 @@ Preis-Stufentabelle.
   ausserhalb der interpolierten Spanne, zusammenfallende Anker, neue Spalten konsistent
   mit einer direkten Neuberechnung).
 
+## Nachgezogen (2026-08-29): Advanced Price Strategy & Investment Value Engine — Phase 3
+
+Fortsetzung des Auftrags (Phase 3: Szenario-Engine Conservative/Base/Upside +
+Zins-Stresstest + DSCR + Value Creation Engine).
+
+- **`scenarioEngine.ts`** (neu) — bewusst kein neuer Rechenweg: Szenarien UND
+  Zins-Stresstest sind reine Mehrfachaufrufe der bereits vorhandenen
+  `computeBestandsrenditeAnalysis` mit variierten Facts, exakt dasselbe Muster wie das
+  bereits bestehende `computeMoeblierungsAlternative`/`computePreisStufentabelle`.
+  - `ScenarioOverrides`/`applyScenarioOverrides`: deckt genau die im Auftrag genannten
+    Stellschrauben ab (Marktmiete, möblierte Miete, Vacancy, Owner Costs,
+    Maintenance/Capex Reserve, Mortgage Rate, Furnishing Cost, Renovation Cost, Purchase
+    Price). "Maintenance" und "Capex Reserve" aus dem Auftrag werden bewusst GEMEINSAM
+    auf `reserven.reparaturChfPerYear` abgebildet (dieselbe Reserve deckt in der
+    Schweizer Bestandsrendite-Praxis dieser App ohnehin beides ab, kein separates
+    zweites Feld im bestehenden Datenmodell vorhanden — keine Erfindung eines neuen
+    Facts-Felds nur für diesen einen Auftrag).
+  - `buildDefaultScenarios`: Conservative/Upside als klar deklarierte, prozentuale
+    Default-Deltas (±5% Miete, ±2 Prozentpunkte Vacancy, ±1/−0.5 Prozentpunkte Zins,
+    ±10% Eigentümerkosten) relativ zum jeweils EFFEKTIVEN Basiswert (inkl.
+    Platzhalter-Default, falls nicht manuell erfasst — dieselbe Herleitung wie in
+    `computeBestandsrenditeAnalysis`). "Base" ist bewusst ein No-Op (leere Overrides) —
+    identisch mit dem bereits überall sonst auf der Seite gezeigten Ist-Zustand.
+  - Auftrag: "der Nutzer soll einzelne Parameter manuell überschreiben können" — die
+    Engine unterstützt das vollständig (`ScenarioOverrides` ist die
+    Override-Schnittstelle selbst, `buildDefaultScenarios`-Resultate lassen sich vor
+    `computeScenarios` beliebig anpassen, mit Test abgesichert). Bewusst OHNE eigene
+    UI dafür in dieser Phase — das bestehende "Bestandsrendite-Fakten
+    bearbeiten"-Formular ändert ohnehin bereits die Basis, aus der "Base" (und relativ
+    dazu Conservative/Upside) hergeleitet wird; eine zusätzliche, separate
+    Pro-Szenario-Editier-UI wäre eine eigene, grössere Aufgabe für sich (kein
+    Live-Browser-Test in dieser Umgebung möglich), als Kandidat für einen späteren
+    Fast-Follow vermerkt statt sie überstürzt/ungetestet zu bauen.
+  - `computeInterestRateStressTest`: mindestens Basiszins/2.5%/3.5%/5.0%, dedupliziert
+    und aufsteigend sortiert. Neue Kennzahl **DSCR** (NOI ÷ Schuldendienst) — im
+    bisherigen Modell nicht vorhanden, `undefined` statt einer irreführenden 0 ohne
+    jeden Schuldendienst.
+  - `isReturnMateriallyRateDependent`: rein regelbasiert (Cashflow beim Basiszins
+    positiv, bei mindestens einem Stress-Zins negativ) — löst den im Auftrag wörtlich
+    verlangten Warnhinweis "Return materially dependent on low financing costs" aus.
+- **`priceStrategy.ts`**: `computeValueCreation(annualNoiIncreaseChf, targetNetYieldPercent)`
+  — Auftrag Abschnitt 6, Formel `NOI-Steigerung ÷ Zielrendite`, Beispielrechnung aus dem
+  Auftrag (CHF 1'000 / 4.5% = CHF 22'222) 1:1 als Test übernommen.
+- **`BestandsrenditeAnalysisView.tsx`**:
+  - Neues Panel "Szenarien — Conservative / Base / Upside" (Anker `#szenarien`) mit
+    Bruttorendite/Nettorendite/Cashflow/Cash-on-Cash je Szenario.
+  - Neue Zins-Stresstest-Tabelle innerhalb des bestehenden Investment-Case-Panels
+    (direkt bei den bestehenden Break-even-Kennzahlen, thematisch derselbe Ort) inkl.
+    DSCR-Spalte und dem Warnhinweis, wenn `isReturnMateriallyRateDependent`.
+  - Value Creation als neue Metrik direkt neben Furniture ROI (nutzt den NOI-basierten
+    `incrementalFurnitureNoi` aus Phase 1, NICHT den umsatzbasierten `furnitureRoi` —
+    sonst würde hier genau der schon in Phase 1 behobene Guardrail-Fehler "höherer
+    Umsatz = höherer Gewinn" wiederholt) und neben Renovation ROI.
+- Neue Tests: `scenarioEngine.test.ts` (Override-Mapping inkl. Short-Stay-Vacancy-Fall,
+  Conservative<Base<Upside-Monotonie, manuelles Nach-Überschreiben eines
+  Default-Szenarios, Stresstest-Dedupliziertheit/-Sortierung, DSCR inkl.
+  undefined-Fall, `isReturnMateriallyRateDependent` alle drei Fälle) und
+  `priceStrategy.test.ts` (Value-Creation-Beispielrechnung, Randfälle).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

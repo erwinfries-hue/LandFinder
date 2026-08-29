@@ -172,6 +172,24 @@ export interface CashOnCashBreakdown {
   postAmortizationPercent: number;
 }
 
+export interface ValueCreationResult {
+  annualNoiIncreaseChf: number;
+  /** = annualNoiIncreaseChf ÷ (targetNetYieldPercent ÷ 100) — der theoretische Immobilienwert-Zuwachs, den eine dauerhafte NOI-Steigerung bei der eigenen Zielrendite rechtfertigt. */
+  impliedValueIncreaseChf: number;
+}
+
+/**
+ * Value-Creation-Übersetzung (Auftrag Abschnitt 6): "annualNOIIncrease ÷ targetNetYield"
+ * — macht operative Optimierungshebel (Mietoptimierung, Möblierung, Renovation)
+ * direkt mit dem Kaufpreis-Verhandlungsspielraum vergleichbar, indem beide in derselben
+ * Einheit (CHF impliziter Immobilienwert) ausgedrückt werden. `undefined` bei
+ * `targetNetYieldPercent <= 0` (Division durch 0/negativ wäre nicht aussagekräftig).
+ */
+export function computeValueCreation(annualNoiIncreaseChf: number, targetNetYieldPercent: number): ValueCreationResult | undefined {
+  if (targetNetYieldPercent <= 0) return undefined;
+  return { annualNoiIncreaseChf, impliedValueIncreaseChf: annualNoiIncreaseChf / (targetNetYieldPercent / 100) };
+}
+
 /**
  * Zwei zusätzliche, einfachere Cash-on-Cash-Kennzahlen — ergänzend zur bestehenden
  * `investmentCase.cashOnCashPercent` (die zusätzlich Steuer und Reparatur-/

@@ -4,8 +4,10 @@ import { formatChf } from "@/lib/format";
 import { renditeAmpelColor } from "@/lib/investmentScore";
 import { strengsteZielgroesse, verhandlungskorridorRelation } from "@/lib/bestandsrendite";
 import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, PreisStufe, MoeblierungsAlternative } from "@/lib/bestandsrendite";
-import { computePriceZones, classifyPriceZone, priceZoneTone } from "@/lib/priceStrategy";
+import { computePriceZones, classifyPriceZone, priceZoneTone, computeValueCreation } from "@/lib/priceStrategy";
 import type { MarketValueRange, CashOnCashBreakdown, PriceZoneBand } from "@/lib/priceStrategy";
+import type { ScenarioResult, InterestRateStressTestRow } from "@/lib/scenarioEngine";
+import { isReturnMateriallyRateDependent } from "@/lib/scenarioEngine";
 
 const PRICE_ZONE_TONE_BG: Record<"good" | "warn" | "bad", string> = { good: "var(--good-bg)", warn: "var(--warn-bg)", bad: "var(--bad-bg)" };
 
@@ -127,6 +129,8 @@ export function BestandsrenditeAnalysisView({
   marktMedianKaufpreisChf,
   marketValueRange,
   cashOnCashBreakdown,
+  scenarioResults,
+  stressTestRows,
 }: {
   result: BestandsrenditeAnalysisResult;
   /** `undefined`/`null`, wenn `computeVerhandlungskorridor` keine Bisektionslösung fand (Objekt trägt sich unter keinen Umständen). */
@@ -170,6 +174,10 @@ export function BestandsrenditeAnalysisView({
   marketValueRange?: MarketValueRange;
   /** Zwei zusätzliche, einfachere Cash-on-Cash-Kennzahlen vor Steuer/Reserven (siehe priceStrategy.ts::computeCashOnCashBreakdown) — `undefined`, wenn kein Eigenkapital eingesetzt wird. */
   cashOnCashBreakdown?: CashOnCashBreakdown;
+  /** Conservative/Base/Upside (siehe scenarioEngine.ts::buildDefaultScenarios/computeScenarios) — `undefined`/leer, wenn keine Bestandsrendite-Fakten vorliegen. */
+  scenarioResults?: ScenarioResult[];
+  /** Zins-Stresstest (siehe scenarioEngine.ts::computeInterestRateStressTest) — `undefined`/leer unter derselben Bedingung. */
+  stressTestRows?: InterestRateStressTestRow[];
 }) {
   const {
     schnellcheck,
@@ -237,6 +245,14 @@ export function BestandsrenditeAnalysisView({
       ? computePriceZones(realistischesZielChf, verhandlungskorridor.maximumChf)
       : undefined;
   const inseratpreisZone = priceZoneBands ? classifyPriceZone(inseratpreisChf, priceZoneBands) : undefined;
+  // Value Creation (Auftrag Abschnitt 6) — übersetzt die NOI-Wirkung von Möblierung/
+  // Renovation in einen impliziten Immobilienwert-Zuwachs, direkt vergleichbar mit dem
+  // CHF-Verhandlungsspielraum oben. Möblierung nutzt bewusst den NOI-basierten
+  // `incrementalFurnitureNoi` (Phase 1), nicht den rein umsatzbasierten `furnitureRoi` —
+  // sonst würde hier genau der Guardrail-Fehler "höherer Umsatz = höherer Gewinn"
+  // wiederholt, den `incrementalFurnitureNoi` extra dafür behebt.
+  const furnitureValueCreation = incrementalFurnitureNoi ? computeValueCreation(incrementalFurnitureNoi.incrementalNoiChf, nettoRenditeZielPercent) : undefined;
+  const renovationValueCreation = renovationRoi ? computeValueCreation(renovationRoi.zusaetzlicherJahresertragChf, nettoRenditeZielPercent) : undefined;
   const eroeffnungRelation = verhandlungskorridorRelation(verhandlungskorridor?.eroeffnungChf, inseratpreisChf);
   const zielRelation = verhandlungskorridorRelation(verhandlungskorridor?.zielChf, inseratpreisChf);
   const nettoZielRelation = verhandlungskorridorRelation(verhandlungskorridor?.nettoZielChf, inseratpreisChf);
@@ -783,7 +799,97 @@ export function BestandsrenditeAnalysisView({
             />
           ) : null}
         </div>
+
+        {stressTestRows && stressTestRows.length > 0 ? (
+          <div style={{ marginTop: "1rem" }}>
+            <div className="sectionhead" style={{ marginTop: "0.8rem" }}>
+              <h2 style={{ fontSize: ".85rem" }}>Zins-Stresstest</h2>
+            </div>
+            <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".5rem" }}>
+              Wie sich Cashflow, Cash-on-Cash und Schuldendienstdeckung (DSCR) bei normalisierten Zinssätzen entwickeln —
+              alle übrigen Annahmen bleiben unverändert.
+            </p>
+            {isReturnMateriallyRateDependent(stressTestRows) ? (
+              <p style={{ fontSize: ".8125rem", color: "var(--bad)", fontWeight: 600, marginTop: 0, marginBottom: ".6rem" }}>
+                Return materially dependent on low financing costs — der nachhaltige Cashflow wird bei normalisierten
+                Zinssätzen negativ, obwohl er beim aktuellen Zins positiv ist.
+              </p>
+            ) : null}
+            <div style={{ overflowX: "auto" }}>
+              <table className="stresstable">
+                <thead>
+                  <tr>
+                    <th>Zinssatz</th>
+                    <th>Zins p.a.</th>
+                    <th>Nachhaltiger Cashflow</th>
+                    <th>Cash-on-Cash</th>
+                    <th>DSCR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stressTestRows.map((row) => (
+                    <tr key={row.interestRatePercent} style={row.isBaseRate ? { fontWeight: 600 } : undefined}>
+                      <td className="num mono">
+                        {row.interestRatePercent.toFixed(2)}%{row.isBaseRate ? " (aktuell)" : ""}
+                      </td>
+                      <td className="num mono">CHF {formatChf(Math.round(row.annualInterestChf))}</td>
+                      <td className="num mono" style={{ color: row.nachhaltigerCashflowChf < 0 ? "var(--bad)" : undefined }}>
+                        CHF {formatChf(Math.round(row.nachhaltigerCashflowChf))}
+                      </td>
+                      <td className="num mono">{row.cashOnCashPercent.toFixed(2)}%</td>
+                      <td className="num mono">{row.dscr !== undefined ? row.dscr.toFixed(2) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
       </Panel>
+
+      {scenarioResults && scenarioResults.length > 0 ? (
+        <Panel id="szenarien" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
+          <div className="sectionhead">
+            <h2>Szenarien — Conservative / Base / Upside</h2>
+          </div>
+          <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".6rem" }}>
+            Drei vollständig durchgerechnete Szenarien mit variierter Miete, Vacancy, Zins und Eigentümerkosten — „Base“
+            entspricht exakt den oben gezeigten Ist-Werten, ohne separate Berechnung.
+          </p>
+          <div style={{ overflowX: "auto" }}>
+            <table className="stresstable">
+              <thead>
+                <tr>
+                  <th>Szenario</th>
+                  <th>Bruttorendite</th>
+                  <th>Nettorendite</th>
+                  <th>Nachhaltiger Cashflow</th>
+                  <th>Cash-on-Cash</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scenarioResults.map((s) => (
+                  <tr key={s.key} style={s.key === "BASE" ? { fontWeight: 600 } : undefined}>
+                    <td>{s.label}</td>
+                    <td className="num mono" style={{ color: renditeAmpelColor(s.analysis.investmentCase.bruttoRenditeKaufpreisPercent, bruttoRenditeZielPercent) }}>
+                      {s.analysis.investmentCase.bruttoRenditeKaufpreisPercent.toFixed(2)}%
+                    </td>
+                    <td className="num mono" style={{ color: renditeAmpelColor(s.analysis.investmentCase.nettoRenditeVorFinanzierungPercent, nettoRenditeZielPercent) }}>
+                      {s.analysis.investmentCase.nettoRenditeVorFinanzierungPercent.toFixed(2)}%
+                    </td>
+                    <td className="num mono" style={{ color: s.analysis.investmentCase.wasserfall.nachhaltigerCashflowChf < 0 ? "var(--bad)" : undefined }}>
+                      CHF {formatChf(Math.round(s.analysis.investmentCase.wasserfall.nachhaltigerCashflowChf))}
+                    </td>
+                    <td className="num mono">
+                      {s.analysis.eigenkapitalChf > 0 ? `${s.analysis.investmentCase.cashOnCashPercent.toFixed(2)}%` : "n/a"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      ) : null}
 
       <Panel id="value-add-moeblierung" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
         <div className="sectionhead">
@@ -852,6 +958,13 @@ export function BestandsrenditeAnalysisView({
                 hint="= (effektiver Jahresertrag möbliert − Reinigung/Service möbliert − Möblierungs-Ersatzreserve) − (effektiver Jahresertrag unmöbliert − Reinigung/Service unmöbliert) — anders als „Zusätzlicher Jahresertrag“ oben NETTO der möblierungsspezifischen Zusatzkosten, nicht nur der rohe Mietaufschlag."
               />
             ) : null}
+            {furnitureValueCreation ? (
+              <Metric
+                l="Value Creation"
+                v={`CHF ${formatChf(Math.round(furnitureValueCreation.impliedValueIncreaseChf))}`}
+                hint="= inkrementeller NOI ÷ Nettorendite-Ziel (Annahmen-Reiter) — theoretischer Immobilienwert-Zuwachs durch die Möblierung, direkt vergleichbar mit dem CHF-Verhandlungsspielraum im Verhandlungskorridor."
+              />
+            ) : null}
             <Metric
               l="Payback"
               v={furnitureRoi.paybackYears !== undefined ? `${furnitureRoi.paybackYears.toFixed(1)} Jahre` : "—"}
@@ -900,6 +1013,13 @@ export function BestandsrenditeAnalysisView({
                 hint="= (Miete nach Renovation − Miete vor Renovation) × 12."
               />
               <Metric l="Renovation ROI" v={`${renovationRoi.roiPercent.toFixed(1)}%`} hint="= zusätzlicher Jahresertrag ÷ Renovationskosten × 100." />
+              {renovationValueCreation ? (
+                <Metric
+                  l="Value Creation"
+                  v={`CHF ${formatChf(Math.round(renovationValueCreation.impliedValueIncreaseChf))}`}
+                  hint="= zusätzlicher Jahresertrag ÷ Nettorendite-Ziel (Annahmen-Reiter) — theoretischer Immobilienwert-Zuwachs durch die Renovation, direkt vergleichbar mit dem CHF-Verhandlungsspielraum im Verhandlungskorridor."
+                />
+              ) : null}
               <Metric
                 l="Payback"
                 v={renovationRoi.paybackYears !== undefined ? `${renovationRoi.paybackYears.toFixed(1)} Jahre` : "—"}
