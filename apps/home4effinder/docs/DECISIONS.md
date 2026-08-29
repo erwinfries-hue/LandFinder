@@ -2837,6 +2837,18 @@ Neue Tests (`regionExtraction.test.ts`): `kantonKennzahlen` wird korrekt zusätz
 `kennzahlen` geparst; bleibt `undefined` sowohl bei einem leeren Objekt als auch bei
 komplett fehlendem Feld im Rohresultat.
 
+## Nachgezogen (2026-08-29): Top-3-Gemeinden-Bild auf der Quellen-Seite durch UBS-Original ersetzt
+
+Korrektur zum vorherigen Eintrag: das rechte Bild im "UBS Wohnattraktivitätsindikator
+2026 — Übersicht"-Panel auf `/quellen` stammte aus einer Blick-Berichterstattung über
+die Studie (mit "© Blick Grafik"-Vermerk), NICHT aus der UBS-Mitteilung selbst. Der
+Nutzer stellte nun einen Screenshot der tatsächlichen UBS-Originalseite (Seite 2 der
+Mitteilung, identischer Karteninhalt) bereit — `public/quellen/ubs-wohnattraktivitaet-
+2026-top3-karte.jpg` ersetzt, Bilddimensionen (1080×1377 statt 1080×2340) und
+Bildunterschrift/Quellenangabe entsprechend angepasst (jetzt korrekt "UBS
+Wohnattraktivitätsindikator 2026, Seite 2 der Mitteilung" statt "© Blick Grafik").
+Keine sonstigen Änderungen — reiner Asset-/Attribution-Fix.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
