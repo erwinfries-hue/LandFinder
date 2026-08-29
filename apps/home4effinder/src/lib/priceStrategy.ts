@@ -1,5 +1,6 @@
 import type { RegionExtractionResult } from "./regionExtraction";
 import { findClosestQuantileRow } from "./regionMarketData";
+import type { OpeningBidFaktoren, VerkaeufermotivationStufe, KonkurrenzStufe, CapexRisikoStufe, Dokumentationsluecken, Vermietungsstatus } from "./bestandsrendite";
 
 /**
  * "Investment Value & Market Value"-Preisstrategie-Bausteine (Auftrag: "Advanced Price
@@ -208,4 +209,107 @@ export function computeCashOnCashBreakdown(
     preAmortizationPercent: (wasserfall.cashflowNachZinsChf / eigenkapitalChf) * 100,
     postAmortizationPercent: (wasserfall.cashflowNachAmortisationChf / eigenkapitalChf) * 100,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Opening-Bid-Faktorenmodell
+// ---------------------------------------------------------------------------
+
+export interface OpeningBidFaktorBeitrag {
+  label: string;
+  diskontPercentPoints: number;
+}
+
+export interface OpeningBidSuggestion {
+  economicTargetChf: number;
+  totalDiskontPercent: number;
+  suggestedChf: number;
+  beitraege: OpeningBidFaktorBeitrag[];
+}
+
+const TAGE_AM_MARKT_SCHWELLEN: { minTage: number; percent: number }[] = [
+  { minTage: 180, percent: 3 },
+  { minTage: 90, percent: 2 },
+  { minTage: 30, percent: 1 },
+];
+const PRO_PREISREDUKTION_PERCENT = 1;
+const MAX_PREISREDUKTIONEN_BEITRAG_PERCENT = 4;
+const VERKAEUFERMOTIVATION_PERCENT: Record<VerkaeufermotivationStufe, number> = { NIEDRIG: 0, MITTEL: 1, HOCH: 3 };
+/** Wenig Konkurrenz = mehr Verhandlungsspielraum, viel Konkurrenz = keiner. */
+const KONKURRENZ_PERCENT: Record<KonkurrenzStufe, number> = { HOCH: 0, MITTEL: 1, NIEDRIG: 2 };
+const CAPEX_RISIKO_PERCENT: Record<CapexRisikoStufe, number> = { NIEDRIG: 0, MITTEL: 1, HOCH: 3 };
+const DOKULUECKEN_PERCENT: Record<Dokumentationsluecken, number> = { KEINE: 0, EINIGE: 1, VIELE: 2 };
+const VERMIETUNGSSTATUS_PERCENT: Record<Vermietungsstatus, number> = { VERMIETET: 0, UNVERMIETET: 1 };
+const MAX_TOTAL_DISKONT_PERCENT = 15;
+
+const VERKAEUFERMOTIVATION_LABEL: Record<VerkaeufermotivationStufe, string> = { NIEDRIG: "niedrig", MITTEL: "mittel", HOCH: "hoch" };
+const KONKURRENZ_LABEL: Record<KonkurrenzStufe, string> = { NIEDRIG: "niedrig", MITTEL: "mittel", HOCH: "hoch" };
+const CAPEX_RISIKO_LABEL: Record<CapexRisikoStufe, string> = { NIEDRIG: "niedrig", MITTEL: "mittel", HOCH: "hoch" };
+const DOKULUECKEN_LABEL: Record<Dokumentationsluecken, string> = { KEINE: "keine", EINIGE: "einige", VIELE: "viele" };
+
+/** `true`, wenn mindestens ein Faktor tatsächlich eingeschätzt wurde — steuert, ob der Vorschlag überhaupt angezeigt wird (kein "0%-Vorschlag" für ein komplett leeres Faktoren-Objekt). */
+export function hasAnyOpeningBidFaktor(faktoren: OpeningBidFaktoren | undefined): boolean {
+  if (!faktoren) return false;
+  return Object.values(faktoren).some((v) => v !== undefined);
+}
+
+/**
+ * Taktischer Eröffnungsangebot-Vorschlag (Auftrag Abschnitt 8) — bewusst ein
+ * REVIDIERTER Ansatz gegenüber der früheren Entscheidung "kein erfundener
+ * Eröffnungsangebot-Prozentsatz" (siehe DECISIONS.md, Verhandlungskorridor-Feature):
+ * damals gab es KEINE der hier verlangten realen Faktoren, nur eine blinde,
+ * objektunabhängige Prozentzahl — das war zurecht abgelehnt. Hier ist es umgekehrt: der
+ * Vorschlag entsteht AUSSCHLIESSLICH aus vom Nutzer selbst eingeschätzten, individuell
+ * einsehbaren Faktoren (nichts wird erfunden, jeder Faktor ist einzeln optional und sein
+ * Beitrag einzeln ausgewiesen) und ist NUR ein VORSCHLAG — das bestehende manuelle
+ * `eroeffnungsangebotChf`-Feld bleibt die massgebliche, überschreibbare Grösse.
+ *
+ * Rabatt-Basis ist der "Economic Target"-Preis (`strengsteZielgroesse`), nicht der
+ * Angebotspreis — "kann unter dem Economic Target liegen" (Auftrag, wörtlich).
+ * Gesamtrabatt auf `MAX_TOTAL_DISKONT_PERCENT` gedeckelt, damit auch bei vielen
+ * ungünstigen Faktoren kein absurd tiefer Vorschlag entsteht.
+ */
+export function computeOpeningBidSuggestion(economicTargetChf: number, faktoren: OpeningBidFaktoren): OpeningBidSuggestion {
+  const beitraege: OpeningBidFaktorBeitrag[] = [];
+
+  if (faktoren.tageAmMarkt !== undefined) {
+    const schwelle = TAGE_AM_MARKT_SCHWELLEN.find((s) => faktoren.tageAmMarkt! >= s.minTage);
+    if (schwelle) beitraege.push({ label: `${faktoren.tageAmMarkt} Tage am Markt`, diskontPercentPoints: schwelle.percent });
+  }
+  if (faktoren.preisreduktionenAnzahl !== undefined && faktoren.preisreduktionenAnzahl > 0) {
+    const percent = Math.min(faktoren.preisreduktionenAnzahl * PRO_PREISREDUKTION_PERCENT, MAX_PREISREDUKTIONEN_BEITRAG_PERCENT);
+    beitraege.push({ label: `${faktoren.preisreduktionenAnzahl} Preisreduktion(en)`, diskontPercentPoints: percent });
+  }
+  if (faktoren.verkaeufermotivation !== undefined) {
+    beitraege.push({
+      label: `Verkäufermotivation ${VERKAEUFERMOTIVATION_LABEL[faktoren.verkaeufermotivation]}`,
+      diskontPercentPoints: VERKAEUFERMOTIVATION_PERCENT[faktoren.verkaeufermotivation],
+    });
+  }
+  if (faktoren.konkurrenzsituation !== undefined) {
+    beitraege.push({ label: `Konkurrenz ${KONKURRENZ_LABEL[faktoren.konkurrenzsituation]}`, diskontPercentPoints: KONKURRENZ_PERCENT[faktoren.konkurrenzsituation] });
+  }
+  if (faktoren.capexRisikoStufe !== undefined) {
+    beitraege.push({ label: `Capex-Risiko ${CAPEX_RISIKO_LABEL[faktoren.capexRisikoStufe]}`, diskontPercentPoints: CAPEX_RISIKO_PERCENT[faktoren.capexRisikoStufe] });
+  }
+  if (faktoren.dokumentationsluecken !== undefined) {
+    beitraege.push({
+      label: `Dokumentationslücken: ${DOKULUECKEN_LABEL[faktoren.dokumentationsluecken]}`,
+      diskontPercentPoints: DOKULUECKEN_PERCENT[faktoren.dokumentationsluecken],
+    });
+  }
+  if (faktoren.vermietungsstatus !== undefined) {
+    beitraege.push({
+      label: faktoren.vermietungsstatus === "UNVERMIETET" ? "Unvermietet" : "Vermietet",
+      diskontPercentPoints: VERMIETUNGSSTATUS_PERCENT[faktoren.vermietungsstatus],
+    });
+  }
+
+  const totalDiskontPercent = Math.min(
+    beitraege.reduce((sum, b) => sum + b.diskontPercentPoints, 0),
+    MAX_TOTAL_DISKONT_PERCENT,
+  );
+  const suggestedChf = economicTargetChf * (1 - totalDiskontPercent / 100);
+
+  return { economicTargetChf, totalDiskontPercent, suggestedChf, beitraege };
 }

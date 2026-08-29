@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Panel, Chip, type ChipTone } from "@landfinder/ui";
 import type { DueDiligenceDocumentType, DueDiligenceResult, DueDiligenceSeverity } from "@landfinder/domain";
-import { DOCUMENT_TYPE_CATALOG } from "@/lib/documentTypes";
+import { DOCUMENT_TYPE_CATALOG, classifySourceConfidence } from "@/lib/documentTypes";
+import type { ConfidenceLevel } from "@/lib/priceStrategy";
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/dueDiligenceCategories";
 import { guessDocumentType } from "@/lib/documentTypeGuess";
 import { formatDateTime } from "@/lib/properties";
@@ -24,6 +25,7 @@ export interface DueDiligenceDocumentRow {
 }
 
 const SEVERITY_TONE: Record<DueDiligenceSeverity, ChipTone> = { OK: "good", KLAERUNGSBEDARF: "warn", RISIKO: "bad" };
+const CONFIDENCE_TONE: Record<ConfidenceLevel, ChipTone> = { HIGH: "good", MEDIUM: "warn", LOW: "bad" };
 const SEVERITY_LABEL: Record<DueDiligenceSeverity, string> = { OK: "Unauffällig", KLAERUNGSBEDARF: "Klärungsbedarf", RISIKO: "Wesentliches Risiko" };
 const PRIORITY_LABEL: Record<string, string> = { ZWINGEND: "Zwingend vor Kauf", EMPFOHLEN: "Empfehlenswert", OPTIONAL: "Optional" };
 
@@ -647,44 +649,58 @@ export function DueDiligencePanel({
               </div>
               <p style={{ color: "var(--ink-soft)", fontSize: ".8125rem", margin: "0 0 .6rem" }}>
                 Die Quellen widersprechen sich bei folgenden Punkten. Wähle pro Punkt den zutreffenden Wert — bei
-                bekannten Feldern lässt er sich direkt übernehmen.
+                bekannten Feldern lässt er sich direkt übernehmen. Ein Punkt bleibt UNRESOLVED, bis ein Wert
+                übernommen wurde — es wird nie stillschweigend einer der Werte ausgewählt.
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: ".6rem", marginBottom: "1rem" }}>
-                {result.contradictions.map((contradiction, i) => (
-                  <div key={i} style={{ border: "1px solid var(--warn)", borderRadius: "6px", padding: ".6rem .85rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: ".6rem", marginBottom: ".5rem" }}>
-                      <Chip tone="warn">Widerspruch</Chip>
-                      <strong style={{ fontSize: ".8125rem" }}>{contradiction.topic}</strong>
-                      <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>({CATEGORY_LABEL[contradiction.category] ?? contradiction.category})</span>
+                {result.contradictions.map((contradiction, i) => {
+                  const isResolved =
+                    contradiction.field !== undefined &&
+                    contradiction.options.some(
+                      (o) => groundTruthAppliedKeys.has(appliedFieldKey(contradiction.field!, o.value)) || appliedFields.has(appliedFieldKey(contradiction.field!, o.value)),
+                    );
+                  return (
+                    <div key={i} style={{ border: "1px solid var(--warn)", borderRadius: "6px", padding: ".6rem .85rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: ".6rem", marginBottom: ".5rem" }}>
+                        <Chip tone="warn">Widerspruch</Chip>
+                        <Chip tone={isResolved ? "good" : "bad"}>{isResolved ? "Confirmed" : "Unresolved"}</Chip>
+                        <strong style={{ fontSize: ".8125rem" }}>{contradiction.topic}</strong>
+                        <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>({CATEGORY_LABEL[contradiction.category] ?? contradiction.category})</span>
+                      </div>
+                      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
+                        {contradiction.options.map((option, j) => {
+                          const sourceDocumentType = initialDocuments.find((d) => d.id === option.sourceDocumentId)?.document_type as DueDiligenceDocumentType | undefined;
+                          const confidence = classifySourceConfidence(sourceDocumentType);
+                          return (
+                            <li key={j} style={{ fontSize: ".8125rem", display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
+                              <strong>{option.value}</strong>
+                              <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>
+                                laut {option.sourceDocumentName || "unbekannter Quelle"}
+                                {option.sourcePage ? `, Seite ${option.sourcePage}` : ""}
+                                {option.sourceQuote ? `: „${option.sourceQuote}“` : ""}
+                              </span>
+                              <Chip tone={CONFIDENCE_TONE[confidence]}>Confidence: {confidence}</Chip>
+                              {contradiction.field &&
+                              (groundTruthAppliedKeys.has(appliedFieldKey(contradiction.field, option.value)) || appliedFields.has(appliedFieldKey(contradiction.field, option.value))) ? (
+                                <Chip tone="good">Übernommen ✓</Chip>
+                              ) : contradiction.field ? (
+                                <button
+                                  type="button"
+                                  className="btn"
+                                  style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
+                                  disabled={applying !== null}
+                                  onClick={() => handleApplyProposal(contradiction.field!, option.value)}
+                                >
+                                  {applying === appliedFieldKey(contradiction.field, option.value) ? "Übernimmt…" : "Das stimmt — übernehmen"}
+                                </button>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
-                    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
-                      {contradiction.options.map((option, j) => (
-                        <li key={j} style={{ fontSize: ".8125rem", display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
-                          <strong>{option.value}</strong>
-                          <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>
-                            laut {option.sourceDocumentName || "unbekannter Quelle"}
-                            {option.sourcePage ? `, Seite ${option.sourcePage}` : ""}
-                            {option.sourceQuote ? `: „${option.sourceQuote}“` : ""}
-                          </span>
-                          {contradiction.field &&
-                          (groundTruthAppliedKeys.has(appliedFieldKey(contradiction.field, option.value)) || appliedFields.has(appliedFieldKey(contradiction.field, option.value))) ? (
-                            <Chip tone="good">Übernommen ✓</Chip>
-                          ) : contradiction.field ? (
-                            <button
-                              type="button"
-                              className="btn"
-                              style={{ width: "auto", padding: ".15rem .5rem", fontSize: ".72rem", marginLeft: "auto" }}
-                              disabled={applying !== null}
-                              onClick={() => handleApplyProposal(contradiction.field!, option.value)}
-                            >
-                              {applying === appliedFieldKey(contradiction.field, option.value) ? "Übernimmt…" : "Das stimmt — übernehmen"}
-                            </button>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           ) : null}
