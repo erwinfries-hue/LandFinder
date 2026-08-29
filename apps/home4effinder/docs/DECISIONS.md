@@ -2898,6 +2898,45 @@ Neue Tests (`bestandsrendite.test.ts`): `strengsteZielgroesse` (beide/nur eine/k
 Grösse gesetzt) und `verhandlungskorridorRelation` (positive/negative Differenz,
 `undefined`-Fälle).
 
+## Nachgezogen (2026-08-29): Markt-Median-Kaufpreis als Referenzpunkt neben dem Zielpreis
+
+Rückmeldung: "wie werdrn die 3 werte berechnet? könnte der zielpreis mit dem marktpreis
+abgestimmt werden wenn daten vorhanden?" Antwort zur ersten Frage (nur Erklärung, keine
+Code-Änderung): Zielpreis wird algebraisch aus Jahresnettomiete ÷ Bruttorendite-Ziel
+berechnet, Preisobergrenze (Nettorendite) und Maximum je per Bisektion gegen das
+Nettorendite-Ziel bzw. nachhaltiger-Cashflow=0. Zur zweiten Frage explizit empfohlen und
+nach Zustimmung ("gerne.") umgesetzt: den Zielpreis NICHT verändern (bliebe sonst eine
+reine Renditeziel-Grösse, vermischt mit einer Marktbeobachtung — zwei verschiedene
+Fragen), sondern den Markt-Median-Kaufpreis der Gemeinde zusätzlich als eigenständigen
+Referenzpunkt daneben anzeigen.
+
+- **`objekte/[id]/page.tsx`**: `marktMedianKaufpreisChf` berechnet aus
+  `findClosestQuantileRow(regionData.preise.eigentumswohnungen, facts.zimmerzahl)` (q50,
+  CHF/m²) × `property.wohnflaeche_m2` — dieselbe Datenquelle (Regionsreport/Wüest-Partner-
+  Standortinformation) und dasselbe Matching-Muster wie die bereits vorhandene
+  Kaufpreis-vs-Markt-Ampel (`bewertungsAmpel.ts`). `undefined`, wenn kein Regionsreport
+  für die Gemeinde vorliegt oder keine Zimmerzahl erfasst ist — dann entfällt der
+  Vergleich, statt einen Wert zu erfinden.
+- **`BestandsrenditeAnalysisView.tsx`**: neuer optionaler Prop `marktMedianKaufpreisChf`.
+  - Fünfter Punkt in der `VerhandlungskorridorBar` (Farbe `var(--neutral-ink)`, bisher
+    ungenutzter, theme-fähiger Farbwert — unterscheidet sich klar von den vier
+    bestehenden Tönen Eröffnung/Ziel/Inserat/Maximum), nur wenn Marktdaten vorliegen.
+  - Zusätzliche Zeile unter dem Zielpreis-Sub-Text: "Markt-Median Gemeinde: CHF X —
+    Zielpreis Y% unter/über Markt-Median" (`verhandlungskorridorRelation` generisch mit
+    dem Markt-Median statt dem Inseratpreis als Basis wiederverwendet, statt eine zweite,
+    fast identische Funktion zu bauen).
+  - Intro-Text ergänzt um einen Satz, dass der Markt-Median zusätzlich zeigt, ob das
+    eigene Renditeziel marktüblich ist.
+- **Bewusst NICHT im Management-Summary-PDF** (`managementSummaryPdf.tsx`) — die
+  PDF-Route lädt aktuell gar keine Regionsdaten (kein `getRegionMarketData`-Aufruf), und
+  genau dieselbe Kaufpreis-vs-Markt-Dimension wurde beim Ampelsystem-PR bereits bewusst
+  aus dem PDF ausgeschlossen (siehe dortiger Eintrag). Gleiche Begründung, gleiche
+  Entscheidung: kein zusätzlicher asynchroner Regions-Fetch nur für den One-Pager.
+- Keine neuen Tests — die Berechnung besteht ausschliesslich aus der Wiederverwendung
+  bereits getesteter, reiner Funktionen (`findClosestQuantileRow`,
+  `verhandlungskorridorRelation`), dieselbe Konvention wie bei anderen abgeleiteten
+  Anzeigewerten in `page.tsx` (z.B. `mieteChfPerM2PerYear` für `MarktEinordnungView`).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

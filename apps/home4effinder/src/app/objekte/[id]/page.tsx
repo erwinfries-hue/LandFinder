@@ -28,7 +28,7 @@ import { DueDiligenceRefreshButton } from "@/components/DueDiligenceRefreshButto
 import { PropertyEditForm } from "@/components/PropertyEditForm";
 import { ObjectSectionNav } from "@/components/ObjectSectionNav";
 import { MarktEinordnungView } from "@/components/MarktEinordnungView";
-import { getRegionByCantonGemeinde, getRegionMarketData } from "@/lib/regionMarketData";
+import { getRegionByCantonGemeinde, getRegionMarketData, findClosestQuantileRow } from "@/lib/regionMarketData";
 import { findUbsWohnattraktivitaet, formatUbsWohnattraktivitaetHinweis } from "@/lib/ubsWohnattraktivitaet";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +73,17 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
     facts && verhandlungskorridor ? computePreisStufentabelle(propertyInput, facts, verhandlungskorridor, parameterOverrides) : [];
   const moeblierungsAlternative = facts ? computeMoeblierungsAlternative(propertyInput, facts, parameterOverrides) : null;
   const effectiveParams = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
+
+  // Markt-Median-Kaufpreis als zusätzlicher Referenzpunkt im Verhandlungskorridor
+  // (Rückmeldung: "könnte der zielpreis mit dem marktpreis abgestimmt werden wenn daten
+  // vorhanden?") — bewusst NICHT in den Zielpreis selbst eingerechnet, sondern nur
+  // daneben angezeigt: der Zielpreis bleibt eine reine Renditeziel-Rechnung, der
+  // Markt-Median-Vergleich zeigt zusätzlich ein, ob dieses Ziel auch marktüblich ist.
+  // CHF/m²-Quantil (q50, passende Zimmerzahl) × Wohnfläche, dieselbe Quelle wie die
+  // Kaufpreis-vs-Markt-Ampel oben. `undefined`, wenn kein Regionsreport mit passender
+  // Zimmerzahl vorliegt — dann wird nichts erfunden, der Vergleich entfällt einfach.
+  const marktMedianRow = regionData && facts?.zimmerzahl !== undefined ? findClosestQuantileRow(regionData.preise.eigentumswohnungen, facts.zimmerzahl) : undefined;
+  const marktMedianKaufpreisChf = marktMedianRow && property.wohnflaeche_m2 > 0 ? marktMedianRow.q50 * property.wohnflaeche_m2 : undefined;
 
   const investmentScore =
     analysis && dueDiligence?.result
@@ -198,6 +209,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             bruttoRenditeZielPercent={effectiveParams.bruttoRenditeZielPercent}
             nettoRenditeZielPercent={effectiveParams.nettoRenditeZielPercent}
             inseratpreisChf={property.asking_price_chf}
+            marktMedianKaufpreisChf={marktMedianKaufpreisChf}
           />
         ) : null}
 
