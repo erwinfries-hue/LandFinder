@@ -91,6 +91,8 @@ export interface ManagementSummaryInput {
   /** Referenzwerte aus dem "Annahmen"-Reiter, wie bereits auf der Objektseite (BestandsrenditeAnalysisView) verwendet — färbt die Rendite-Kennzahlen unten relativ zum Ziel (Review-Fund: PDF hatte bisher keine Ampel/Ziel-Anzeige, obwohl die Objektseite selbst schon eine hat). */
   bruttoRenditeZielPercent: number;
   nettoRenditeZielPercent: number;
+  /** Vorformatierter Hinweistext aus ubsWohnattraktivitaet.ts, falls die Gemeinde dort genannt ist — sonst undefined (kein Platzhalter-Text). */
+  ubsWohnattraktivitaetHinweis?: string;
 }
 
 function ManagementSummaryDocument({
@@ -105,6 +107,7 @@ function ManagementSummaryDocument({
   moeblierungsAlternative,
   bruttoRenditeZielPercent,
   nettoRenditeZielPercent,
+  ubsWohnattraktivitaetHinweis,
 }: ManagementSummaryInput) {
   const { schnellcheck, investmentCase, noiBreakdown, mehrjahresmodell, hypothek } = analysis;
   const missingZwingend = dueDiligence?.missingDocuments.filter((m) => m.priority === "ZWINGEND") ?? [];
@@ -155,6 +158,8 @@ function ManagementSummaryDocument({
             ))}
           </View>
         ) : null}
+
+        {ubsWohnattraktivitaetHinweis ? <Text style={{ fontSize: 6.8, color: "#7c8880", marginBottom: 4 }}>{ubsWohnattraktivitaetHinweis}</Text> : null}
 
         <Text style={styles.sectionTitle}>Kennzahlen</Text>
         <View style={styles.metricsGrid}>

@@ -2659,6 +2659,55 @@ Ausprägungen. Kein Komponententest für `BestandsrenditeFactsFields.tsx` selbst
 hat bislang keine React-Komponententests etabliert (ausschliesslich Logik-Tests auf
 lib-Ebene), dieses Feature bricht mit dieser Konvention bewusst nicht.
 
+## Nachgezogen (2026-08-27): UBS Wohnattraktivitätsindikator 2026 als Standort-Kontexthinweis
+
+Wunsch: eine aktuelle UBS-Medienmitteilung ("UBS Wohnattraktivitätsindikator 2026", 27.
+August 2026) "entsprechend verwerten und einbauen". Die Mitteilung ist ein reiner
+Fliesstext-Bericht (kein Datenexport) mit einer Livability-Rangliste (Infrastruktur,
+Freizeit, Lebenshaltungskosten, Erreichbarkeit) über zehn schweizweite
+Arbeitsmarktgrossregionen — konzeptionell etwas anderes als die bereits vorhandenen
+`regionMarketData.ts`-Reports (dort: Miet-/Kaufpreis-Quantile je Gemeinde aus
+hochgeladenen Marktreports).
+
+Vor der Umsetzung versucht, die in der Mitteilung genannte vollständige Rangliste unter
+`www.ubs.com/gemeinderanking` abzurufen (dort läge Abdeckung für alle ~2000 Gemeinden
+statt nur der in der Mitteilung namentlich genannten) — die Domain ist in dieser
+Umgebung per Netzwerk-Egress blockiert, ein Abruf war nicht möglich. Umsetzung daher
+bewusst NUR auf Basis der im dreiseitigen Dokument selbst namentlich genannten
+Gemeinden beschränkt ("nichts wird erfunden") — Rückfrage an den Nutzer ergab keine
+Präferenz für ein zusätzliches manuelles Eingabefeld für weitere, nicht gelistete
+Gemeinden; bewusst nicht gebaut, um die Komplexität nicht ohne konkreten Bedarf zu
+erhöhen (bei Bedarf jederzeit nachrüstbar).
+
+- Neue Datei `ubsWohnattraktivitaet.ts`: statische Liste `UBS_WOHNATTRAKTIVITAET_2026`
+  mit allen ~48 in der Mitteilung namentlich genannten Gemeinden (30 Top-3-Platzierungen
+  über die 10 Regionen + 19 weitere Beispielgemeinden aus vier qualitativen Gruppen:
+  attraktive Agglomerationsgemeinden, attraktive Agglomerationsrand-/Landgemeinden,
+  steuergünstige Gemeinden für hohe Einkommen, bezahlbare Kleinzentren für tiefere
+  Einkommen), inkl. Kanton je Gemeinde (allgemein bekannte Schweizer Geografie, nicht
+  aus dem UBS-Dokument selbst abgeleitet — nötig für einen eindeutigen Abgleich, da
+  Gemeindenamen kantonsübergreifend nicht eindeutig sind). `findUbsWohnattraktivitaet
+  (canton, gemeinde)` gleicht Kanton+Gemeinde-Name (normalisiert, inkl. Aliase wie "Wil"
+  für "Wil (SG)") ab und liefert `undefined`, wenn die Gemeinde nicht genannt ist —
+  KEIN geschätzter/interpolierter Wert für die übrigen ~98% der Gemeinden.
+- **Objektseite** (`objekte/[id]/page.tsx`): eine informative Zeile im Objektdaten-Header
+  (analog zum bestehenden "Marktvergleich (manuell erfasst)"-Hinweis), nur sichtbar wenn
+  ein Treffer existiert, z.B. "UBS Wohnattraktivitätsindikator 2026: Platz 1 von 3 in der
+  Region Zürich-Aarau-Schaffhausen (Haushalt mit zwei Kindern, Ø-Einkommen)." — rein
+  informativ, ohne Einfluss auf irgendeine Berechnung oder das Ampelsystem (bewusst NICHT
+  als zusätzliche Ampel-Dimension, da es sich um eine reine Standort-/Lebensqualitäts-
+  einschätzung handelt statt um eine finanzielle Kennzahl wie die übrigen Dimensionen).
+- **Management-Summary-PDF** (`managementSummaryPdf.tsx`): dieselbe Kontextzeile
+  zusätzlich als kleine graue Fusszeile unter der Ampel-Reihe — anders als beim
+  Kaufpreis-vs-Markt-Ampel-Fund kein zusätzlicher asynchroner Datenzugriff nötig (rein
+  synchrone lokale Tabellensuche), daher hier bewusst OHNE die dortige
+  Kompaktheits-Einschränkung übernommen.
+
+Neue Tests (`ubsWohnattraktivitaet.test.ts`): Gross-/Kleinschreibung, Klammer-Suffix-
+Aliase ("Wil (SG)" → "Wil"), Kanton-Pflicht (verhindert Fehltreffer bei
+kantonsübergreifend gleichnamigen Gemeinden), `undefined` bei fehlenden Angaben und bei
+nicht gelisteten Gemeinden, sowie ein Struktur-Check (genau 3 Ränge je der 10 Regionen).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
