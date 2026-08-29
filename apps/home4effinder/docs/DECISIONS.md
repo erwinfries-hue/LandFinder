@@ -2761,6 +2761,38 @@ dass auch `regionMarketData.ts`s äquivalente `listRegions`/`getRegionById`-Funk
 nicht separat unit-getestet sind (nur die reinen Rechenfunktionen wie
 `estimateQuantilePosition` haben Tests).
 
+## Nachgezogen (2026-08-29): UBS-Übersichtsbilder auf der Quellen-Seite
+
+Wunsch: zwei vom Nutzer per Screenshot bereitgestellte Bilder (ein Ausschnitt der
+vollständigen Rangliste je Einkommensklasse für eine Region von
+ubs.com/gemeinderanking, sowie die Top-3-Gemeinden-Übersichtskarte aus einer
+Blick-Berichterstattung zur Studie) "auf der Seite... einbinden, wo der Link auf die
+ubs studie liegt" (die neue `/quellen`-Seite, siehe Eintrag oben).
+
+Als statische Assets umgesetzt (`public/quellen/*.jpg`), NICHT über die
+Quellenverzeichnis-Datenbank (`quellen`-Tabelle) — diese Session hat keinen Zugriff auf
+die Live-Supabase-Instanz des Nutzers (kein Schreibzugriff auf Storage/DB von hier aus
+möglich), ein datengetriebener Upload-Weg über das bereits gebaute Formular hätte einen
+zusätzlichen manuellen Schritt für den Nutzer bedeutet. Da es sich um genau zwei fest
+zugeordnete, kuratierte Bilder handelt (kein wiederkehrender Bedarf für beliebig viele
+Bild-Uploads je Quelle), ist ein festes Panel am Seitenanfang einfacher und robuster als
+eine neue generische "Bilder je Quellenverzeichnis-Eintrag"-Funktion.
+
+- Neues Panel "UBS Wohnattraktivitätsindikator 2026 — Übersicht" ganz oben auf
+  `/quellen`, vor dem Erfassungsformular — zwei Bilder nebeneinander (Flex-Wrap, je max.
+  320px breit, per `next/image` mit korrekten Original-Dimensionen 1080×2340) mit
+  Bildunterschrift und Quellenangabe je Bild (das zweite Bild trägt explizit
+  "© Blick Grafik" — sorgfältig als Blick-Berichterstattung ÜBER die UBS-Studie
+  ausgewiesen, nicht als UBS-Originalmaterial, um die Herkunft nicht zu verfälschen).
+- Das erste Bild zeigt deutlich MEHR Detail als die ursprünglich ausgewertete
+  UBS-Mitteilung (volle Rangliste je Einkommensklasse statt nur Top-3) — bewusst NICHT
+  zum Anlass genommen, `ubsWohnattraktivitaet.ts` daraus zu erweitern (das wäre eine
+  eigene, grössere Aufgabe mit eigener Sorgfaltspflicht bei der Datenübernahme aus
+  einem Foto statt einem Textdokument); hier ausschliesslich wie angefragt als visuelle
+  Referenz eingebunden.
+
+Keine neuen automatisierten Tests (reine statische Assets + JSX-Markup, keine Logik).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
