@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { computeMarketValueRange, computeCashOnCashBreakdown, computePriceZones, classifyPriceZone, priceZoneTone, type PriceZone } from "./priceStrategy";
+import {
+  computeMarketValueRange,
+  computeCashOnCashBreakdown,
+  computePriceZones,
+  classifyPriceZone,
+  priceZoneTone,
+  computeValueCreation,
+  type PriceZone,
+} from "./priceStrategy";
 import type { RegionExtractionResult, RegionQuantileRow } from "./regionExtraction";
 
 const row3Zimmer: RegionQuantileRow = { zimmerzahl: 3, q10: 6000, q30: 6800, q50: 7500, q70: 8200, q90: 9000 };
@@ -141,5 +149,24 @@ describe("computeCashOnCashBreakdown", () => {
 
   it("liefert undefined bei negativem Eigenkapital", () => {
     expect(computeCashOnCashBreakdown({ cashflowNachZinsChf: 10_000, cashflowNachAmortisationChf: 6_000 }, -50_000)).toBeUndefined();
+  });
+});
+
+describe("computeValueCreation", () => {
+  it("berechnet den impliziten Wertzuwachs = NOI-Steigerung ÷ Zielrendite — Beispiel aus dem Auftrag (CHF 1'000 / 4.5% = CHF 22'222)", () => {
+    const result = computeValueCreation(1_000, 4.5);
+    expect(result).toBeDefined();
+    expect(result!.annualNoiIncreaseChf).toBe(1_000);
+    expect(result!.impliedValueIncreaseChf).toBeCloseTo(22_222.22, 1);
+  });
+
+  it("liefert undefined bei Zielrendite 0 oder negativ", () => {
+    expect(computeValueCreation(1_000, 0)).toBeUndefined();
+    expect(computeValueCreation(1_000, -1)).toBeUndefined();
+  });
+
+  it("funktioniert auch mit negativer NOI-Veränderung (Wertminderung)", () => {
+    const result = computeValueCreation(-500, 4.5);
+    expect(result!.impliedValueIncreaseChf).toBeCloseTo(-11_111.11, 1);
   });
 });

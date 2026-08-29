@@ -31,6 +31,7 @@ import { MarktEinordnungView } from "@/components/MarktEinordnungView";
 import { getRegionByCantonGemeinde, getRegionMarketData, findClosestQuantileRow } from "@/lib/regionMarketData";
 import { findUbsWohnattraktivitaet, formatUbsWohnattraktivitaetHinweis } from "@/lib/ubsWohnattraktivitaet";
 import { computeMarketValueRange, computeCashOnCashBreakdown } from "@/lib/priceStrategy";
+import { buildDefaultScenarios, computeScenarios, computeInterestRateStressTest } from "@/lib/scenarioEngine";
 
 export const dynamic = "force-dynamic";
 
@@ -93,6 +94,11 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
   const marketValueRange = regionData ? computeMarketValueRange(regionData, facts?.zimmerzahl, property.wohnflaeche_m2) : undefined;
   const cashOnCashBreakdown = analysis ? computeCashOnCashBreakdown(analysis.investmentCase.wasserfall, analysis.eigenkapitalChf) : undefined;
 
+  // Szenario-Engine + Zins-Stresstest (Auftrag Phase 3) — beide reine Mehrfachaufrufe von
+  // computeBestandsrenditeAnalysis mit variierten Facts, kein neuer Rechenweg.
+  const scenarioResults = facts ? computeScenarios(propertyInput, facts, buildDefaultScenarios(facts, parameterOverrides), parameterOverrides) : undefined;
+  const stressTestRows = facts ? computeInterestRateStressTest(propertyInput, facts, parameterOverrides) : undefined;
+
   const investmentScore =
     analysis && dueDiligence?.result
       ? computeInvestmentScore({
@@ -126,6 +132,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
     ...(verhandlungskorridor?.maximumChf !== undefined ? [{ href: "#verhandlungskorridor", label: "Verhandlung" }] : []),
     ...(marketValueRange || verhandlungskorridor?.nettoZielChf !== undefined ? [{ href: "#preisstrategie", label: "Preis" }] : []),
     ...(analysis ? [{ href: "#investment-case", label: "Investment" }] : []),
+    ...(scenarioResults && scenarioResults.length > 0 ? [{ href: "#szenarien", label: "Szenarien" }] : []),
     ...(analysis ? [{ href: "#value-add-moeblierung", label: "Value-Add" }] : []),
     ...(analysis ? [{ href: "#mehrjahresmodell", label: "15 Jahre" }] : []),
     ...(regionData ? [{ href: "#markteinordnung", label: "Markt" }] : []),
@@ -221,6 +228,8 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             marktMedianKaufpreisChf={marktMedianKaufpreisChf}
             marketValueRange={marketValueRange}
             cashOnCashBreakdown={cashOnCashBreakdown}
+            scenarioResults={scenarioResults}
+            stressTestRows={stressTestRows}
           />
         ) : null}
 
