@@ -2937,6 +2937,81 @@ Referenzpunkt daneben anzeigen.
   `verhandlungskorridorRelation`), dieselbe Konvention wie bei anderen abgeleiteten
   Anzeigewerten in `page.tsx` (z.B. `mieteChfPerM2PerYear` für `MarktEinordnungView`).
 
+## Nachgezogen (2026-08-29): Advanced Price Strategy & Investment Value Engine — Phase 1
+
+Auftrag: "HOME4EFFINDER – IMPLEMENTATION BRIEFING — Feature: Advanced Price Strategy &
+Investment Value Engine" (20 Abschnitte + SIPIS-Score-Split). Vor jeder Codeänderung
+Repository-Analyse durchgeführt und dem Nutzer mitgeteilt (Auftragsvorgabe §18): der
+grösste Teil der geforderten Begriffe existiert bereits unter anderen Namen — u.a.
+`investmentValue` = bereits vorhandenes `verhandlungskorridor.nettoZielChf` (löst exakt
+`NOI ÷ All-in-Investition = Nettorenditeziel`), `stabilizedNOI` = bereits vorhandenes
+`investmentCase.wasserfall.noiChf` (enthält bereits keine Finanzierungskosten),
+`economicTargetPrice`/`openingBid`/`walkAwayPrice` = bereits vorhandene
+`strengsteZielgroesse`/`eroeffnungChf`/`maximumChf`, `priceGap` = bereits vorhandene
+generische `verhandlungskorridorRelation`. Auf Rückfrage vom Nutzer bestätigt: Umfang in
+Phasen liefern (diese Phase 1: Investment Value & Market Value + Price Gap), neue
+Cash-on-Cash-Kennzahlen ERGÄNZEND zur bestehenden (nicht ersetzend), Opening-Bid-
+Faktorenmodell erst in einer späteren Phase.
+
+- **`apps/home4effinder/src/lib/priceStrategy.ts`** (neu) — bewusst schlank, da die
+  eigentliche Rechenlogik grösstenteils bereits existiert:
+  - `computeMarketValueRange(regionData, zimmerzahl, wohnflaecheM2)`: Marktwert-
+    BANDBREITE (Low/Base/High = 30%-/50%-/70%-Quantil Kaufpreis/m² × Wohnfläche, aus
+    demselben Regionsreport-Datensatz wie die bestehende Kaufpreis-vs-Markt-Ampel und
+    der Markt-Median-Referenzpunkt) statt nur eines Einzelwerts. 30%/70% statt 10%/90%
+    gewählt — dieselbe Überlegung wie bei `estimateQuantilePosition`s
+    Nicht-Extrapolation: eine Bandbreite bis zu den Extremquantilen wäre für eine
+    Kaufpreiseinschätzung zu breit, um noch aussagekräftig zu sein.
+  - Confidence-Einstufung (HIGH/MEDIUM/LOW) je nach exakter Zimmerzahl-Übereinstimmung
+    UND Berichtsalter (≤ 2 Jahre) — vier Kombinationen, jede mit Begründungstext.
+    `packages/domain/provenance.ts::DataPoint`/`classifyConfidence` bewusst NICHT
+    wiederverwendet: geprüft, aber nirgends in HOME4efFINDER verdrahtet (nur in
+    `apps/web`, einem anderen Produkt), 4-stufig statt der hier verlangten 3-Stufigkeit,
+    und ein Import quer über Produktgrenzen für nur eine Konstante hätte mehr Kopplung
+    erzeugt als er Wiederverwendung gebracht hätte.
+  - `computeCashOnCashBreakdown(wasserfall, eigenkapitalChf)`: zwei zusätzliche,
+    einfachere Cash-on-Cash-Kennzahlen (vor/nach Amortisation, beide vor Steuer und
+    Reparatur-/Leerstandsreserve) — ERGÄNZEND zur bestehenden
+    `investmentCase.cashOnCashPercent` (die zusätzlich Steuer/Reserven abzieht), nicht
+    ersetzend. Auf Rückfrage vom Nutzer bestätigt.
+- **`bestandsrendite.ts`**: neues Feld `incrementalFurnitureNoi` auf
+  `BestandsrenditeAnalysisResult` (Guardrail aus dem Auftrag: "höheren möblierten Umsatz
+  automatisch als höheren Gewinn interpretieren" ist ein Fehler). Der bestehende
+  `furnitureRoi`/`moeblierungsVergleich` vergleicht bewusst nur den ERTRAG (Miete), nicht
+  den tatsächlichen Betriebsgewinn — die möblierungsspezifischen Zusatzkosten (Reinigung
+  zwischen Mietern, Möblierungs-Ersatzreserve) werden dort nicht gegengerechnet.
+  `incrementalFurnitureNoi.incrementalNoiChf` schliesst diese Lücke: Mehrertrag NETTO
+  dieser beiden Zusatzkosten, kann negativ sein, obwohl der rohe Mehrertrag positiv ist.
+  Gleiche Gating-Bedingung wie `furnitureRoi` (nur wenn Möblierungskosten erfasst sind).
+- **`BestandsrenditeAnalysisView.tsx`**:
+  - Neues Panel "Preisstrategie — Market Value & Investment Value" direkt nach dem
+    Verhandlungskorridor: Marktwert-Bandbreite mit Confidence-Chip, Investment Value
+    (= `nettoZielChf`, hier explizit dem Marktwert gegenübergestellt statt nur implizit
+    im Verhandlungskorridor zu stecken), Angebotspreis, plus eine rein regelbasierte
+    Interpretation aus vier festen Kombinationen ("im/über Marktwert" × "unter/über
+    Investment Value") — kein LLM, keine freie Formulierung (Guardrail aus dem Auftrag:
+    "keine qualitative Kaufempfehlung ohne zugrunde liegende Kennzahlen").
+  - Zwei neue Cash-on-Cash-Kacheln (vor/nach Amortisation) neben der bestehenden, in
+    Ebene B (Investment Case).
+  - Neue Kachel "Inkrementeller NOI" im Value-Add-Möblierung-Panel, rot hervorgehoben
+    mit dem Text "Möblierung erhöht den Umsatz, aber nicht den operativen Gewinn.", wenn
+    `incrementalNoiChf ≤ 0` — exakt der im Auftrag verlangte Warnhinweis.
+  - Neuer Sektionsnavigation-Anker `#preisstrategie` ("Preis") in `page.tsx`.
+- Neue Tests: `priceStrategy.test.ts` (Confidence-Kombinationen, Randfälle ohne
+  Zimmerzahl/Wohnfläche/Preiszeilen, Cash-on-Cash-Randfälle) und
+  `bestandsrendite.test.ts::incrementalFurnitureNoi` (positiver Fall, negativer Fall
+  trotz positivem Mehrertrag — genau der Guardrail-Fall —, undefined-Gating).
+- Bewusst NICHT angefasst: `nettoZielChf` bleibt bei Bisektion statt einer algebraisch
+  möglichen geschlossenen Lösung (der NOI ist tatsächlich kaufpreisunabhängig, die
+  All-in-Investition linear im Kaufpreis — eine geschlossene Lösung wäre also möglich,
+  der bestehende Code-Kommentar dort ist in dem Punkt ungenau) — bestehender, getesteter
+  Code, kein Grund, ihn im Rahmen dieses Auftrags anzufassen.
+- Noch nicht umgesetzt (spätere Phasen, mit dem Nutzer so vereinbart): 7-stufige
+  Preiszonen-Ampel, erweiterte Preis-Stufentabelle/Corridor-Visualisierung (Phase 2),
+  Szenario-Engine/Zins-Stresstest/DSCR/Value-Creation-Engine (Phase 3),
+  Opening-Bid-Faktorenmodell/erweitertes Decision Log/Confidence-Badges an weiteren
+  Stellen (Phase 4), SIPIS-Score-Split in Market/Investment/Strategic-Fit (Phase 5).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

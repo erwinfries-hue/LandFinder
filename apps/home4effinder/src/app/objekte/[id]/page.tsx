@@ -30,6 +30,7 @@ import { ObjectSectionNav } from "@/components/ObjectSectionNav";
 import { MarktEinordnungView } from "@/components/MarktEinordnungView";
 import { getRegionByCantonGemeinde, getRegionMarketData, findClosestQuantileRow } from "@/lib/regionMarketData";
 import { findUbsWohnattraktivitaet, formatUbsWohnattraktivitaetHinweis } from "@/lib/ubsWohnattraktivitaet";
+import { computeMarketValueRange, computeCashOnCashBreakdown } from "@/lib/priceStrategy";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,13 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
   const marktMedianRow = regionData && facts?.zimmerzahl !== undefined ? findClosestQuantileRow(regionData.preise.eigentumswohnungen, facts.zimmerzahl) : undefined;
   const marktMedianKaufpreisChf = marktMedianRow && property.wohnflaeche_m2 > 0 ? marktMedianRow.q50 * property.wohnflaeche_m2 : undefined;
 
+  // Preisstrategie-Engine (Auftrag "Advanced Price Strategy & Investment Value Engine",
+  // Phase 1): Marktwert-BANDBREITE (nicht nur der Median-Punkt oben) + einfachere
+  // Cash-on-Cash-Kennzahlen. "Investment Value" braucht hier keine eigene Berechnung —
+  // das ist bereits `verhandlungskorridor.nettoZielChf`, siehe priceStrategy.ts-Modulkopf.
+  const marketValueRange = regionData ? computeMarketValueRange(regionData, facts?.zimmerzahl, property.wohnflaeche_m2) : undefined;
+  const cashOnCashBreakdown = analysis ? computeCashOnCashBreakdown(analysis.investmentCase.wasserfall, analysis.eigenkapitalChf) : undefined;
+
   const investmentScore =
     analysis && dueDiligence?.result
       ? computeInvestmentScore({
@@ -116,6 +124,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
     { href: "#objektdaten", label: "Objekt" },
     ...(analysis ? [{ href: "#schnellcheck", label: "Rendite" }] : []),
     ...(verhandlungskorridor?.maximumChf !== undefined ? [{ href: "#verhandlungskorridor", label: "Verhandlung" }] : []),
+    ...(marketValueRange || verhandlungskorridor?.nettoZielChf !== undefined ? [{ href: "#preisstrategie", label: "Preis" }] : []),
     ...(analysis ? [{ href: "#investment-case", label: "Investment" }] : []),
     ...(analysis ? [{ href: "#value-add-moeblierung", label: "Value-Add" }] : []),
     ...(analysis ? [{ href: "#mehrjahresmodell", label: "15 Jahre" }] : []),
@@ -210,6 +219,8 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             nettoRenditeZielPercent={effectiveParams.nettoRenditeZielPercent}
             inseratpreisChf={property.asking_price_chf}
             marktMedianKaufpreisChf={marktMedianKaufpreisChf}
+            marketValueRange={marketValueRange}
+            cashOnCashBreakdown={cashOnCashBreakdown}
           />
         ) : null}
 

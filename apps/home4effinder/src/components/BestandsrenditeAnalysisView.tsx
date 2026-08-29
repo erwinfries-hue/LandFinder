@@ -4,6 +4,7 @@ import { formatChf } from "@/lib/format";
 import { renditeAmpelColor } from "@/lib/investmentScore";
 import { strengsteZielgroesse, verhandlungskorridorRelation } from "@/lib/bestandsrendite";
 import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, PreisStufe, MoeblierungsAlternative } from "@/lib/bestandsrendite";
+import type { MarketValueRange, CashOnCashBreakdown } from "@/lib/priceStrategy";
 
 const VERHANDLUNGSKORRIDOR_BAR_TONE: Record<string, string> = {
   eroeffnung: "var(--ink-faint)",
@@ -101,6 +102,8 @@ export function BestandsrenditeAnalysisView({
   nettoRenditeZielPercent,
   inseratpreisChf,
   marktMedianKaufpreisChf,
+  marketValueRange,
+  cashOnCashBreakdown,
 }: {
   result: BestandsrenditeAnalysisResult;
   /** `undefined`/`null`, wenn `computeVerhandlungskorridor` keine Bisektionslösung fand (Objekt trägt sich unter keinen Umständen). */
@@ -140,6 +143,10 @@ export function BestandsrenditeAnalysisView({
    * vorliegt (dann entfällt der Vergleich, statt etwas zu erfinden).
    */
   marktMedianKaufpreisChf?: number;
+  /** Marktwert-Bandbreite der Gemeinde (siehe priceStrategy.ts::computeMarketValueRange) — `undefined` unter denselben Bedingungen wie `marktMedianKaufpreisChf`. */
+  marketValueRange?: MarketValueRange;
+  /** Zwei zusätzliche, einfachere Cash-on-Cash-Kennzahlen vor Steuer/Reserven (siehe priceStrategy.ts::computeCashOnCashBreakdown) — `undefined`, wenn kein Eigenkapital eingesetzt wird. */
+  cashOnCashBreakdown?: CashOnCashBreakdown;
 }) {
   const {
     schnellcheck,
@@ -150,6 +157,7 @@ export function BestandsrenditeAnalysisView({
     mehrjahresmodell,
     investmentTreiber,
     furnitureRoi,
+    incrementalFurnitureNoi,
     moeblierungReserveChfPerJahr,
     moeblierungsVergleich,
     renovationRoi,
@@ -210,6 +218,29 @@ export function BestandsrenditeAnalysisView({
     const vorzeichen = relation.diffChf > 0 ? "+" : relation.diffChf < 0 ? "−" : "±";
     const richtung = relation.diffChf < 0 ? "unter" : relation.diffChf > 0 ? "über" : "auf";
     return `${vorzeichen}CHF ${formatChf(Math.abs(Math.round(relation.diffChf)))} (${vorzeichen}${Math.abs(relation.diffPercent).toFixed(1)}%) ${richtung} Inseratpreis`;
+  }
+
+  // Preisstrategie-Panel: rein regelbasierte Interpretation aus den bereits berechneten
+  // Schwellenwerten (Guardrail: "keine qualitative Kaufempfehlung ohne zugrunde liegende
+  // Kennzahlen") — kein LLM, keine freie Formulierung, nur eine von vier festen
+  // Kombinationen aus "im/über Marktwert-Band" × "unter/über Investment Value".
+  function buildPreisstrategieInterpretation(): string | undefined {
+    if (!marketValueRange || verhandlungskorridor?.nettoZielChf === undefined) return undefined;
+    const ueberMarkt = inseratpreisChf > marketValueRange.highChf;
+    const unterMarkt = inseratpreisChf < marketValueRange.lowChf;
+    const marktLage = ueberMarkt ? "über dem Marktwert der Gemeinde" : unterMarkt ? "unter dem Marktwert der Gemeinde" : "marktgerecht angeboten";
+    const ueberInvestmentValue = inseratpreisChf > verhandlungskorridor.nettoZielChf;
+
+    if (!ueberMarkt && !ueberInvestmentValue) {
+      return `Das Objekt ist ${marktLage} und erreicht das eigene Nettorenditeziel bereits zum Angebotspreis.`;
+    }
+    if (!ueberMarkt && ueberInvestmentValue) {
+      return "Marktseitig plausibel, für die Renditestrategie jedoch zu teuer. Attraktiv erst bei deutlicher Preisreduktion oder nachweisbarer NOI-Steigerung.";
+    }
+    if (ueberMarkt && !ueberInvestmentValue) {
+      return "Über dem Marktwert der Gemeinde, aber unterhalb des eigenen Investment Value — ungewöhnlich, ggf. Objektqualität/Ausstattung prüfen, die der reine Quantilvergleich nicht erfasst.";
+    }
+    return "Sowohl über dem Marktwert als auch über dem für die eigene Renditestrategie gerechtfertigten Preis — weder marktseitig noch wirtschaftlich derzeit attraktiv.";
   }
 
   function formatMarktMedianVergleich(): string | undefined {
@@ -459,6 +490,50 @@ export function BestandsrenditeAnalysisView({
         </Panel>
       ) : null}
 
+      {marketValueRange || verhandlungskorridor?.nettoZielChf !== undefined ? (
+        <Panel id="preisstrategie" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
+          <div className="sectionhead">
+            <h2>Preisstrategie — Market Value &amp; Investment Value</h2>
+          </div>
+          <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".6rem" }}>
+            Zwei unterschiedliche Fragen, zwei unterschiedliche Zahlen: der Marktwert zeigt, was vergleichbare
+            Objekte in der Gemeinde aktuell kosten — der Investment Value zeigt, welcher Kaufpreis bei der
+            stabilisierten Nettomiete (NOI) noch das eigene Nettorenditeziel erreicht. Ein Objekt kann marktgerecht
+            angeboten sein und trotzdem über dem für die eigene Renditestrategie gerechtfertigten Preis liegen.
+          </p>
+          <div className="metricgrid">
+            {marketValueRange ? (
+              <Metric
+                l="Marktwert (Gemeinde)"
+                v={`CHF ${formatChf(Math.round(marketValueRange.lowChf))}–${formatChf(Math.round(marketValueRange.highChf))}`}
+                sub={
+                  <>
+                    Median: CHF {formatChf(Math.round(marketValueRange.baseChf))}
+                    <br />
+                    <Chip tone={marketValueRange.confidence === "HIGH" ? "good" : marketValueRange.confidence === "MEDIUM" ? "warn" : "bad"}>
+                      Confidence: {marketValueRange.confidence}
+                    </Chip>
+                  </>
+                }
+                hint={`= 30%-/70%-Quantil Kaufpreis/m² (Regionsreport) × Wohnfläche, Median = 50%-Quantil. ${marketValueRange.confidenceReason}`}
+              />
+            ) : null}
+            {verhandlungskorridor?.nettoZielChf !== undefined ? (
+              <Metric
+                l="Investment Value"
+                v={`CHF ${formatChf(Math.round(verhandlungskorridor.nettoZielChf))}`}
+                sub={formatRelation(nettoZielRelation)}
+                hint="= Kaufpreis, den die stabilisierte Nettomiete (NOI) beim eigenen Nettorenditeziel noch rechtfertigt — identisch mit der „Preisobergrenze (Nettorendite)“ im Verhandlungskorridor oben, hier zusätzlich direkt dem Marktwert gegenübergestellt."
+              />
+            ) : null}
+            <Metric l="Angebotspreis" v={`CHF ${formatChf(Math.round(inseratpreisChf))}`} />
+          </div>
+          {buildPreisstrategieInterpretation() ? (
+            <p style={{ fontSize: ".8125rem", marginTop: ".8rem", marginBottom: 0, fontWeight: 600 }}>{buildPreisstrategieInterpretation()}</p>
+          ) : null}
+        </Panel>
+      ) : null}
+
       <Panel id="investment-case" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
         <div className="sectionhead">
           <h2>Ebene B — Investment Case</h2>
@@ -500,6 +575,20 @@ export function BestandsrenditeAnalysisView({
             }
             hint="= nachhaltiger Cashflow Jahr 1 (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) ÷ eingesetztes Eigenkapital × 100."
           />
+          {cashOnCashBreakdown ? (
+            <>
+              <Metric
+                l="Cash-on-Cash (vor Amortisation)"
+                v={`${cashOnCashBreakdown.preAmortizationPercent.toFixed(2)}%`}
+                hint="= (NOI − Zins) ÷ eingesetztes Eigenkapital × 100 — vor Amortisation, Steuer und Reparatur-/Leerstandsreserve. Einfachere, weniger konservative Zusatzkennzahl neben dem obigen Cash-on-Cash (der zieht zusätzlich Steuer und Reserven ab)."
+              />
+              <Metric
+                l="Cash-on-Cash (nach Amortisation)"
+                v={`${cashOnCashBreakdown.postAmortizationPercent.toFixed(2)}%`}
+                hint="= (NOI − Zins − Amortisation) ÷ eingesetztes Eigenkapital × 100 — nach Amortisation, weiterhin vor Steuer und Reparatur-/Leerstandsreserve."
+              />
+            </>
+          ) : null}
           <Metric
             l="Eigenkapital"
             v={`CHF ${formatChf(Math.round(result.eigenkapitalChf))}`}
@@ -697,6 +786,19 @@ export function BestandsrenditeAnalysisView({
               hint="= Mietaufschlag möbliert ggü. unmöbliert (CHF/Monat) × 12."
             />
             <Metric l="Furniture ROI" v={`${furnitureRoi.roiPercent.toFixed(1)}%`} hint="= zusätzlicher Jahresertrag ÷ Möblierungsinvestition × 100." />
+            {incrementalFurnitureNoi ? (
+              <Metric
+                l="Inkrementeller NOI"
+                v={`CHF ${formatChf(Math.round(incrementalFurnitureNoi.incrementalNoiChf))}`}
+                valueColor={incrementalFurnitureNoi.incrementalNoiChf <= 0 ? "var(--bad)" : "var(--good)"}
+                sub={
+                  incrementalFurnitureNoi.incrementalNoiChf <= 0
+                    ? "Möblierung erhöht den Umsatz, aber nicht den operativen Gewinn."
+                    : `= CHF ${formatChf(Math.round(incrementalFurnitureNoi.furnishedNoiChf))} (möbliert) − CHF ${formatChf(Math.round(incrementalFurnitureNoi.unfurnishedNoiChf))} (unmöbliert)`
+                }
+                hint="= (effektiver Jahresertrag möbliert − Reinigung/Service möbliert − Möblierungs-Ersatzreserve) − (effektiver Jahresertrag unmöbliert − Reinigung/Service unmöbliert) — anders als „Zusätzlicher Jahresertrag“ oben NETTO der möblierungsspezifischen Zusatzkosten, nicht nur der rohe Mietaufschlag."
+              />
+            ) : null}
             <Metric
               l="Payback"
               v={furnitureRoi.paybackYears !== undefined ? `${furnitureRoi.paybackYears.toFixed(1)} Jahre` : "—"}
