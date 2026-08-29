@@ -29,6 +29,7 @@ import { PropertyEditForm } from "@/components/PropertyEditForm";
 import { ObjectSectionNav } from "@/components/ObjectSectionNav";
 import { MarktEinordnungView } from "@/components/MarktEinordnungView";
 import { getRegionByCantonGemeinde, getRegionMarketData } from "@/lib/regionMarketData";
+import { findUbsWohnattraktivitaet, formatUbsWohnattraktivitaetHinweis } from "@/lib/ubsWohnattraktivitaet";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
   ]);
 
   const propertyInput = { kaufpreisChf: property.asking_price_chf, wohnflaecheM2: property.wohnflaeche_m2, canton: property.canton };
+  const ubsWohnattraktivitaet = findUbsWohnattraktivitaet(property.canton, property.gemeinde);
   const analysis = facts ? computeBestandsrenditeAnalysis(propertyInput, facts, parameterOverrides) : null;
   const verhandlungskorridor = facts ? computeVerhandlungskorridor(propertyInput, facts, parameterOverrides) : null;
   const preisStufentabelle =
@@ -165,6 +167,11 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
               <a href={property.listing_url} target="_blank" rel="noopener noreferrer" className="maplink">
                 Zum Original-Inserat ↗
               </a>
+            </p>
+          ) : null}
+          {ubsWohnattraktivitaet ? (
+            <p style={{ marginTop: ".6rem", color: "var(--ink-soft)", fontSize: ".8125rem" }}>
+              {formatUbsWohnattraktivitaetHinweis(ubsWohnattraktivitaet)}
             </p>
           ) : null}
           {property.market_reference_notes ? (

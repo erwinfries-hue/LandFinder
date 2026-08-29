@@ -5,6 +5,7 @@ import { computeBestandsrenditeAnalysis, computeVerhandlungskorridor, computeMoe
 import { computeInvestmentScore } from "@/lib/investmentScore";
 import { renderManagementSummaryPdf } from "@/lib/managementSummaryPdf";
 import { getParameterOverrides } from "@/lib/parameterOverrides";
+import { findUbsWohnattraktivitaet, formatUbsWohnattraktivitaetHinweis } from "@/lib/ubsWohnattraktivitaet";
 import { BESTANDSRENDITE_PARAMETERS, defaultsOf } from "@landfinder/financial-engine";
 
 export const maxDuration = 30;
@@ -33,6 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const verhandlungskorridor = computeVerhandlungskorridor(propertyInput, facts, parameterOverrides);
   const moeblierungsAlternative = computeMoeblierungsAlternative(propertyInput, facts, parameterOverrides);
   const dueDiligence = await getPropertyDueDiligence(propertyId);
+  const ubsWohnattraktivitaet = findUbsWohnattraktivitaet(property.canton, property.gemeinde);
 
   const investmentScore = dueDiligence?.result
     ? computeInvestmentScore({
@@ -55,6 +57,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     moeblierungsAlternative,
     bruttoRenditeZielPercent: effectiveParams.bruttoRenditeZielPercent,
     nettoRenditeZielPercent: effectiveParams.nettoRenditeZielPercent,
+    ubsWohnattraktivitaetHinweis: ubsWohnattraktivitaet ? formatUbsWohnattraktivitaetHinweis(ubsWohnattraktivitaet) : undefined,
   });
 
   const safeFilename = (property.title || property.address_text).replace(/[^a-zA-Z0-9äöüÄÖÜ_.-]+/g, "_");
