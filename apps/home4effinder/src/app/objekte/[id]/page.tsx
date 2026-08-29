@@ -31,7 +31,16 @@ import { ObjectSectionNav } from "@/components/ObjectSectionNav";
 import { MarktEinordnungView } from "@/components/MarktEinordnungView";
 import { getRegionByCantonGemeinde, getRegionMarketData, findClosestQuantileRow } from "@/lib/regionMarketData";
 import { findUbsWohnattraktivitaet, formatUbsWohnattraktivitaetHinweis } from "@/lib/ubsWohnattraktivitaet";
-import { computeMarketValueRange, computeCashOnCashBreakdown, hasAnyOpeningBidFaktor, computeOpeningBidSuggestion } from "@/lib/priceStrategy";
+import {
+  computeMarketValueRange,
+  computeCashOnCashBreakdown,
+  hasAnyOpeningBidFaktor,
+  computeOpeningBidSuggestion,
+  computePriceZones,
+  classifyPriceZone,
+  computeValueCreation,
+} from "@/lib/priceStrategy";
+import { computeMarketScore, computeStrategicFitScore } from "@/lib/sipisScore";
 import { buildDefaultScenarios, computeScenarios, computeInterestRateStressTest } from "@/lib/scenarioEngine";
 
 export const dynamic = "force-dynamic";
@@ -119,6 +128,25 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
         })
       : undefined;
 
+  // SIPIS-Score-Split (Nutzer-Zusatzwunsch): Market Score + Strategic Fit ergänzen den
+  // bestehenden, unverändert übernommenen Investment Score (oben) — "ein hervorragendes
+  // Objekt ist nicht automatisch ein hervorragendes Investment". Siehe sipisScore.ts.
+  const marketScore = analysis
+    ? computeMarketScore({ ubsEintrag: ubsWohnattraktivitaet, kaufpreisChfPerM2: analysis.schnellcheck.preisProM2Chf, regionData: regionData ?? undefined, zimmerzahl: facts?.zimmerzahl })
+    : undefined;
+  const priceZoneBands = economicTargetChf !== undefined && verhandlungskorridor?.maximumChf !== undefined ? computePriceZones(economicTargetChf, verhandlungskorridor.maximumChf) : undefined;
+  const inseratpreisZone = priceZoneBands ? classifyPriceZone(property.asking_price_chf, priceZoneBands).zone : undefined;
+  const valueCreationBeitraege = analysis
+    ? [
+        analysis.incrementalFurnitureNoi ? computeValueCreation(analysis.incrementalFurnitureNoi.incrementalNoiChf, effectiveParams.nettoRenditeZielPercent) : undefined,
+        analysis.renovationRoi ? computeValueCreation(analysis.renovationRoi.zusaetzlicherJahresertragChf, effectiveParams.nettoRenditeZielPercent) : undefined,
+      ].filter((v): v is NonNullable<typeof v> => v !== undefined)
+    : [];
+  const totalValueCreationChf = valueCreationBeitraege.length > 0 ? valueCreationBeitraege.reduce((sum, v) => sum + v.impliedValueIncreaseChf, 0) : undefined;
+  const strategicFitScore = analysis
+    ? computeStrategicFitScore({ priceZone: inseratpreisZone, totalValueCreationChf, kaufpreisChf: analysis.schnellcheck.kaufpreisChf })
+    : undefined;
+
   const bewertungsAmpeln = analysis
     ? computeBewertungsAmpeln({
         nettoRenditePercent: analysis.investmentCase.nettoRenditeVorFinanzierungPercent,
@@ -172,16 +200,29 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
               <DueDiligenceRefreshButton propertyId={property.id} disabled={(documents ?? []).length === 0} />
             </div>
           </div>
-          {investmentScore ? (
-            <div style={{ display: "flex", alignItems: "center", gap: ".6rem", margin: ".6rem 0 0" }}>
-              <Chip tone={scoreTone(investmentScore.totalScore)}>Investment-Score {investmentScore.totalScore}/100</Chip>
+          {investmentScore || marketScore || strategicFitScore ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: ".4rem", margin: ".6rem 0 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: ".6rem", flexWrap: "wrap" }}>
+                {marketScore ? <Chip tone={scoreTone(marketScore.totalScore)}>Market Score {marketScore.totalScore}/100</Chip> : null}
+                {investmentScore ? <Chip tone={scoreTone(investmentScore.totalScore)}>Investment Score {investmentScore.totalScore}/100</Chip> : null}
+                {strategicFitScore ? <Chip tone={scoreTone(strategicFitScore.totalScore)}>Strategic Fit {strategicFitScore.totalScore}/100</Chip> : null}
+              </div>
               <span style={{ color: "var(--ink-faint)", fontSize: ".76rem" }}>
-                Due Diligence {investmentScore.dueDiligenceScore}/60 · Dokumentation {investmentScore.documentationScore}/15 · Rendite {investmentScore.renditeScore}/25 —
-                errechnet, nicht von Claude geschätzt
+                Drei getrennte Scores statt einem Gesamtwert — ein hervorragendes Objekt ist nicht automatisch ein
+                hervorragendes Investment. Alle errechnet, nicht von Claude geschätzt.
+                {investmentScore
+                  ? ` Investment Score: Due Diligence ${investmentScore.dueDiligenceScore}/60 · Dokumentation ${investmentScore.documentationScore}/15 · Rendite ${investmentScore.renditeScore}/25.`
+                  : ""}
+                {marketScore
+                  ? ` Market Score: Lage ${marketScore.lageScore ?? "—"} · Marktpreis-Position ${marketScore.marktpreisScore ?? "—"} · Markttrend ${marketScore.markttrendScore ?? "—"}.`
+                  : ""}
+                {strategicFitScore
+                  ? ` Strategic Fit: Preiszone ${strategicFitScore.preiszonenScore ?? "—"} · Value-Add-Potenzial ${strategicFitScore.valueAddScore ?? "—"}.`
+                  : ""}
               </span>
             </div>
           ) : null}
-          <div className="metricgrid" style={{ marginTop: investmentScore ? ".8rem" : 0 }}>
+          <div className="metricgrid" style={{ marginTop: investmentScore || marketScore || strategicFitScore ? ".8rem" : 0 }}>
             <Metric l="Kanton" v={property.canton} />
             <Metric l="Adresse" v={property.address_text} />
             <Metric
