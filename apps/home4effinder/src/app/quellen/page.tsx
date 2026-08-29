@@ -40,7 +40,7 @@ export default async function QuellenPage() {
             <a href="https://www.ubs.com/gemeinderanking" target="_blank" rel="noopener noreferrer" className="maplink">
               ubs.com/gemeinderanking
             </a>
-            , rechts die Top-3-Gemeinden-Übersichtskarte aus einer Blick-Berichterstattung zur Studie.
+            , rechts die Top-3-Gemeinden-Übersichtskarte direkt aus der UBS-Mitteilung selbst.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
             <figure style={{ margin: 0, flex: "1 1 260px", maxWidth: "320px" }}>
@@ -60,11 +60,11 @@ export default async function QuellenPage() {
                 src="/quellen/ubs-wohnattraktivitaet-2026-top3-karte.jpg"
                 alt="Karte der Top-3-Gemeinden in den zehn UBS-Regionen, Wohnattraktivitätsindikator 2026"
                 width={1080}
-                height={2340}
+                height={1377}
                 style={{ width: "100%", height: "auto", borderRadius: "6px", border: "1px solid var(--line)" }}
               />
               <figcaption style={{ fontSize: ".72rem", color: "var(--ink-faint)", marginTop: ".3rem" }}>
-                Top-3-Gemeinden je Region auf einen Blick (Quelle: UBS Wohnattraktivitätsindikator 2026, © Blick Grafik).
+                Top-3-Gemeinden je Region auf einen Blick (Quelle: UBS Wohnattraktivitätsindikator 2026, Seite 2 der Mitteilung).
               </figcaption>
             </figure>
           </div>
