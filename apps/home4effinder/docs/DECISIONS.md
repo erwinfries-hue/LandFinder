@@ -2708,6 +2708,59 @@ Aliase ("Wil (SG)" → "Wil"), Kanton-Pflicht (verhindert Fehltreffer bei
 kantonsübergreifend gleichnamigen Gemeinden), `undefined` bei fehlenden Angaben und bei
 nicht gelisteten Gemeinden, sowie ein Struktur-Check (genau 3 Ränge je der 10 Regionen).
 
+## Nachgezogen (2026-08-29): Quellenverzeichnis (Studien/Marktberichte/Referenzdokumente)
+
+Wunsch: "ein verzeichnis hinzufügen, welches die studien, dokumente etc auflistet mit
+verlinkung auf das dokument" — direkter Anlass war die UBS-Wohnattraktivitätsindikator-
+Mitteilung (siehe Eintrag oben), aber als eigenständige, allgemeine Ablage für
+zukünftige Studien/Marktberichte gedacht, nicht auf diese eine Quelle beschränkt.
+
+Bewusst als eigenständige, neue Entität konzipiert statt an `region_documents`
+angehängt — konzeptionell verschieden: `region_documents` ist an eine Gemeinde
+gebunden und wird per Claude strukturiert extrahiert (Miet-/Kaufpreis-Quantile), ein
+Quellenverzeichnis-Eintrag ist unabhängig von Objekt/Region und braucht keine
+KI-Auswertung, nur Metadaten + einen Link.
+
+- **Migration `0009_quellen.sql`**: neue Tabelle `quellen` (Titel, Kategorie-Freitext
+  mit Datalist-Vorschlägen "Studie"/"Marktbericht"/"Gesetzestext"/"Sonstiges",
+  Herausgeber, Datum, Notizen) + neuer privater Storage-Bucket `quellen-dokumente`.
+  Jeder Eintrag verlinkt auf GENAU eine von zwei Arten (Check-Constraint
+  `quellen_exactly_one_link`): eine hochgeladene Datei (`storage_path`) ODER eine
+  externe URL (`external_url`) — beide gleichzeitig oder keine sind ungültig. Manueller
+  SQL-Schritt für den Nutzer nötig (wie bei jeder neuen Migration in dieser App).
+- **`quellen.ts`**: dünne Supabase-Zugriffsschicht (`listQuellen`/`getQuelleById`),
+  analog zu `regionMarketData.ts`s `listRegions`/`getRegionById` — bewusst ohne
+  KI-Extraktionslogik.
+- **API-Routen** (`api/quellen/…`): `POST /api/quellen` legt einen Eintrag an (validiert
+  serverseitig, dass genau eine Link-Art gesetzt ist, dedupliziert hochgeladene Dateien
+  über den bereits etablierten SHA-256-Content-Hash wie bei `region_documents`),
+  `POST /api/quellen/signed-upload-url` mint eine Signed Upload URL für den Direkt-
+  Upload zu Supabase Storage (Vercels 4.5-MB-Payload-Limit umgangen, gleiches Muster
+  wie bei Regionsreports), `GET /api/quellen/[id]/download` liefert EIN uniformes
+  Link-Ziel für die UI unabhängig von der Link-Art (leitet bei einer Datei kurzlebig auf
+  eine frisch erzeugte Signed URL weiter, bei einer externen URL direkt dorthin — neu
+  in dieser App: bisher gab es keine "Datei ansehen/herunterladen"-Route, nur
+  Upload-Routen), `DELETE /api/quellen/[id]` löscht Zeile + ggf. Storage-Objekt.
+- **UI**: neue Seite `/quellen` (SideNav-Eintrag "Quellen", Icon `doc`) — Formular zum
+  Erfassen (Titel/Kategorie/Herausgeber/Datum/Notizen + Wahl zwischen Datei-Upload und
+  externer URL) direkt über einer Tabelle aller bereits erfassten Quellen, mirrort
+  strukturell `/regionen` (ein einziges Formular + eine Tabelle auf derselben Seite,
+  kein mehrstufiger Wizard).
+
+Bewusst NICHT umgesetzt: keine automatische Verknüpfung einzelner Objekte/Gemeinden mit
+Quellenverzeichnis-Einträgen (z.B. "diese Quelle betrifft Gemeinde X") — die neue
+UBS-Zuordnung (`ubsWohnattraktivitaet.ts`) bleibt bewusst als eigener, spezifisch
+strukturierter Datensatz bestehen statt generisch ans Quellenverzeichnis gekoppelt zu
+werden; das Quellenverzeichnis selbst ist eine reine, unstrukturierte Ablage/Bibliothek.
+Keine KI-Extraktion der hochgeladenen Dateien (anders als bei Objekt-/Regionsdokumenten)
+— bei Bedarf später nachrüstbar, aber für eine reine Verlinkungsliste nicht angefragt.
+
+Keine neuen automatisierten Tests: `quellen.ts` besteht ausschliesslich aus dünnen
+Supabase-Zugriffsfunktionen ohne eigene Logik — konsistent mit dem bestehenden Muster,
+dass auch `regionMarketData.ts`s äquivalente `listRegions`/`getRegionById`-Funktionen
+nicht separat unit-getestet sind (nur die reinen Rechenfunktionen wie
+`estimateQuantilePosition` haben Tests).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
