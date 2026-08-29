@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeMarketValueRange, computeCashOnCashBreakdown } from "./priceStrategy";
+import { computeMarketValueRange, computeCashOnCashBreakdown, computePriceZones, classifyPriceZone, priceZoneTone, type PriceZone } from "./priceStrategy";
 import type { RegionExtractionResult, RegionQuantileRow } from "./regionExtraction";
 
 const row3Zimmer: RegionQuantileRow = { zimmerzahl: 3, q10: 6000, q30: 6800, q50: 7500, q70: 8200, q90: 9000 };
@@ -64,6 +64,68 @@ describe("computeMarketValueRange", () => {
   it("liefert undefined, wenn der Regionsreport keine Eigentumswohnungs-Preiszeilen enthält", () => {
     const regionData = buildRegionData({ preise: { mietwohnungen: [], eigentumswohnungen: [], einfamilienhaeuser: [] } });
     expect(computeMarketValueRange(regionData, 3, 70)).toBeUndefined();
+  });
+});
+
+describe("computePriceZones", () => {
+  it("erzeugt 7 Zonen mit 5 gleich breiten CHF-Bändern zwischen Economic Target und Walk-Away Price", () => {
+    const bands = computePriceZones(500_000, 600_000);
+    expect(bands).toBeDefined();
+    expect(bands).toHaveLength(7);
+    expect(bands!.map((b) => b.zone)).toEqual([
+      "EXCEPTIONAL_STRONG_BUY",
+      "VERY_ATTRACTIVE",
+      "ATTRACTIVE",
+      "ACCEPTABLE",
+      "SELECTIVE_NEGOTIATE",
+      "TOO_EXPENSIVE",
+      "REJECT",
+    ]);
+    expect(bands![0]).toEqual({ zone: "EXCEPTIONAL_STRONG_BUY", label: "Exceptional / Strong Buy", lowChf: undefined, highChf: 500_000 });
+    expect(bands![1].lowChf).toBe(500_000);
+    expect(bands![1].highChf).toBe(520_000);
+    expect(bands![5].lowChf).toBe(580_000);
+    expect(bands![5].highChf).toBe(600_000);
+    expect(bands![6]).toEqual({ zone: "REJECT", label: "Reject", lowChf: 600_000, highChf: undefined });
+  });
+
+  it("liefert undefined, wenn Economic Target die Walk-Away-Grenze bereits erreicht/überschreitet", () => {
+    expect(computePriceZones(600_000, 600_000)).toBeUndefined();
+    expect(computePriceZones(650_000, 600_000)).toBeUndefined();
+  });
+});
+
+describe("classifyPriceZone", () => {
+  const bands = computePriceZones(500_000, 600_000)!;
+
+  it("ordnet einen Preis unter dem Economic Target der Exceptional-Zone zu", () => {
+    expect(classifyPriceZone(499_999, bands).zone).toBe("EXCEPTIONAL_STRONG_BUY");
+    expect(classifyPriceZone(0, bands).zone).toBe("EXCEPTIONAL_STRONG_BUY");
+  });
+
+  it("behandelt Bandgrenzen inklusive Untergrenze, exklusive Obergrenze", () => {
+    expect(classifyPriceZone(500_000, bands).zone).toBe("VERY_ATTRACTIVE");
+    expect(classifyPriceZone(519_999, bands).zone).toBe("VERY_ATTRACTIVE");
+    expect(classifyPriceZone(520_000, bands).zone).toBe("ATTRACTIVE");
+  });
+
+  it("ordnet einen Preis über der Walk-Away-Grenze der Reject-Zone zu", () => {
+    expect(classifyPriceZone(600_000, bands).zone).toBe("REJECT");
+    expect(classifyPriceZone(10_000_000, bands).zone).toBe("REJECT");
+  });
+});
+
+describe("priceZoneTone", () => {
+  it("ordnet die drei günstigen Zonen 'good' zu", () => {
+    (["EXCEPTIONAL_STRONG_BUY", "VERY_ATTRACTIVE", "ATTRACTIVE"] as PriceZone[]).forEach((zone) => expect(priceZoneTone(zone)).toBe("good"));
+  });
+
+  it("ordnet die beiden mittleren Zonen 'warn' zu", () => {
+    (["ACCEPTABLE", "SELECTIVE_NEGOTIATE"] as PriceZone[]).forEach((zone) => expect(priceZoneTone(zone)).toBe("warn"));
+  });
+
+  it("ordnet die beiden ungünstigen Zonen 'bad' zu", () => {
+    (["TOO_EXPENSIVE", "REJECT"] as PriceZone[]).forEach((zone) => expect(priceZoneTone(zone)).toBe("bad"));
   });
 });
 

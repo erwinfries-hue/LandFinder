@@ -87,6 +87,84 @@ export function computeMarketValueRange(
   };
 }
 
+/**
+ * 7-stufige Preisampel (Auftrag: "die Preisampel darf nicht aus statischen Prozentwerten
+ * zum Angebotspreis entstehen. Sie soll primär aus Investment Value, Market Value,
+ * Nutzerhürde und Finanzierung abgeleitet werden") — bewusst NICHT aus dem Marktwert
+ * abgeleitet (Guardrail: "Strong Buy != günstiger als Markt. Ein Strong Buy muss
+ * wirtschaftlich attraktiv sein"), sondern ausschliesslich aus den beiden bereits
+ * vorhandenen finanziellen Ankerpunkten:
+ *
+ * - Untere Grenze: die strengere der beiden Renditeziel-Grenzen
+ *   (`strengsteZielgroesse`/"Economic Target"/"Investment Value"-Nachbarschaft) — ab hier
+ *   erreicht der Deal das eigene Renditeziel.
+ * - Obere Grenze: `maximumChf`/"Walk-Away Price" — die reine Cashflow-Solvenzgrenze, in
+ *   der bereits die Finanzierungskonditionen (Belehnung/Zins/Amortisation) stecken.
+ *
+ * Der Marktwert bleibt bewusst aussen vor — er fliesst stattdessen in die separate,
+ * regelbasierte Interpretation im Preisstrategie-Panel ein (siehe
+ * BestandsrenditeAnalysisView.tsx), nicht in die Zonen-Grenzen selbst. Die fünf mittleren
+ * Zonen sind gleich breite CHF-Bänder zwischen den beiden Ankern.
+ */
+export type PriceZone = "EXCEPTIONAL_STRONG_BUY" | "VERY_ATTRACTIVE" | "ATTRACTIVE" | "ACCEPTABLE" | "SELECTIVE_NEGOTIATE" | "TOO_EXPENSIVE" | "REJECT";
+
+export interface PriceZoneBand {
+  zone: PriceZone;
+  label: string;
+  /** `undefined` = keine Untergrenze (offen nach unten). */
+  lowChf: number | undefined;
+  /** `undefined` = keine Obergrenze (offen nach oben). Inklusive Untergrenze, exklusive Obergrenze (siehe `classifyPriceZone`). */
+  highChf: number | undefined;
+}
+
+const PRICE_ZONE_LABELS: Record<PriceZone, string> = {
+  EXCEPTIONAL_STRONG_BUY: "Exceptional / Strong Buy",
+  VERY_ATTRACTIVE: "Very Attractive",
+  ATTRACTIVE: "Attractive",
+  ACCEPTABLE: "Acceptable",
+  SELECTIVE_NEGOTIATE: "Selective / Negotiate",
+  TOO_EXPENSIVE: "Too Expensive",
+  REJECT: "Reject",
+};
+
+/**
+ * Fünf gleich breite CHF-Bänder zwischen `realistischesZielChf` (Economic Target) und
+ * `maximumChf` (Walk-Away Price), umrahmt von den beiden offenen Randzonen. `undefined`,
+ * wenn `realistischesZielChf >= maximumChf` (kein sinnvoller Zwischenraum — z.B. wenn das
+ * Renditeziel bereits die Solvenzgrenze erreicht/überschreitet).
+ */
+export function computePriceZones(realistischesZielChf: number, maximumChf: number): PriceZoneBand[] | undefined {
+  if (realistischesZielChf >= maximumChf) return undefined;
+  const spanChf = maximumChf - realistischesZielChf;
+  const step = spanChf / 5;
+  const bounds = [0, 1, 2, 3, 4, 5].map((i) => realistischesZielChf + i * step);
+
+  const zonesInOrder: PriceZone[] = ["EXCEPTIONAL_STRONG_BUY", "VERY_ATTRACTIVE", "ATTRACTIVE", "ACCEPTABLE", "SELECTIVE_NEGOTIATE", "TOO_EXPENSIVE", "REJECT"];
+  return zonesInOrder.map((zone, i) => ({
+    zone,
+    label: PRICE_ZONE_LABELS[zone],
+    lowChf: i === 0 ? undefined : bounds[i - 1],
+    highChf: i === zonesInOrder.length - 1 ? undefined : bounds[i],
+  }));
+}
+
+/** Ordnet einen Kaufpreis der passenden Zone zu — inklusive Untergrenze, exklusive Obergrenze. Fällt auf die letzte Zone (REJECT) zurück, falls (durch Rundungsfehler) keine Zone exakt passt. */
+export function classifyPriceZone(priceChf: number, bands: PriceZoneBand[]): PriceZoneBand {
+  for (const band of bands) {
+    const aboveLow = band.lowChf === undefined || priceChf >= band.lowChf;
+    const belowHigh = band.highChf === undefined || priceChf < band.highChf;
+    if (aboveLow && belowHigh) return band;
+  }
+  return bands[bands.length - 1];
+}
+
+/** Ampel-Ton je Preiszone — dieselbe 3-Ton-Konvention wie überall sonst in der App (Chip/AmpelStatus). */
+export function priceZoneTone(zone: PriceZone): "good" | "warn" | "bad" {
+  if (zone === "EXCEPTIONAL_STRONG_BUY" || zone === "VERY_ATTRACTIVE" || zone === "ATTRACTIVE") return "good";
+  if (zone === "ACCEPTABLE" || zone === "SELECTIVE_NEGOTIATE") return "warn";
+  return "bad";
+}
+
 export interface CashOnCashBreakdown {
   /** = (NOI − Zins) ÷ Eigenkapital × 100 — vor Amortisation, Steuer und Reparatur-/Leerstandsreserve. */
   preAmortizationPercent: number;
