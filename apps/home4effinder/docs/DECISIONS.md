@@ -3192,6 +3192,50 @@ Fortsetzung des Auftrags (Phase 4: Opening-Bid-Faktorenmodell + erweitertes Deci
   `documentTypes.test.ts` (`classifySourceConfidence` alle vier Fälle inkl.
   `undefined` = LOW statt MEDIUM).
 
+## Nachgezogen (2026-08-29): SIPIS-Score-Split (Phase 5, letzte Phase)
+
+Abschluss des Auftrags "Advanced Price Strategy & Investment Value Engine" — Phase 5,
+Nutzer-Zusatzwunsch, wörtlich: "Home4efFinder könnte ausdrücklich zeigen, dass ein
+hervorragendes Objekt nicht automatisch ein hervorragendes Investment ist." Statt eines
+einzigen Gesamtscores jetzt drei getrennte Scores: Market Score, Investment Score,
+Strategic Fit.
+
+- **`sipisScore.ts`** (neu) — bewusst NUR die zwei NEUEN Pfeiler enthalten. Der
+  bestehende `computeInvestmentScore` (investmentScore.ts) bleibt UNVERÄNDERT und wird
+  1:1 als "Investment Score" übernommen — deckt bereits genau das Verlangte ab
+  (Rendite/Cashflow via `renditeScore`, Risiko via `dueDiligenceScore`), keine parallele
+  Neuimplementierung.
+  - **Market Score** = Durchschnitt der verfügbaren Komponenten: Lage (neue
+    0-100-Skalierung der UBS-Wohnattraktivitätsindikator-Kategorien/-Ränge aus PR #71 —
+    KEINE UBS-eigene Zahl, die Mitteilung liefert keine, sondern eine hier transparent
+    dokumentierte Einordnung), Marktpreis-Position (dieselbe Quantil-Logik wie die
+    bestehende Kaufpreis-vs-Markt-Ampel, `estimateQuantilePosition` wiederverwendet,
+    nicht neu gebaut), Markttrend (3-Jahres-Kaufpreisveränderung der Gemeinde aus dem
+    bereits vorhandenen Regionsreport, linear 0-100 skaliert). "Objektqualität"
+    (Auftrag nennt sie explizit) bewusst NICHT eingebaut — HOME4efFINDER hat keine
+    Datenquelle dafür, ein erfundener Wert wäre keine Verbesserung.
+  - **Strategic Fit** = Durchschnitt aus Preiszonen-Position (die 7 Preiszonen aus
+    Phase 2, absteigend auf 100..0 gemappt — "passt der aktuelle Preis zur eigenen
+    Renditestrategie") und Value-Add-Potenzial (Summe der bereits vorhandenen
+    Value-Creation-Beträge aus Phase 3, als Anteil am Kaufpreis skaliert). Beantwortet
+    bewusst eine ANDERE Frage als Investment Score (Deal-Qualität an sich) und Market
+    Score (Standortqualität unabhängig vom eigenen Ziel).
+  - Beide Scores `undefined`, wenn KEINE ihrer Komponenten verfügbar ist — kein
+    erfundener Wert, dieselbe Konvention wie überall sonst in dieser App.
+- **`objekte/[id]/page.tsx`**: Kopfzeile zeigt jetzt bis zu drei Chips
+  (Market/Investment/Strategic-Fit-Score) nebeneinander statt eines einzelnen
+  Investment-Score-Chips, jeder unabhängig ein-/ausblendbar je nach Datenverfügbarkeit,
+  mit Kurz-Breakdown je Score als Sub-Text.
+- Neue Tests: `sipisScore.test.ts` (Lage-Score-Staffelung, Marktpreis-Score an den
+  Quantil-Rändern/-Median, Markttrend-Skalierung inkl. Deckelung, Durchschnittsbildung
+  nur über verfügbare Komponenten, Preiszonen-Mapping 100..0, Value-Add-Skalierung).
+- Damit ist der gesamte Auftrag "Advanced Price Strategy & Investment Value Engine"
+  (20 Abschnitte + SIPIS-Score-Split) über die Phasen 1-5 vollständig umgesetzt, mit
+  den in den jeweiligen Phasen-Einträgen oben einzeln dokumentierten bewussten
+  Abgrenzungen (u.a. keine separate Pro-Szenario-Editier-UI, kein "Superseded"-Zustand
+  im Decision Log ohne echte Lauf-Historie, `askingPriceChf` nicht in der
+  Übernahme-Allowlist).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).
