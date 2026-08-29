@@ -5,6 +5,7 @@ import { CATEGORY_LABEL, CATEGORY_ORDER } from "./dueDiligenceCategories";
 import { DOCUMENT_TYPE_CATALOG } from "./documentTypes";
 import { formatChf } from "./format";
 import { computeBewertungsAmpeln, type AmpelStatus } from "./bewertungsAmpel";
+import { strengsteZielgroesse, verhandlungskorridorRelation } from "./bestandsrendite";
 
 /**
  * Management-Summary als druckbarer One-Pager — Wunsch: "ein zusätzliches management
@@ -93,6 +94,8 @@ export interface ManagementSummaryInput {
   nettoRenditeZielPercent: number;
   /** Vorformatierter Hinweistext aus ubsWohnattraktivitaet.ts, falls die Gemeinde dort genannt ist — sonst undefined (kein Platzhalter-Text). */
   ubsWohnattraktivitaetHinweis?: string;
+  /** Aktueller Inseratpreis (`property.asking_price_chf`) — setzt den Verhandlungskorridor in Relation dazu, siehe verhandlungskorridorRelation in bestandsrendite.ts. */
+  inseratpreisChf: number;
 }
 
 function ManagementSummaryDocument({
@@ -108,6 +111,7 @@ function ManagementSummaryDocument({
   bruttoRenditeZielPercent,
   nettoRenditeZielPercent,
   ubsWohnattraktivitaetHinweis,
+  inseratpreisChf,
 }: ManagementSummaryInput) {
   const { schnellcheck, investmentCase, noiBreakdown, mehrjahresmodell, hypothek } = analysis;
   const missingZwingend = dueDiligence?.missingDocuments.filter((m) => m.priority === "ZWINGEND") ?? [];
@@ -115,6 +119,9 @@ function ManagementSummaryDocument({
   const alt = moeblierungsAlternative;
   const altLabel = alt ? `Alt. (${alt.label})` : "";
   const lastYear = mehrjahresmodell.years[mehrjahresmodell.years.length - 1];
+  const realistischesZielChf = verhandlungskorridor ? strengsteZielgroesse(verhandlungskorridor) : undefined;
+  const realistischesZielRelation = verhandlungskorridorRelation(realistischesZielChf, inseratpreisChf);
+  const maximumRelation = verhandlungskorridorRelation(verhandlungskorridor?.maximumChf, inseratpreisChf);
   // Kein `regionMarkt` hier — der One-Pager bleibt bewusst kompakt und ohne den
   // zusätzlichen (asynchronen) Regionsreport-Datenzugriff, siehe DECISIONS.md. Auf der
   // Objektseite selbst (BewertungsuebersichtView) ist die Kaufpreis-vs-Markt-Ampel
@@ -193,7 +200,7 @@ function ManagementSummaryDocument({
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Nachhaltiger Cashflow p.a.</Text>
-            <Text style={[styles.metricValue, { color: investmentCase.wasserfall.nachhaltigerCashflowChf >= 0 ? "#4f6e38" : "#9b3b30" }]}>
+            <Text style={[styles.metricValue, { color: investmentCase.wasserfall.nachhaltigerCashflowChf >= 0 ? "#4f6e38" : STATUS_COLOR.bad }]}>
               CHF {formatChf(Math.round(investmentCase.wasserfall.nachhaltigerCashflowChf))}
             </Text>
           </View>
@@ -281,6 +288,13 @@ function ManagementSummaryDocument({
         {verhandlungskorridor?.maximumChf !== undefined ? (
           <>
             <Text style={styles.sectionTitle}>Verhandlungskorridor</Text>
+            {realistischesZielRelation ? (
+              <Text style={{ fontSize: 7.5, marginBottom: 3 }}>
+                {realistischesZielRelation.diffChf < 0
+                  ? `Verhandlungsspielraum: CHF ${formatChf(Math.abs(Math.round(realistischesZielRelation.diffChf)))} (${Math.abs(realistischesZielRelation.diffPercent).toFixed(1)}%) unter Inseratpreis CHF ${formatChf(Math.round(inseratpreisChf))}`
+                  : `Realistisches Ziel (CHF ${formatChf(Math.round(realistischesZielChf!))}) liegt bereits auf/über dem Inseratpreis CHF ${formatChf(Math.round(inseratpreisChf))}`}
+              </Text>
+            ) : null}
             <View style={styles.metricsGrid}>
               <View style={styles.metric}>
                 <Text style={styles.metricLabel}>Eröffnungsangebot</Text>
@@ -303,7 +317,12 @@ function ManagementSummaryDocument({
               </View>
               <View style={styles.metric}>
                 <Text style={styles.metricLabel}>Maximum</Text>
-                <Text style={styles.metricValue}>CHF {formatChf(Math.round(verhandlungskorridor.maximumChf))}</Text>
+                <Text style={[styles.metricValue, maximumRelation && maximumRelation.diffChf < 0 ? { color: STATUS_COLOR.bad } : undefined]}>
+                  CHF {formatChf(Math.round(verhandlungskorridor.maximumChf))}
+                </Text>
+                {maximumRelation && maximumRelation.diffChf < 0 ? (
+                  <Text style={[styles.metricSub, { color: STATUS_COLOR.bad }]}>unter Inseratpreis — nicht cashflow-tragfähig zum Inseratpreis</Text>
+                ) : null}
                 {alt && alt.verhandlungskorridor.maximumChf !== undefined ? (
                   <Text style={styles.metricSub}>{altLabel}: CHF {formatChf(Math.round(alt.verhandlungskorridor.maximumChf))}</Text>
                 ) : null}

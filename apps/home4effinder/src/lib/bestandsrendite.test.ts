@@ -3,6 +3,8 @@ import {
   computeBestandsrenditeAnalysis,
   computeVerhandlungskorridor,
   computePreisStufentabelle,
+  strengsteZielgroesse,
+  verhandlungskorridorRelation,
   parseBestandsrenditeFacts,
   applyFieldUpdate,
   isAllowedUpdateField,
@@ -483,6 +485,42 @@ describe("computePreisStufentabelle", () => {
     const korridorZielWenigerStreng = { maximumChf: 900_000, zielChf: 850_000, nettoZielChf: 800_000, eroeffnungChf: undefined };
     const stufenUmgekehrt = computePreisStufentabelle(property, fullFacts, korridorZielWenigerStreng);
     expect(stufenUmgekehrt[0].kaufpreisChf).toBe(800_000);
+  });
+});
+
+describe("strengsteZielgroesse", () => {
+  it("wählt die tiefere der beiden Zielgrössen, wenn beide gesetzt sind", () => {
+    expect(strengsteZielgroesse({ zielChf: 800_000, nettoZielChf: 850_000 })).toBe(800_000);
+    expect(strengsteZielgroesse({ zielChf: 850_000, nettoZielChf: 800_000 })).toBe(800_000);
+  });
+
+  it("fällt auf die jeweils einzeln gesetzte Grösse zurück, wenn nur eine definiert ist", () => {
+    expect(strengsteZielgroesse({ zielChf: 800_000, nettoZielChf: undefined })).toBe(800_000);
+    expect(strengsteZielgroesse({ zielChf: undefined, nettoZielChf: 800_000 })).toBe(800_000);
+  });
+
+  it("liefert undefined, wenn keine der beiden Grössen gesetzt ist", () => {
+    expect(strengsteZielgroesse({ zielChf: undefined, nettoZielChf: undefined })).toBeUndefined();
+  });
+});
+
+describe("verhandlungskorridorRelation", () => {
+  it("berechnet CHF- und Prozent-Differenz zum Inseratpreis — negativ, wenn der Punkt unter dem Inseratpreis liegt", () => {
+    const relation = verhandlungskorridorRelation(783_000, 870_000);
+    expect(relation).toBeDefined();
+    expect(relation!.diffChf).toBe(-87_000);
+    expect(relation!.diffPercent).toBeCloseTo(-10, 5);
+  });
+
+  it("berechnet eine positive Differenz, wenn der Punkt über dem Inseratpreis liegt", () => {
+    const relation = verhandlungskorridorRelation(950_000, 870_000);
+    expect(relation!.diffChf).toBe(80_000);
+    expect(relation!.diffPercent).toBeGreaterThan(0);
+  });
+
+  it("liefert undefined, wenn der Punkt selbst undefined ist oder kein positiver Inseratpreis vorliegt", () => {
+    expect(verhandlungskorridorRelation(undefined, 870_000)).toBeUndefined();
+    expect(verhandlungskorridorRelation(800_000, 0)).toBeUndefined();
   });
 });
 
