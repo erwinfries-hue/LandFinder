@@ -4,7 +4,10 @@ import { formatChf } from "@/lib/format";
 import { renditeAmpelColor } from "@/lib/investmentScore";
 import { strengsteZielgroesse, verhandlungskorridorRelation } from "@/lib/bestandsrendite";
 import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, PreisStufe, MoeblierungsAlternative } from "@/lib/bestandsrendite";
-import type { MarketValueRange, CashOnCashBreakdown } from "@/lib/priceStrategy";
+import { computePriceZones, classifyPriceZone, priceZoneTone } from "@/lib/priceStrategy";
+import type { MarketValueRange, CashOnCashBreakdown, PriceZoneBand } from "@/lib/priceStrategy";
+
+const PRICE_ZONE_TONE_BG: Record<"good" | "warn" | "bad", string> = { good: "var(--good-bg)", warn: "var(--warn-bg)", bad: "var(--bad-bg)" };
 
 const VERHANDLUNGSKORRIDOR_BAR_TONE: Record<string, string> = {
   eroeffnung: "var(--ink-faint)",
@@ -30,6 +33,7 @@ function VerhandlungskorridorBar({
   marktMedianKaufpreisChf,
   inseratpreisChf,
   maximumChf,
+  zoneBands,
 }: {
   eroeffnungChf: number | undefined;
   realistischesZielChf: number | undefined;
@@ -37,6 +41,8 @@ function VerhandlungskorridorBar({
   marktMedianKaufpreisChf: number | undefined;
   inseratpreisChf: number;
   maximumChf: number;
+  /** 7-stufige Preisampel-Bänder (siehe priceStrategy.ts::computePriceZones) — als farbige Hintergrundsegmente hinter den Punkten, `undefined` wenn kein sinnvoller Zonenbereich existiert (Auftrag Abschnitt 12: "Visualisierung [...] als horizontaler Price Corridor"). */
+  zoneBands?: PriceZoneBand[];
 }) {
   const points: { key: string; label: string; value: number }[] = [];
   if (eroeffnungChf !== undefined) points.push({ key: "eroeffnung", label: "Eröffnung", value: eroeffnungChf });
@@ -56,7 +62,24 @@ function VerhandlungskorridorBar({
 
   return (
     <div style={{ marginTop: ".9rem", marginBottom: "1.1rem" }}>
-      <div style={{ position: "relative", height: "8px", background: "var(--line)", borderRadius: "4px", margin: "0 .4rem" }}>
+      <div style={{ position: "relative", height: "8px", background: "var(--line)", borderRadius: "4px", margin: "0 .4rem", overflow: "hidden" }}>
+        {zoneBands
+          ? zoneBands.map((band) => {
+              const bandLowChf = band.lowChf ?? min;
+              const bandHighChf = band.highChf ?? max;
+              // Nur den innerhalb [min, max] sichtbaren Ausschnitt des Bands zeichnen — offene Randzonen (Exceptional/Reject) reichen sonst über den sichtbaren Bereich hinaus.
+              const left = Math.max(0, percent(bandLowChf));
+              const right = Math.min(100, percent(bandHighChf));
+              if (right <= left) return null;
+              return (
+                <div
+                  key={band.zone}
+                  title={`${band.label}: ${band.lowChf !== undefined ? `ab CHF ${formatChf(Math.round(band.lowChf))}` : "offen"} bis ${band.highChf !== undefined ? `CHF ${formatChf(Math.round(band.highChf))}` : "offen"}`}
+                  style={{ position: "absolute", left: `${left}%`, width: `${right - left}%`, top: 0, bottom: 0, background: PRICE_ZONE_TONE_BG[priceZoneTone(band.zone)] }}
+                />
+              );
+            })
+          : null}
         {points.map((p) => (
           <div
             key={p.key}
@@ -203,6 +226,17 @@ export function BestandsrenditeAnalysisView({
   // strengere der beiden gesetzten Zielgrössen, dieselbe Logik wie der untere Anker der
   // Preis-Stufentabelle (siehe strengsteZielgroesse).
   const realistischesZielChf = verhandlungskorridor ? strengsteZielgroesse(verhandlungskorridor) : undefined;
+  // 7-stufige Preisampel (Auftrag Abschnitt 7) — ausschliesslich aus den beiden
+  // finanziellen Ankerpunkten abgeleitet (realistisches Ziel/Economic Target und
+  // Maximum/Walk-Away Price), NICHT aus dem Marktwert (siehe priceStrategy.ts-
+  // Modulkommentar: "Strong Buy != günstiger als Markt"). `undefined`, wenn kein
+  // sinnvoller Zonenbereich existiert (kein Renditeziel gesetzt, oder das Ziel erreicht
+  // die Solvenzgrenze bereits).
+  const priceZoneBands =
+    realistischesZielChf !== undefined && verhandlungskorridor?.maximumChf !== undefined
+      ? computePriceZones(realistischesZielChf, verhandlungskorridor.maximumChf)
+      : undefined;
+  const inseratpreisZone = priceZoneBands ? classifyPriceZone(inseratpreisChf, priceZoneBands) : undefined;
   const eroeffnungRelation = verhandlungskorridorRelation(verhandlungskorridor?.eroeffnungChf, inseratpreisChf);
   const zielRelation = verhandlungskorridorRelation(verhandlungskorridor?.zielChf, inseratpreisChf);
   const nettoZielRelation = verhandlungskorridorRelation(verhandlungskorridor?.nettoZielChf, inseratpreisChf);
@@ -364,6 +398,11 @@ export function BestandsrenditeAnalysisView({
                   ? `unter dem Inseratpreis von CHF ${formatChf(Math.round(inseratpreisChf))} — realistisches Ziel CHF ${formatChf(Math.round(realistischesZielChf!))}`
                   : `— das realistische Ziel (CHF ${formatChf(Math.round(realistischesZielChf!))}) liegt bereits auf oder über dem Inseratpreis (CHF ${formatChf(Math.round(inseratpreisChf))}): der Deal erreicht das Renditeziel schon zum Inseratpreis.`}
               </span>
+              {inseratpreisZone ? (
+                <span style={{ marginLeft: "auto" }}>
+                  <Chip tone={priceZoneTone(inseratpreisZone.zone)}>Preiszone: {inseratpreisZone.label}</Chip>
+                </span>
+              ) : null}
             </div>
           ) : null}
 
@@ -373,6 +412,7 @@ export function BestandsrenditeAnalysisView({
             marktMedianKaufpreisChf={marktMedianKaufpreisChf}
             inseratpreisChf={inseratpreisChf}
             maximumChf={verhandlungskorridor.maximumChf}
+            zoneBands={priceZoneBands}
           />
 
           <div className="metricgrid">
@@ -461,27 +501,40 @@ export function BestandsrenditeAnalysisView({
                       <th>Kaufpreis</th>
                       <th>Bruttorendite</th>
                       <th>Nettorendite</th>
-                      <th>Nachhaltiger Cashflow</th>
+                      <th>Total-Investition</th>
+                      <th>Eigenkapital</th>
+                      <th>Cashflow</th>
+                      <th>Cash-on-Cash</th>
+                      {priceZoneBands ? <th>Preiszone</th> : null}
                     </tr>
                   </thead>
                   <tbody>
-                    {preisStufentabelle.map((stufe) => (
-                      <tr key={stufe.kaufpreisChf} style={stufe.istAktuellerKaufpreis ? { fontWeight: 600 } : undefined}>
-                        <td className="num mono">
-                          CHF {formatChf(stufe.kaufpreisChf)}
-                          {stufe.istAktuellerKaufpreis ? " (aktuell)" : ""}
-                        </td>
-                        <td className="num mono" style={{ color: renditeAmpelColor(stufe.bruttoRenditePercent, bruttoRenditeZielPercent) }}>
-                          {stufe.bruttoRenditePercent.toFixed(2)}%
-                        </td>
-                        <td className="num mono" style={{ color: renditeAmpelColor(stufe.nettoRenditeVorFinanzierungPercent, nettoRenditeZielPercent) }}>
-                          {stufe.nettoRenditeVorFinanzierungPercent.toFixed(2)}%
-                        </td>
-                        <td className="num mono" style={{ color: stufe.nachhaltigerCashflowChf < 0 ? "var(--bad)" : undefined }}>
-                          CHF {formatChf(Math.round(stufe.nachhaltigerCashflowChf))}
-                        </td>
-                      </tr>
-                    ))}
+                    {preisStufentabelle.map((stufe) => {
+                      const stufenZone = priceZoneBands ? classifyPriceZone(stufe.kaufpreisChf, priceZoneBands) : undefined;
+                      return (
+                        <tr key={stufe.kaufpreisChf} style={stufe.istAktuellerKaufpreis ? { fontWeight: 600 } : undefined}>
+                          <td className="num mono">
+                            CHF {formatChf(stufe.kaufpreisChf)}
+                            {stufe.anchorLabel ? ` (${stufe.anchorLabel})` : ""}
+                          </td>
+                          <td className="num mono" style={{ color: renditeAmpelColor(stufe.bruttoRenditePercent, bruttoRenditeZielPercent) }}>
+                            {stufe.bruttoRenditePercent.toFixed(2)}%
+                          </td>
+                          <td className="num mono" style={{ color: renditeAmpelColor(stufe.nettoRenditeVorFinanzierungPercent, nettoRenditeZielPercent) }}>
+                            {stufe.nettoRenditeVorFinanzierungPercent.toFixed(2)}%
+                          </td>
+                          <td className="num mono">CHF {formatChf(Math.round(stufe.totalInvestitionChf))}</td>
+                          <td className="num mono">CHF {formatChf(Math.round(stufe.eigenkapitalChf))}</td>
+                          <td className="num mono" style={{ color: stufe.nachhaltigerCashflowChf < 0 ? "var(--bad)" : undefined }}>
+                            CHF {formatChf(Math.round(stufe.nachhaltigerCashflowChf))}
+                          </td>
+                          <td className="num mono">{stufe.cashOnCashPercent.toFixed(2)}%</td>
+                          {priceZoneBands ? (
+                            <td>{stufenZone ? <Chip tone={priceZoneTone(stufenZone.zone)}>{stufenZone.label}</Chip> : null}</td>
+                          ) : null}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

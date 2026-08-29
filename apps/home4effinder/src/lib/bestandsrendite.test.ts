@@ -486,6 +486,51 @@ describe("computePreisStufentabelle", () => {
     const stufenUmgekehrt = computePreisStufentabelle(property, fullFacts, korridorZielWenigerStreng);
     expect(stufenUmgekehrt[0].kaufpreisChf).toBe(800_000);
   });
+
+  it("ergänzt Economic Target/Investment Value/Walk-Away Price/Angebotspreis als exakte, benannte Zeilen — auch ausserhalb der interpolierten Spanne", () => {
+    // maximumChf (900k) liegt bewusst weit ausserhalb der interpolierten Spanne
+    // (Economic Target 800k bis Angebotspreis 870k) — muss trotzdem als eigene Zeile
+    // erscheinen (Auftrag: "Walk-Away Price muss als eigene Zeile enthalten sein").
+    const korridor = { maximumChf: 900_000, zielChf: 800_000, nettoZielChf: 820_000, eroeffnungChf: undefined };
+    const stufen = computePreisStufentabelle(property, fullFacts, korridor);
+
+    const economicTarget = stufen.find((s) => s.kaufpreisChf === 800_000);
+    expect(economicTarget?.anchorLabel).toBe("Economic Target");
+    const investmentValue = stufen.find((s) => s.kaufpreisChf === 820_000);
+    expect(investmentValue?.anchorLabel).toBe("Investment Value");
+    const angebotspreis = stufen.find((s) => s.kaufpreisChf === 870_000);
+    expect(angebotspreis?.anchorLabel).toBe("Angebotspreis");
+    const walkAway = stufen.find((s) => s.kaufpreisChf === 900_000);
+    expect(walkAway).toBeDefined();
+    expect(walkAway?.anchorLabel).toBe("Walk-Away Price");
+    // Aufsteigend sortiert bleibt auch mit dem ausserhalb liegenden Anker erhalten.
+    expect(stufen[stufen.length - 1].kaufpreisChf).toBe(900_000);
+
+    // Zwischenstufen ohne besondere Bedeutung bleiben unbenannt.
+    const zwischenstufe = stufen.find((s) => s.kaufpreisChf !== 800_000 && s.kaufpreisChf !== 820_000 && s.kaufpreisChf !== 870_000 && s.kaufpreisChf !== 900_000);
+    expect(zwischenstufe?.anchorLabel).toBeUndefined();
+  });
+
+  it("führt mehrere zusammenfallende Anker zu einem gemeinsamen Label zusammen, statt doppelte Zeilen zu erzeugen", () => {
+    // zielChf und nettoZielChf identisch (400k) -> Economic Target UND Investment Value fallen zusammen.
+    const korridor = { maximumChf: 900_000, zielChf: 400_000, nettoZielChf: 400_000, eroeffnungChf: undefined };
+    const stufen = computePreisStufentabelle(property, fullFacts, korridor);
+    const zusammenfall = stufen.find((s) => s.kaufpreisChf === 400_000);
+    expect(zusammenfall?.anchorLabel).toBe("Economic Target / Investment Value");
+    // Keine doppelte Zeile für denselben Kaufpreis.
+    expect(stufen.filter((s) => s.kaufpreisChf === 400_000)).toHaveLength(1);
+  });
+
+  it("liefert je Zeile Total-Investition/Eigenkapital/Cash-on-Cash konsistent mit einer direkten Neuberechnung", () => {
+    const korridor = computeVerhandlungskorridor(property, fullFacts);
+    const stufen = computePreisStufentabelle(property, fullFacts, korridor);
+    for (const stufe of stufen) {
+      const direkt = computeBestandsrenditeAnalysis({ ...property, kaufpreisChf: stufe.kaufpreisChf }, fullFacts);
+      expect(stufe.totalInvestitionChf).toBeCloseTo(direkt.allInInvestitionChf, 2);
+      expect(stufe.eigenkapitalChf).toBeCloseTo(direkt.eigenkapitalChf, 2);
+      expect(stufe.cashOnCashPercent).toBeCloseTo(direkt.investmentCase.cashOnCashPercent, 6);
+    }
+  });
 });
 
 describe("computeBestandsrenditeAnalysis — incrementalFurnitureNoi", () => {

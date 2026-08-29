@@ -3012,6 +3012,58 @@ Faktorenmodell erst in einer späteren Phase.
   Opening-Bid-Faktorenmodell/erweitertes Decision Log/Confidence-Badges an weiteren
   Stellen (Phase 4), SIPIS-Score-Split in Market/Investment/Strategic-Fit (Phase 5).
 
+## Nachgezogen (2026-08-29): Advanced Price Strategy & Investment Value Engine — Phase 2
+
+Fortsetzung des Auftrags aus Phase 1 (nutzerseitig bestätigt: "baue jetzt Phase 2 bis 5").
+Phase 2: 7-stufige Preisampel + erweiterte Corridor-Visualisierung + erweiterte
+Preis-Stufentabelle.
+
+- **`priceStrategy.ts`**: `computePriceZones(realistischesZielChf, maximumChf)` — 7
+  Zonen (Exceptional/Strong Buy … Reject), die 5 mittleren als gleich breite CHF-Bänder
+  zwischen den beiden bereits vorhandenen finanziellen Ankerpunkten (Economic Target =
+  `strengsteZielgroesse`, Walk-Away Price = `maximumChf`). Bewusst NICHT aus dem
+  Marktwert abgeleitet (Auftrag, wörtlich: "Strong Buy != günstiger als Markt. Ein
+  Strong Buy muss wirtschaftlich attraktiv sein") — der Marktwert bleibt in der
+  separaten, bereits in Phase 1 gebauten Preisstrategie-Interpretation. `undefined`, wenn
+  Economic Target die Walk-Away-Grenze bereits erreicht/überschreitet (kein sinnvoller
+  Zwischenraum). `classifyPriceZone(preis, bands)` ordnet einen Kaufpreis zu (inklusive
+  Untergrenze, exklusive Obergrenze). `priceZoneTone(zone)` mappt auf die bestehende
+  3-Ton-Konvention (good/warn/bad) — bewusst nur 3 Farben für 7 Zonen, keine neue
+  4./5. Farbe eingeführt, dieselbe Konvention wie überall sonst in der App.
+- **`bestandsrendite.ts`**: `PreisStufe` um `totalInvestitionChf`/`eigenkapitalChf`/
+  `cashOnCashPercent` (alle drei direkt aus der ohnehin pro Zeile bereits laufenden
+  `computeBestandsrenditeAnalysis`-Neuberechnung gelesen, keine neue Formel) sowie
+  `anchorLabel` erweitert. `computePreisStufentabelle` ergänzt jetzt zusätzlich zu den
+  interpolierten Zwischenstufen vier benannte Ankerpunkte EXAKT (nicht gerundet) —
+  Economic Target/Investment Value (`nettoZielChf`)/Walk-Away Price
+  (`maximumChf`)/Angebotspreis — auch wenn sie ausserhalb der ursprünglichen
+  interpolierten Spanne liegen (Auftrag: "mindestens [diese vier] müssen als eigene
+  Zeilen enthalten sein"). Das bestehende Design "dichte Interpolation bewusst NICHT bis
+  maximumChf" (siehe Phase-„Preis-Stufentabelle"-Eintrag oben) bleibt für die
+  Zwischenstufen unverändert — nur der Walk-Away-Punkt SELBST wird jetzt zusätzlich als
+  einzelne Zeile sichtbar. Fallen mehrere Anker auf denselben Kaufpreis (z.B. Brutto- und
+  Nettorendite-Zielpreis identisch), werden ihre Labels zu einer Zeile zusammengeführt
+  statt Duplikate zu erzeugen. Die bisherige Randbedingung "leere Tabelle, wenn Ziel und
+  aktueller Kaufpreis nach Rundung zusammenfallen" bleibt unverändert (kein Sonderfall
+  mit nur Anker-Zeilen ohne jede Zwischenstufe) — bestehende Tests dafür bleiben grün.
+- **`BestandsrenditeAnalysisView.tsx`**:
+  - `VerhandlungskorridorBar` um farbige Hintergrundsegmente hinter den Punkt-Markern
+    erweitert (neuer optionaler Prop `zoneBands`) — dieselben `--good-bg`/`--warn-bg`/
+    `--bad-bg`-Tokens wie die bestehenden `Chip`-Farben, damit Zonenfarbe und Chip-Farbe
+    exakt übereinstimmen. Nur der innerhalb `[min, max]` sichtbare Ausschnitt jedes Bands
+    wird gezeichnet (die beiden offenen Randzonen reichen sonst über den sichtbaren
+    Bereich hinaus).
+  - Neuer Chip "Preiszone: …" neben der bestehenden Verhandlungsspielraum-Kopfzeile,
+    zeigt die Zone des AKTUELLEN Inseratpreises.
+  - Preis-Stufentabelle: drei neue Spalten (Total-Investition/Eigenkapital/
+    Cash-on-Cash) plus eine "Preiszone"-Spalte (Chip je Zeile), Kaufpreis-Zelle zeigt
+    jetzt `anchorLabel` in Klammern statt des bisherigen festen "(aktuell)"-Suffixes
+    (deckt "Angebotspreis" als eigenen, aussagekräftigeren Anker-Namen ab).
+- Neue Tests: `priceStrategy.test.ts` (Zonen-Grenzen inkl./exkl., Randfall
+  Target≥Maximum, Zone-Ton-Mapping) und `bestandsrendite.test.ts` (Anker-Labels exakt
+  ausserhalb der interpolierten Spanne, zusammenfallende Anker, neue Spalten konsistent
+  mit einer direkten Neuberechnung).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

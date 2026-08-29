@@ -786,8 +786,21 @@ export interface PreisStufe {
   bruttoRenditePercent: number;
   nettoRenditeVorFinanzierungPercent: number;
   nachhaltigerCashflowChf: number;
+  /** = `allInInvestitionChf` bei diesem Kaufpreis (Kaufpreis + Nebenkosten + Renovation + Reparatur + Möblierung). */
+  totalInvestitionChf: number;
+  /** = All-in-Investition − Hypothek bei diesem Kaufpreis. */
+  eigenkapitalChf: number;
+  /** = nachhaltiger Cashflow ÷ Eigenkapital × 100 bei diesem Kaufpreis — dieselbe (vollständigste) Definition wie `investmentCase.cashOnCashPercent`. */
+  cashOnCashPercent: number;
   /** `true` für genau die Zeile, die exakt dem aktuellen Kaufpreis (`property.kaufpreisChf`) entspricht — dieser wird der (auf CHF 5'000 gerundeten) Stufenliste immer exakt hinzugefügt, statt darauf zu hoffen, dass ihn eine Rundung zufällig trifft, damit die UI ihn zuverlässig hervorheben kann. */
   istAktuellerKaufpreis: boolean;
+  /**
+   * Benannte(r) Ankerpunkt(e), die exakt auf diesen Kaufpreis fallen — "Economic
+   * Target"/"Investment Value"/"Walk-Away Price"/"Angebotspreis", mit " / " verbunden,
+   * falls mehrere zusammenfallen (z.B. wenn Brutto- und Nettorendite-Zielpreis identisch
+   * sind). `undefined` für reine Zwischenstufen ohne besondere Bedeutung.
+   */
+  anchorLabel: string | undefined;
 }
 
 /**
@@ -797,18 +810,29 @@ export interface PreisStufe {
  * "was passiert mit Rendite/Cashflow bei diesem Kaufpreis" über mehrere Preisschritte —
  * genau die Kurve, die man in einer echten Verhandlung braucht, nicht nur die Endpunkte.
  *
- * Die Spanne ergibt sich aus den bereits vorhandenen Korridor-Werten: von der
- * strengsten gesetzten Zielgrösse (`nettoZielChf`, sonst `zielChf`) bis zum aktuellen
- * Kaufpreis — unabhängig davon, ob der aktuelle Preis über oder unter dem Ziel liegt
- * (Reihenfolge wird über min/max hergestellt, nicht angenommen). Bewusst NICHT bis
- * `maximumChf`: das ist eine reine Cashflow-Solvenzgrenze, die bei tiefen Zinsen weit
- * ausserhalb jeder sinnvollen Verhandlungsspanne liegen kann (siehe Verhandlungskorridor-
- * Dokumentation) und die Tabelle unbrauchbar strecken würde. Beide Enden werden auf CHF
- * 5'000 gerundet, damit die Stufen "runde", verhandlungstaugliche Preise zeigen statt
- * krummer Bisektions-Zwischenwerte.
+ * Die INTERPOLIERTEN Zwischenstufen ergeben sich aus den bereits vorhandenen
+ * Korridor-Werten: von der strengsten gesetzten Zielgrösse (`nettoZielChf`, sonst
+ * `zielChf`) bis zum aktuellen Kaufpreis — unabhängig davon, ob der aktuelle Preis über
+ * oder unter dem Ziel liegt (Reihenfolge wird über min/max hergestellt, nicht
+ * angenommen). Diese Zwischenstufen reichen bewusst NICHT bis `maximumChf`: das ist eine
+ * reine Cashflow-Solvenzgrenze, die bei tiefen Zinsen weit ausserhalb jeder sinnvollen
+ * Verhandlungsspanne liegen kann und die dichte Interpolation unbrauchbar strecken würde.
+ * Beide Enden werden auf CHF 5'000 gerundet, damit die Stufen "runde",
+ * verhandlungstaugliche Preise zeigen statt krummer Bisektions-Zwischenwerte.
  *
- * `[]`, wenn kein sinnvoller Bereich existiert (kein Renditeziel gesetzt und Maximum
- * `undefined`, oder Ziel-Preis und aktueller Kaufpreis fallen nach Rundung zusammen).
+ * ZUSÄTZLICH werden vier benannte Ankerpunkte exakt (nicht gerundet) ergänzt, auch wenn
+ * sie ausserhalb der interpolierten Spanne liegen — Auftrag "Advanced Price Strategy
+ * Engine": "mindestens Investment Value / Economic Target / aktuelles Angebot /
+ * Walk-Away Price müssen als eigene Zeilen enthalten sein" (siehe `anchorLabel` in
+ * `PreisStufe`). Das widerspricht der obigen "nicht bis maximumChf"-Entscheidung nicht:
+ * die DICHTE Interpolation bleibt auf die sinnvolle Spanne begrenzt, nur der
+ * Walk-Away-Punkt selbst wird als einzelne zusätzliche Zeile sichtbar gemacht.
+ *
+ * `[]`, wenn kein sinnvoller interpolierter Bereich existiert (kein Renditeziel gesetzt
+ * und Maximum `undefined`, oder Ziel-Preis und aktueller Kaufpreis fallen nach Rundung
+ * zusammen) — auch dann werden bewusst KEINE nackten Anker-Zeilen ohne jede
+ * Zwischenstufe gezeigt, um dieselbe Fallunterscheidung wie bisher (leere Tabelle statt
+ * einer Tabelle mit nur einer Zeile) beizubehalten.
  */
 export function computePreisStufentabelle(
   property: BestandsrenditePropertyInput,
@@ -826,19 +850,40 @@ export function computePreisStufentabelle(
   if (tiefChf >= hochChf || steps < 2) return [];
 
   const gerundeteStufenpreise = Array.from({ length: steps }, (_, i) => Math.round(tiefChf + ((hochChf - tiefChf) * i) / (steps - 1)));
-  // Aktuellen Kaufpreis EXAKT ergänzen (nicht gerundet) statt darauf zu hoffen, dass ihn
-  // eine der gerundeten Stufen zufällig trifft — sonst liesse sich "aktueller Kaufpreis"
-  // in der UI nicht zuverlässig hervorheben.
-  const alleKaufpreise = Array.from(new Set([...gerundeteStufenpreise, property.kaufpreisChf])).sort((a, b) => a - b);
+
+  // Benannte Ankerpunkte exakt (nicht gerundet) ergänzen — siehe Funktionskommentar.
+  // Mehrere Anker können auf denselben Kaufpreis fallen (z.B. wenn Brutto- und
+  // Nettorendite-Zielpreis identisch sind, oder wenn der aktuelle Kaufpreis selbst genau
+  // dem Economic Target entspricht) — dann werden ihre Labels zusammengeführt, statt
+  // doppelte Zeilen zu erzeugen.
+  const ankerpunkte: { kaufpreisChf: number; label: string }[] = [
+    { kaufpreisChf: zielAnker, label: "Economic Target" },
+    ...(verhandlungskorridor.nettoZielChf !== undefined ? [{ kaufpreisChf: verhandlungskorridor.nettoZielChf, label: "Investment Value" }] : []),
+    ...(verhandlungskorridor.maximumChf !== undefined ? [{ kaufpreisChf: verhandlungskorridor.maximumChf, label: "Walk-Away Price" }] : []),
+    { kaufpreisChf: property.kaufpreisChf, label: "Angebotspreis" },
+  ];
+  const anchorLabelsByPreis = new Map<number, string[]>();
+  for (const { kaufpreisChf, label } of ankerpunkte) {
+    anchorLabelsByPreis.set(kaufpreisChf, [...(anchorLabelsByPreis.get(kaufpreisChf) ?? []), label]);
+  }
+  for (const kaufpreisChf of gerundeteStufenpreise) {
+    if (!anchorLabelsByPreis.has(kaufpreisChf)) anchorLabelsByPreis.set(kaufpreisChf, []);
+  }
+  const alleKaufpreise = Array.from(anchorLabelsByPreis.keys()).sort((a, b) => a - b);
 
   return alleKaufpreise.map((kaufpreisChf) => {
     const analysis = computeBestandsrenditeAnalysis({ ...property, kaufpreisChf }, facts, parameterOverrides);
+    const labels = anchorLabelsByPreis.get(kaufpreisChf) ?? [];
     return {
       kaufpreisChf,
       bruttoRenditePercent: analysis.investmentCase.bruttoRenditeKaufpreisPercent,
       nettoRenditeVorFinanzierungPercent: analysis.investmentCase.nettoRenditeVorFinanzierungPercent,
       nachhaltigerCashflowChf: analysis.investmentCase.wasserfall.nachhaltigerCashflowChf,
+      totalInvestitionChf: analysis.allInInvestitionChf,
+      eigenkapitalChf: analysis.eigenkapitalChf,
+      cashOnCashPercent: analysis.investmentCase.cashOnCashPercent,
       istAktuellerKaufpreis: kaufpreisChf === property.kaufpreisChf,
+      anchorLabel: labels.length > 0 ? labels.join(" / ") : undefined,
     };
   });
 }
