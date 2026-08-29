@@ -8,6 +8,7 @@ import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, PreisStufe, M
 const VERHANDLUNGSKORRIDOR_BAR_TONE: Record<string, string> = {
   eroeffnung: "var(--ink-faint)",
   ziel: "var(--accent)",
+  marktMedian: "var(--neutral-ink)",
   inserat: "var(--warn)",
   maximum: "var(--bad)",
 };
@@ -25,17 +26,21 @@ const VERHANDLUNGSKORRIDOR_BAR_TONE: Record<string, string> = {
 function VerhandlungskorridorBar({
   eroeffnungChf,
   realistischesZielChf,
+  marktMedianKaufpreisChf,
   inseratpreisChf,
   maximumChf,
 }: {
   eroeffnungChf: number | undefined;
   realistischesZielChf: number | undefined;
+  /** Markt-Median-Kaufpreis der Gemeinde (Regionsreport), `undefined` wenn keiner vorliegt — siehe Prop-Kommentar am Panel unten. */
+  marktMedianKaufpreisChf: number | undefined;
   inseratpreisChf: number;
   maximumChf: number;
 }) {
   const points: { key: string; label: string; value: number }[] = [];
   if (eroeffnungChf !== undefined) points.push({ key: "eroeffnung", label: "Eröffnung", value: eroeffnungChf });
   if (realistischesZielChf !== undefined) points.push({ key: "ziel", label: "Realistisches Ziel", value: realistischesZielChf });
+  if (marktMedianKaufpreisChf !== undefined) points.push({ key: "marktMedian", label: "Markt-Median (Gemeinde)", value: marktMedianKaufpreisChf });
   points.push({ key: "inserat", label: "Inseratpreis", value: inseratpreisChf });
   points.push({ key: "maximum", label: "Maximum", value: maximumChf });
 
@@ -95,6 +100,7 @@ export function BestandsrenditeAnalysisView({
   bruttoRenditeZielPercent,
   nettoRenditeZielPercent,
   inseratpreisChf,
+  marktMedianKaufpreisChf,
 }: {
   result: BestandsrenditeAnalysisResult;
   /** `undefined`/`null`, wenn `computeVerhandlungskorridor` keine Bisektionslösung fand (Objekt trägt sich unter keinen Umständen). */
@@ -125,6 +131,15 @@ export function BestandsrenditeAnalysisView({
    * `verhandlungskorridorRelation`.
    */
   inseratpreisChf: number;
+  /**
+   * Markt-Median-Kaufpreis der Gemeinde für die passende Zimmerzahl (Regionsreport,
+   * q50-Quantil CHF/m² × Wohnfläche) — Rückmeldung: "könnte der zielpreis mit dem
+   * marktpreis abgestimmt werden wenn daten vorhanden?". Bewusst NUR als zusätzlicher
+   * Referenzpunkt neben dem Zielpreis angezeigt, ändert dessen Berechnung nicht.
+   * `undefined`, wenn kein Regionsreport mit passender Zimmerzahl für die Gemeinde
+   * vorliegt (dann entfällt der Vergleich, statt etwas zu erfinden).
+   */
+  marktMedianKaufpreisChf?: number;
 }) {
   const {
     schnellcheck,
@@ -185,12 +200,24 @@ export function BestandsrenditeAnalysisView({
   const nettoZielRelation = verhandlungskorridorRelation(verhandlungskorridor?.nettoZielChf, inseratpreisChf);
   const maximumRelation = verhandlungskorridorRelation(verhandlungskorridor?.maximumChf, inseratpreisChf);
   const realistischesZielRelation = verhandlungskorridorRelation(realistischesZielChf, inseratpreisChf);
+  // Zielpreis vs. Markt-Median — `verhandlungskorridorRelation` ist generisch (Punkt vs.
+  // Basis), hier mit dem Markt-Median statt dem Inseratpreis als Basis wiederverwendet.
+  const zielVsMarktMedianRelation =
+    marktMedianKaufpreisChf !== undefined ? verhandlungskorridorRelation(verhandlungskorridor?.zielChf, marktMedianKaufpreisChf) : undefined;
 
   function formatRelation(relation: { diffChf: number; diffPercent: number } | undefined): string | undefined {
     if (!relation) return undefined;
     const vorzeichen = relation.diffChf > 0 ? "+" : relation.diffChf < 0 ? "−" : "±";
     const richtung = relation.diffChf < 0 ? "unter" : relation.diffChf > 0 ? "über" : "auf";
     return `${vorzeichen}CHF ${formatChf(Math.abs(Math.round(relation.diffChf)))} (${vorzeichen}${Math.abs(relation.diffPercent).toFixed(1)}%) ${richtung} Inseratpreis`;
+  }
+
+  function formatMarktMedianVergleich(): string | undefined {
+    if (marktMedianKaufpreisChf === undefined) return undefined;
+    const basis = `Markt-Median Gemeinde: CHF ${formatChf(Math.round(marktMedianKaufpreisChf))}`;
+    if (!zielVsMarktMedianRelation) return basis;
+    const richtung = zielVsMarktMedianRelation.diffChf < 0 ? "unter" : zielVsMarktMedianRelation.diffChf > 0 ? "über" : "auf";
+    return `${basis} — Zielpreis ${Math.abs(zielVsMarktMedianRelation.diffPercent).toFixed(1)}% ${richtung} Markt-Median`;
   }
 
   return (
@@ -277,6 +304,9 @@ export function BestandsrenditeAnalysisView({
             dagegen eine reine Cashflow-Solvenzgrenze (nachhaltiger Cashflow = CHF 0), keine Kaufempfehlung: bei
             tiefen Zinsen kann sie weit über dem liegen, was unter dem eigenen Renditeziel noch lohnt. Alle Werte
             gelten für den Basis-Kaufpreis Wohnung, ohne Parkplatz/Garage/Hobbyraum.
+            {marktMedianKaufpreisChf !== undefined
+              ? " Zusätzlich zeigt der Markt-Median (Gemeinde, passende Zimmerzahl) an, ob das eigene Renditeziel auch marktüblich ist."
+              : ""}
           </p>
 
           {realistischesZielRelation ? (
@@ -309,6 +339,7 @@ export function BestandsrenditeAnalysisView({
           <VerhandlungskorridorBar
             eroeffnungChf={verhandlungskorridor.eroeffnungChf}
             realistischesZielChf={realistischesZielChf}
+            marktMedianKaufpreisChf={marktMedianKaufpreisChf}
             inseratpreisChf={inseratpreisChf}
             maximumChf={verhandlungskorridor.maximumChf}
           />
@@ -323,8 +354,22 @@ export function BestandsrenditeAnalysisView({
             <Metric
               l="Zielpreis"
               v={verhandlungskorridor.zielChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.zielChf))}` : "—"}
-              sub={verhandlungskorridor.zielChf === undefined ? "kein Renditeziel gesetzt (Annahmen-Reiter)" : formatRelation(zielRelation)}
-              hint="= Kaufpreis, bei dem die Bruttorendite (Kaufpreis) das Renditeziel erreicht (Annahmen-Reiter), gedeckelt auf das Maximum."
+              sub={
+                verhandlungskorridor.zielChf === undefined ? (
+                  "kein Renditeziel gesetzt (Annahmen-Reiter)"
+                ) : (
+                  <>
+                    {formatRelation(zielRelation)}
+                    {marktMedianKaufpreisChf !== undefined ? (
+                      <>
+                        <br />
+                        {formatMarktMedianVergleich()}
+                      </>
+                    ) : null}
+                  </>
+                )
+              }
+              hint="= Kaufpreis, bei dem die Bruttorendite (Kaufpreis) das Renditeziel erreicht (Annahmen-Reiter), gedeckelt auf das Maximum. Markt-Median-Vergleich (falls Regionsreport für die Gemeinde mit passender Zimmerzahl vorliegt): CHF/m²-Median × Wohnfläche, rein informativ — ändert die Zielpreis-Berechnung selbst nicht."
             />
             <Metric
               l="Preisobergrenze (Nettorendite)"
