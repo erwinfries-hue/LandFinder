@@ -2793,6 +2793,50 @@ eine neue generische "Bilder je Quellenverzeichnis-Eintrag"-Funktion.
 
 Keine neuen automatisierten Tests (reine statische Assets + JSX-Markup, keine Logik).
 
+## Nachgezogen (2026-08-29): Kanton-Kennzahlen auf der Regionsseite (Gemeinde/Kanton-Umschaltung)
+
+Wunsch: "kannst du hier auch eine übersicht dito wohlen für den kanton Aargau hinzufügen
+(wichtigsten daten aus dem wüstpartner dokument)? am besten eine kleine navigation
+einbauen stadt resp. kanton". Wüest-Partner-"Standortinformation"-Reports vergleichen in
+derselben Kennziffern-Tabelle mehrere Regionsebenen nebeneinander (Gemeinde/MS-Region/
+Kanton/Schweiz) — die Extraktion (`regionExtraction.ts`) griff bisher bewusst NUR die
+Gemeinde-Spalte ab (siehe ursprüngliche Begründung im Kommentar: "die App vergleicht ein
+Objekt gegen seine eigene Gemeinde"). Jetzt zusätzlich die Kanton-Spalte derselben
+Tabelle, für eine grobe Stadt-vs.-Kanton-Einordnung.
+
+- **`regionExtraction.ts`**: `RegionExtractionResult` um `kantonKennzahlen?:
+  RegionKennzahlen` erweitert (identische Feldstruktur wie `kennzahlen`, nur eben für die
+  Kanton-Vergleichsspalte). System-Prompt und Tool-Schema angepasst, damit Claude beide
+  Spalten aus derselben Kennziffern-Tabelle extrahiert, NICHT die MS-Region-/Schweiz-
+  Spalten (weiterhin unextrahiert, kein Bedarf). `kantonKennzahlen` bleibt `undefined`,
+  wenn kein einziges Feld erkannt wurde (kein leeres Objekt, sonst zeigte die
+  Regionsseite einen leeren "Kanton"-Tab).
+- **Neue Route `api/regions/[id]/documents/[documentId]/reanalyze`** (mirrort die
+  gleichnamige Route für Objektdokumente): stösst die Analyse eines bereits
+  hochgeladenen Reports erneut an, OHNE erneuten Upload. Nötig, weil der bestehende
+  Content-Hash-Dublettenschutz beim Upload sonst verhindert hätte, dass ein bereits
+  erfasster Report (z.B. der schon vorhandene Wohlen-AG-Report) von der neu ergänzten
+  `kantonKennzahlen`-Extraktion profitiert — ein erneuter Upload derselben Datei hätte
+  nur die alte, gecachte Extraktion zurückgegeben statt neu zu analysieren. Neuer Knopf
+  "Neu analysieren" (`RegionDocumentReanalyzeButton.tsx`) je Report in der
+  Reports-Tabelle der Regionsseite.
+- **`RegionKennzahlenView.tsx`** (neue Client-Komponente): kleine Tab-Navigation
+  ("Gemeinde"/"Kanton", per bereits vorhandener `.chipselect`-CSS-Klasse — bislang in
+  dieser App ungenutzt, aber genau für so einen Umschalter gedacht) über der bestehenden
+  Kennzahlen-Metricgrid; die Grid-Darstellung selbst wurde aus `regionen/[id]/page.tsx`
+  in diese Komponente extrahiert, damit Gemeinde- und Kanton-Ansicht exakt dieselbe
+  Darstellung teilen (keine zweite, potenziell abweichende Kopie der Metric-Liste). Der
+  "Kanton"-Tab erscheint nur, wenn der Report tatsächlich Kanton-Werte hergab.
+
+Bewusst NICHT auf die Preis-Quantiltabellen (Mietwohnungen/Eigentumswohnungen/
+Einfamilienhäuser je Zimmerzahl) ausgeweitet — die Rückmeldung bezog sich explizit auf
+die Kennzahlen-Übersicht ("dito Wohlen"), und eine kantonsweite Preis-Quantiltabelle
+wäre eine grössere, gesondert zu bewertende Erweiterung.
+
+Neue Tests (`regionExtraction.test.ts`): `kantonKennzahlen` wird korrekt zusätzlich zu
+`kennzahlen` geparst; bleibt `undefined` sowohl bei einem leeren Objekt als auch bei
+komplett fehlendem Feld im Rohresultat.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

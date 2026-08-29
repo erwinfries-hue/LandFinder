@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Panel, Chip } from "@landfinder/ui";
 import { SideNav } from "@/components/SideNav";
-import { Metric } from "@/components/MetricPrimitives";
 import { DeleteRegionDocumentButton } from "@/components/DeleteRegionDocumentButton";
 import { DeleteRegionButton } from "@/components/DeleteRegionButton";
+import { RegionDocumentReanalyzeButton } from "@/components/RegionDocumentReanalyzeButton";
+import { RegionKennzahlenView } from "@/components/RegionKennzahlenView";
 import { getRegionById, getRegionDocuments } from "@/lib/regionMarketData";
 import { formatDateTime } from "@/lib/properties";
 import { formatChf } from "@/lib/format";
+import { AVAILABLE_CANTONS } from "@/lib/cantons";
 import type { RegionQuantileRow } from "@/lib/regionExtraction";
 
 export const dynamic = "force-dynamic";
@@ -99,45 +101,12 @@ export default async function RegionDetailPage({ params }: { params: Promise<{ i
             <div className="sectionhead">
               <h2>Kennzahlen{latestDone?.report_date ? ` (Stand ${new Date(latestDone.report_date).toLocaleDateString("de-CH")})` : ""}</h2>
             </div>
-            <div className="metricgrid">
-              {extraction.kennzahlen.bevoelkerungAnzahl !== undefined ? (
-                <Metric
-                  l="Bevölkerung"
-                  v={formatChf(extraction.kennzahlen.bevoelkerungAnzahl)}
-                  sub={extraction.kennzahlen.bevoelkerungsentwicklung3JahrePercent !== undefined ? `Entwicklung 3J: ${extraction.kennzahlen.bevoelkerungsentwicklung3JahrePercent}%` : undefined}
-                />
-              ) : null}
-              {extraction.kennzahlen.anzahlHaushalte !== undefined ? <Metric l="Haushalte" v={formatChf(extraction.kennzahlen.anzahlHaushalte)} /> : null}
-              {extraction.kennzahlen.leerstandMehrfamilienhaeuserPercent !== undefined ? (
-                <Metric l="Leerstand MFH" v={`${extraction.kennzahlen.leerstandMehrfamilienhaeuserPercent}%`} hint="Wohnungsleerstände im Verhältnis zum Bestand." />
-              ) : null}
-              {extraction.kennzahlen.angebotsquoteMietwohnungenPercent !== undefined ? (
-                <Metric l="Angebotsquote Mietwohnungen" v={`${extraction.kennzahlen.angebotsquoteMietwohnungenPercent}%`} />
-              ) : null}
-              {extraction.kennzahlen.mietePreisVeraenderung3JahrePercent !== undefined ? (
-                <Metric l="Mietpreis-Veränderung 3J" v={`${extraction.kennzahlen.mietePreisVeraenderung3JahrePercent}%`} />
-              ) : null}
-              {extraction.kennzahlen.eigentumswohnungPreisVeraenderung3JahrePercent !== undefined ? (
-                <Metric l="EW-Preis-Veränderung 3J" v={`${extraction.kennzahlen.eigentumswohnungPreisVeraenderung3JahrePercent}%`} />
-              ) : null}
-              {extraction.kennzahlen.einfamilienhausPreisVeraenderung3JahrePercent !== undefined ? (
-                <Metric l="EFH-Preis-Veränderung 3J" v={`${extraction.kennzahlen.einfamilienhausPreisVeraenderung3JahrePercent}%`} />
-              ) : null}
-              {extraction.kennzahlen.steuerbelastungSingle60kPercent !== undefined ? (
-                <Metric l="Steuerbelastung Single (60k)" v={`${extraction.kennzahlen.steuerbelastungSingle60kPercent}%`} />
-              ) : null}
-              {extraction.kennzahlen.steuerbelastungPaar120kPercent !== undefined ? (
-                <Metric l="Steuerbelastung Paar (120k)" v={`${extraction.kennzahlen.steuerbelastungPaar120kPercent}%`} />
-              ) : null}
-              {extraction.kennzahlen.mietwohnungsbestand !== undefined ? <Metric l="Mietwohnungsbestand" v={formatChf(extraction.kennzahlen.mietwohnungsbestand)} /> : null}
-              {extraction.kennzahlen.eigentumswohnungsbestand !== undefined ? (
-                <Metric l="Eigentumswohnungsbestand" v={formatChf(extraction.kennzahlen.eigentumswohnungsbestand)} />
-              ) : null}
-              {extraction.kennzahlen.einfamilienhausbestand !== undefined ? <Metric l="Einfamilienhausbestand" v={formatChf(extraction.kennzahlen.einfamilienhausbestand)} /> : null}
-              {extraction.kennzahlen.neuErstellteWohnungenProJahr !== undefined ? (
-                <Metric l="Neu erstellte Wohnungen p.a." v={formatChf(extraction.kennzahlen.neuErstellteWohnungenProJahr)} />
-              ) : null}
-            </div>
+            <RegionKennzahlenView
+              gemeindeLabel={extraction.gemeinde}
+              kantonLabel={`Kanton ${AVAILABLE_CANTONS.find((c) => c.code === extraction.canton)?.name ?? extraction.canton}`}
+              gemeindeKennzahlen={extraction.kennzahlen}
+              kantonKennzahlen={extraction.kantonKennzahlen}
+            />
 
             <QuantileTable title="Mietwohnungen" rows={extraction.preise.mietwohnungen} unit="CHF/m²/Jahr" />
             <QuantileTable title="Eigentumswohnungen" rows={extraction.preise.eigentumswohnungen} unit="CHF/m²" />
@@ -184,7 +153,8 @@ export default async function RegionDetailPage({ params }: { params: Promise<{ i
                         ) : null}
                       </td>
                       <td>{formatDateTime(d.uploaded_at)}</td>
-                      <td>
+                      <td style={{ display: "flex", gap: ".5rem", alignItems: "flex-start" }}>
+                        <RegionDocumentReanalyzeButton regionId={region.id} documentId={d.id} />
                         <DeleteRegionDocumentButton regionId={region.id} documentId={d.id} label={d.original_filename} />
                       </td>
                     </tr>
