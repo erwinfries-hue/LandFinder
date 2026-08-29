@@ -3123,6 +3123,75 @@ Zins-Stresstest + DSCR + Value Creation Engine).
   undefined-Fall, `isReturnMateriallyRateDependent` alle drei Fälle) und
   `priceStrategy.test.ts` (Value-Creation-Beispielrechnung, Randfälle).
 
+## Nachgezogen (2026-08-29): Advanced Price Strategy & Investment Value Engine — Phase 4
+
+Fortsetzung des Auftrags (Phase 4: Opening-Bid-Faktorenmodell + erweitertes Decision Log
++ Confidence-Badges).
+
+- **Opening-Bid-Faktorenmodell** — bewusst ein REVIDIERTER Ansatz gegenüber der
+  früheren Entscheidung "kein erfundener Eröffnungsangebot-Prozentsatz" (siehe
+  DECISIONS.md, Verhandlungskorridor-Feature): damals gab es KEINE der hier verlangten
+  realen Faktoren, nur eine blinde, objektunabhängige Prozentzahl — zurecht abgelehnt.
+  Hier ist es umgekehrt: der Vorschlag entsteht ausschliesslich aus vom Nutzer selbst
+  eingeschätzten, individuell einsehbaren Faktoren (Tage am Markt, Anzahl
+  Preisreduktionen, Verkäufermotivation, Konkurrenzsituation, Capex-Risiko,
+  Dokumentationslücken, Vermietungsstatus — alle optional, jeder Beitrag einzeln
+  ausgewiesen). Auf Rückfrage vom Nutzer bestätigt: "Faktoren berechnen den Vorschlag,
+  manuell bleibt Override" — das bestehende `eroeffnungsangebotChf`-Feld bleibt die
+  massgebliche Grösse, der Vorschlag füllt es nie automatisch.
+  - `bestandsrendite.ts`: neuer Typ `OpeningBidFaktoren` + Feld
+    `BestandsrenditeFacts.openingBidFaktoren`, in `parseBestandsrenditeFacts` geparst
+    (loser Cast wie beim bestehenden `stweg`-Feld, keine zusätzliche
+    Enum-Validierung — konsistent mit der etablierten Konvention für optionale
+    Nutzer-Einschätzungsfelder).
+  - `priceStrategy.ts`: `computeOpeningBidSuggestion(economicTargetChf, faktoren)` —
+    Rabatt-Basis ist der Economic-Target-Preis (`strengsteZielgroesse`), nicht der
+    Angebotspreis ("kann unter dem Economic Target liegen", Auftrag wörtlich). Jeder
+    Faktor trägt eine klar deklarierte, einzeln dokumentierte Prozentpunkte-Zahl bei
+    (z.B. Tage am Markt: 30/90/180-Tage-Schwellen zu 1/2/3%), Gesamtrabatt auf 15%
+    gedeckelt, damit auch bei vielen ungünstigen Faktoren kein absurder Vorschlag
+    entsteht. `hasAnyOpeningBidFaktor` steuert, ob überhaupt ein Vorschlag angezeigt
+    wird (kein "0%-Vorschlag" für ein komplett leeres Faktoren-Objekt).
+  - `BestandsrenditeFactsFields.tsx`: neue Formularfelder im "Verhandlung"-Abschnitt,
+    direkt neben dem bestehenden Eröffnungsangebot-Feld.
+  - `BestandsrenditeAnalysisView.tsx`: Vorschlag + Faktor-Beitragsliste als Sub-Text
+    unter der bestehenden "Eröffnungsangebot"-Metrik-Kachel.
+- **Erweitertes Decision Log** (Auftrag Abschnitt 14) — bewusst NICHT als komplett neues
+  System gebaut: `DueDiligenceContradiction`/`DueDiligenceContradictionOption`
+  (`packages/domain`) leisten bereits fast alles Verlangte (Topic, konkurrierende Werte
+  je Quelle mit Dokumentnamen/Seite/Zitat, Übernahme-Flow) — nur ergänzt, nicht ersetzt:
+  - `DueDiligencePanel.tsx`: pro Widerspruch jetzt ein expliziter "Confirmed"/
+    "Unresolved"-Chip (statt nur implizit an der Abwesenheit eines
+    "Übernommen ✓"-Chips erkennbar) — Auftrag wörtlich: "Zeige UNRESOLVED, bis der
+    Nutzer oder eine verlässliche Quelle die Differenz auflöst." Bewusst NICHT als
+    dritten Zustand "Superseded" gebaut — das würde eine echte Historie über mehrere
+    Due-Diligence-Läufe hinweg voraussetzen (`property_due_diligence.result` wird bei
+    jedem Lauf vollständig ERSETZT, keine Historie persistiert); ein nie tatsächlich
+    auslösendes "Superseded" wäre irreführender als es wegzulassen — als möglicher
+    Fast-Follow vermerkt (bräuchte eine eigene History-Tabelle).
+  - `documentTypes.ts`: neue Funktion `classifySourceConfidence(documentType)` —
+    Auftrag Abschnitt 15 ("Jede wesentliche Inputannahme benötigt HIGH/MEDIUM/LOW").
+    Bewusst NICHT vom LLM selbst eingeschätzt (dieselbe Begründung wie bei
+    `computeInvestmentScore`: kein Sprachmodell darf sich eine eigene
+    Vertrauens-Note ausdenken), sondern rein deterministisch aus dem bereits bekannten
+    Dokumenttyp hergeleitet (amtliche/vertragliche Dokumente = HIGH, Exposé/Inserat/
+    unbekannt = LOW, dazwischen = MEDIUM). In `DueDiligencePanel.tsx` je
+    Widerspruchs-Option als Confidence-Chip angezeigt (Dokumenttyp über
+    `sourceDocumentId` in den bereits vorhandenen `initialDocuments` nachgeschlagen,
+    kein neuer Server-Request/keine neue Prop nötig).
+  - Bewusst NICHT umgesetzt: `askingPriceChf` (der Property-Basispreis, nicht Teil der
+    Facts-JSONB) in die Übernahme-Allowlist (`ALLOWED_UPDATE_FIELDS`) aufzunehmen —
+    das würde einen zweiten, strukturell andersartigen Update-Pfad (Property-Zeile statt
+    Facts-Feld) brauchen; der im Auftrag genannte Beispielfall (Sales-PDF- vs.
+    Listing-Preis) erscheint mit dem bestehenden Mechanismus bereits als rein
+    informativer Widerspruch (kein `field`, kein Übernehmen-Button) — funktional
+    korrekt (nichts wird stillschweigend aufgelöst), aber ohne Ein-Klick-Übernahme;
+    als möglicher Fast-Follow vermerkt.
+- Neue Tests: `priceStrategy.test.ts` (`hasAnyOpeningBidFaktor`, additive
+  Faktor-Kombination, 15%-Deckelung, Tage-am-Markt-Schwellen) und
+  `documentTypes.test.ts` (`classifySourceConfidence` alle vier Fälle inkl.
+  `undefined` = LOW statt MEDIUM).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

@@ -117,6 +117,15 @@ export function buildBestandsrenditeFactsFromFormData(
     },
     kalkulatorischerSteuersatzPercent: num("kalkulatorischerSteuersatzPercent"),
     eroeffnungsangebotChf: num("eroeffnungsangebotChf"),
+    openingBidFaktoren: {
+      tageAmMarkt: num("tageAmMarkt"),
+      preisreduktionenAnzahl: num("preisreduktionenAnzahl"),
+      verkaeufermotivation: String(form.get("verkaeufermotivation") ?? "") || undefined,
+      konkurrenzsituation: String(form.get("konkurrenzsituation") ?? "") || undefined,
+      capexRisikoStufe: String(form.get("capexRisikoStufe") ?? "") || undefined,
+      dokumentationsluecken: String(form.get("dokumentationsluecken") ?? "") || undefined,
+      vermietungsstatus: String(form.get("vermietungsstatus") ?? "") || undefined,
+    },
     mehrjahresmodell: {
       holdingPeriodYears: num("holdingPeriodYears"),
       mietsteigerungPercentPerYear: num("mietsteigerungPercentPerYear"),

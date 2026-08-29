@@ -6,6 +6,8 @@ import {
   classifyPriceZone,
   priceZoneTone,
   computeValueCreation,
+  hasAnyOpeningBidFaktor,
+  computeOpeningBidSuggestion,
   type PriceZone,
 } from "./priceStrategy";
 import type { RegionExtractionResult, RegionQuantileRow } from "./regionExtraction";
@@ -168,5 +170,61 @@ describe("computeValueCreation", () => {
   it("funktioniert auch mit negativer NOI-Veränderung (Wertminderung)", () => {
     const result = computeValueCreation(-500, 4.5);
     expect(result!.impliedValueIncreaseChf).toBeCloseTo(-11_111.11, 1);
+  });
+});
+
+describe("hasAnyOpeningBidFaktor", () => {
+  it("ist false ohne Faktoren-Objekt oder mit komplett leerem Objekt", () => {
+    expect(hasAnyOpeningBidFaktor(undefined)).toBe(false);
+    expect(hasAnyOpeningBidFaktor({})).toBe(false);
+  });
+
+  it("ist true, sobald mindestens ein Faktor gesetzt ist", () => {
+    expect(hasAnyOpeningBidFaktor({ tageAmMarkt: 45 })).toBe(true);
+    expect(hasAnyOpeningBidFaktor({ vermietungsstatus: "UNVERMIETET" })).toBe(true);
+  });
+});
+
+describe("computeOpeningBidSuggestion", () => {
+  it("liefert den unveränderten Economic Target bei komplett leeren Faktoren (0% Diskont)", () => {
+    const result = computeOpeningBidSuggestion(500_000, {});
+    expect(result.totalDiskontPercent).toBe(0);
+    expect(result.suggestedChf).toBe(500_000);
+    expect(result.beitraege).toEqual([]);
+  });
+
+  it("kombiniert mehrere Faktoren additiv zu einem Gesamtdiskont", () => {
+    const result = computeOpeningBidSuggestion(500_000, { tageAmMarkt: 200, verkaeufermotivation: "HOCH", konkurrenzsituation: "NIEDRIG" });
+    // 200 Tage -> 3%, Verkäufermotivation HOCH -> 3%, Konkurrenz NIEDRIG -> 2% = 8%.
+    expect(result.totalDiskontPercent).toBe(8);
+    expect(result.suggestedChf).toBeCloseTo(500_000 * 0.92, 2);
+    expect(result.beitraege).toHaveLength(3);
+  });
+
+  it("deckelt den Gesamtdiskont auf MAX_TOTAL_DISKONT_PERCENT (15%), auch bei vielen ungünstigen Faktoren", () => {
+    const result = computeOpeningBidSuggestion(500_000, {
+      tageAmMarkt: 200, // 3%
+      preisreduktionenAnzahl: 10, // gedeckelt auf 4%
+      verkaeufermotivation: "HOCH", // 3%
+      konkurrenzsituation: "NIEDRIG", // 2%
+      capexRisikoStufe: "HOCH", // 3%
+      dokumentationsluecken: "VIELE", // 2%
+      vermietungsstatus: "UNVERMIETET", // 1%
+    }); // Summe der Einzelbeiträge = 18%, gedeckelt auf 15%.
+    expect(result.totalDiskontPercent).toBe(15);
+    expect(result.suggestedChf).toBeCloseTo(500_000 * 0.85, 2);
+  });
+
+  it("berücksichtigt nur tatsächlich gesetzte Faktoren, keine erfundenen Standardwerte", () => {
+    const result = computeOpeningBidSuggestion(500_000, { tageAmMarkt: 200 });
+    expect(result.beitraege).toHaveLength(1);
+    expect(result.totalDiskontPercent).toBe(3);
+  });
+
+  it("deckelt die Tage-am-Markt-Schwellen korrekt (unter 30 Tagen kein Beitrag)", () => {
+    expect(computeOpeningBidSuggestion(500_000, { tageAmMarkt: 10 }).totalDiskontPercent).toBe(0);
+    expect(computeOpeningBidSuggestion(500_000, { tageAmMarkt: 30 }).totalDiskontPercent).toBe(1);
+    expect(computeOpeningBidSuggestion(500_000, { tageAmMarkt: 90 }).totalDiskontPercent).toBe(2);
+    expect(computeOpeningBidSuggestion(500_000, { tageAmMarkt: 180 }).totalDiskontPercent).toBe(3);
   });
 });

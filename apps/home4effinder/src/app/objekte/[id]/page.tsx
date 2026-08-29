@@ -15,6 +15,7 @@ import {
   parseBestandsrenditeFacts,
   isAllowedUpdateField,
   isProposalAlreadyApplied,
+  strengsteZielgroesse,
 } from "@/lib/bestandsrendite";
 import { computeBewertungsAmpeln } from "@/lib/bewertungsAmpel";
 import { BewertungsuebersichtView } from "@/components/BewertungsuebersichtView";
@@ -30,7 +31,7 @@ import { ObjectSectionNav } from "@/components/ObjectSectionNav";
 import { MarktEinordnungView } from "@/components/MarktEinordnungView";
 import { getRegionByCantonGemeinde, getRegionMarketData, findClosestQuantileRow } from "@/lib/regionMarketData";
 import { findUbsWohnattraktivitaet, formatUbsWohnattraktivitaetHinweis } from "@/lib/ubsWohnattraktivitaet";
-import { computeMarketValueRange, computeCashOnCashBreakdown } from "@/lib/priceStrategy";
+import { computeMarketValueRange, computeCashOnCashBreakdown, hasAnyOpeningBidFaktor, computeOpeningBidSuggestion } from "@/lib/priceStrategy";
 import { buildDefaultScenarios, computeScenarios, computeInterestRateStressTest } from "@/lib/scenarioEngine";
 
 export const dynamic = "force-dynamic";
@@ -98,6 +99,15 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
   // computeBestandsrenditeAnalysis mit variierten Facts, kein neuer Rechenweg.
   const scenarioResults = facts ? computeScenarios(propertyInput, facts, buildDefaultScenarios(facts, parameterOverrides), parameterOverrides) : undefined;
   const stressTestRows = facts ? computeInterestRateStressTest(propertyInput, facts, parameterOverrides) : undefined;
+
+  // Opening-Bid-Faktorenmodell (Auftrag Phase 4) — Vorschlag nur, wenn mindestens ein
+  // Faktor tatsächlich eingeschätzt wurde; Basis ist der Economic-Target-Preis
+  // (dieselbe "strengste Zielgrösse" wie überall sonst im Verhandlungskorridor).
+  const economicTargetChf = verhandlungskorridor ? strengsteZielgroesse(verhandlungskorridor) : undefined;
+  const openingBidSuggestion =
+    economicTargetChf !== undefined && hasAnyOpeningBidFaktor(facts?.openingBidFaktoren)
+      ? computeOpeningBidSuggestion(economicTargetChf, facts!.openingBidFaktoren!)
+      : undefined;
 
   const investmentScore =
     analysis && dueDiligence?.result
@@ -230,6 +240,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             cashOnCashBreakdown={cashOnCashBreakdown}
             scenarioResults={scenarioResults}
             stressTestRows={stressTestRows}
+            openingBidSuggestion={openingBidSuggestion}
           />
         ) : null}
 

@@ -5,9 +5,9 @@ import { renditeAmpelColor } from "@/lib/investmentScore";
 import { strengsteZielgroesse, verhandlungskorridorRelation } from "@/lib/bestandsrendite";
 import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, PreisStufe, MoeblierungsAlternative } from "@/lib/bestandsrendite";
 import { computePriceZones, classifyPriceZone, priceZoneTone, computeValueCreation } from "@/lib/priceStrategy";
-import type { MarketValueRange, CashOnCashBreakdown, PriceZoneBand } from "@/lib/priceStrategy";
-import type { ScenarioResult, InterestRateStressTestRow } from "@/lib/scenarioEngine";
+import type { MarketValueRange, CashOnCashBreakdown, PriceZoneBand, OpeningBidSuggestion } from "@/lib/priceStrategy";
 import { isReturnMateriallyRateDependent } from "@/lib/scenarioEngine";
+import type { ScenarioResult, InterestRateStressTestRow } from "@/lib/scenarioEngine";
 
 const PRICE_ZONE_TONE_BG: Record<"good" | "warn" | "bad", string> = { good: "var(--good-bg)", warn: "var(--warn-bg)", bad: "var(--bad-bg)" };
 
@@ -131,6 +131,7 @@ export function BestandsrenditeAnalysisView({
   cashOnCashBreakdown,
   scenarioResults,
   stressTestRows,
+  openingBidSuggestion,
 }: {
   result: BestandsrenditeAnalysisResult;
   /** `undefined`/`null`, wenn `computeVerhandlungskorridor` keine Bisektionslösung fand (Objekt trägt sich unter keinen Umständen). */
@@ -178,6 +179,8 @@ export function BestandsrenditeAnalysisView({
   scenarioResults?: ScenarioResult[];
   /** Zins-Stresstest (siehe scenarioEngine.ts::computeInterestRateStressTest) — `undefined`/leer unter derselben Bedingung. */
   stressTestRows?: InterestRateStressTestRow[];
+  /** Taktischer Eröffnungsangebot-Vorschlag (siehe priceStrategy.ts::computeOpeningBidSuggestion) — `undefined`, wenn kein Faktor eingeschätzt wurde oder kein Economic Target vorliegt. Rein informativ, überschreibt nie das manuell erfasste Eröffnungsangebot. */
+  openingBidSuggestion?: OpeningBidSuggestion;
 }) {
   const {
     schnellcheck,
@@ -435,8 +438,20 @@ export function BestandsrenditeAnalysisView({
             <Metric
               l="Eröffnungsangebot"
               v={verhandlungskorridor.eroeffnungChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.eroeffnungChf))}` : "—"}
-              sub={verhandlungskorridor.eroeffnungChf === undefined ? "eigene Markteinschätzung noch nicht erfasst" : formatRelation(eroeffnungRelation)}
-              hint="Eigene Markteinschätzung, siehe Bestandsrendite-Fakten, Abschnitt „Verhandlung“ — kein Rechenwert."
+              sub={
+                <>
+                  {verhandlungskorridor.eroeffnungChf === undefined ? "eigene Markteinschätzung noch nicht erfasst" : formatRelation(eroeffnungRelation)}
+                  {openingBidSuggestion ? (
+                    <>
+                      <br />
+                      Taktischer Vorschlag: CHF {formatChf(Math.round(openingBidSuggestion.suggestedChf))} (
+                      {openingBidSuggestion.totalDiskontPercent.toFixed(1)}% unter Economic Target) —{" "}
+                      {openingBidSuggestion.beitraege.map((b) => b.label).join(", ")}
+                    </>
+                  ) : null}
+                </>
+              }
+              hint="Eigene Markteinschätzung, siehe Bestandsrendite-Fakten, Abschnitt „Verhandlung“ — kein Rechenwert. Der taktische Vorschlag (falls Faktoren erfasst sind) ändert dieses Feld nie automatisch, siehe priceStrategy.ts::computeOpeningBidSuggestion."
             />
             <Metric
               l="Zielpreis"

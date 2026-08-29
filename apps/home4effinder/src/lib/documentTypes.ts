@@ -1,4 +1,5 @@
 import type { DueDiligenceCategory, DueDiligenceDocumentType, DueDiligencePriority } from "@landfinder/domain";
+import type { ConfidenceLevel } from "./priceStrategy";
 
 /**
  * Zentraler, modularer Katalog aller unterstützten Dokumenttypen für die
@@ -199,6 +200,35 @@ export const DOCUMENT_TYPE_CATALOG: Record<DueDiligenceDocumentType, DocumentTyp
     extractionGuidance: "Fasse den Inhalt sachlich zusammen und melde alles, was für den Kaufentscheid einer Eigentumswohnung als Renditeobjekt relevant erscheint — insbesondere Widersprüche zu bereits erfassten Daten.",
   },
 };
+
+const HIGH_CONFIDENCE_DOCUMENT_TYPES: DueDiligenceDocumentType[] = [
+  "GRUNDBUCHAUSZUG",
+  "MIETVERTRAG",
+  "JAHRESRECHNUNG",
+  "STWEG_PROTOKOLL",
+  "BUDGET_STWEG",
+  "ERNEUERUNGSFONDS",
+  "NEBENKOSTENABRECHNUNG",
+];
+const LOW_CONFIDENCE_DOCUMENT_TYPES: DueDiligenceDocumentType[] = ["EXPOSE_INSERAT", "SONSTIGES"];
+
+/**
+ * Deterministische Quellen-Confidence (Auftrag "Advanced Price Strategy & Investment
+ * Value Engine", Abschnitt 15: "Jede wesentliche Inputannahme benötigt HIGH/MEDIUM/LOW")
+ * — bewusst NICHT vom LLM selbst eingeschätzt (dieselbe Begründung wie bei
+ * `computeInvestmentScore` in investmentScore.ts: ein Sprachmodell darf sich keine
+ * eigene Vertrauens-Note ausdenken), sondern rein aus dem bereits bekannten
+ * Dokumenttyp hergeleitet: amtliche/vertragliche Dokumente = HIGH, das unverbindliche
+ * Exposé/Inserat sowie unklassifizierte Dokumente = LOW, alles dazwischen = MEDIUM.
+ * `undefined` (Quelle unbekannt/kein Dokument) = LOW, nicht MEDIUM — eine unbekannte
+ * Quelle verdient keinen Vertrauensvorschuss.
+ */
+export function classifySourceConfidence(documentType: DueDiligenceDocumentType | undefined): ConfidenceLevel {
+  if (documentType === undefined) return "LOW";
+  if (HIGH_CONFIDENCE_DOCUMENT_TYPES.includes(documentType)) return "HIGH";
+  if (LOW_CONFIDENCE_DOCUMENT_TYPES.includes(documentType)) return "LOW";
+  return "MEDIUM";
+}
 
 export function documentTypesByPriority(): Record<DueDiligencePriority, DocumentTypeConfig[]> {
   const result: Record<DueDiligencePriority, DocumentTypeConfig[]> = { ZWINGEND: [], EMPFOHLEN: [], OPTIONAL: [] };

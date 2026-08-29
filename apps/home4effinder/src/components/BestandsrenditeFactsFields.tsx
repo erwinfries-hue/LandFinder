@@ -951,6 +951,65 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
 
+      <p style={{ color: "var(--ink-faint)", fontSize: ".76rem", margin: ".7rem 0 .45rem" }}>
+        Taktische Einschätzungsfaktoren für einen VORSCHLAG des Eröffnungsangebots — jeder Faktor optional, der
+        Vorschlag ändert das Feld oben nie automatisch, nur wenn du ihn dort übernimmst.
+      </p>
+      <div className="fieldgrid">
+        <div className="field">
+          <label htmlFor="tageAmMarkt">Tage am Markt</label>
+          <input id="tageAmMarkt" name="tageAmMarkt" type="number" step="1" min="0" defaultValue={existing?.openingBidFaktoren?.tageAmMarkt} />
+        </div>
+        <div className="field">
+          <label htmlFor="preisreduktionenAnzahl">Anzahl Preisreduktionen</label>
+          <input id="preisreduktionenAnzahl" name="preisreduktionenAnzahl" type="number" step="1" min="0" defaultValue={existing?.openingBidFaktoren?.preisreduktionenAnzahl} />
+        </div>
+        <div className="field">
+          <label htmlFor="verkaeufermotivation">Erkennbare Verkäufermotivation</label>
+          <select id="verkaeufermotivation" name="verkaeufermotivation" defaultValue={existing?.openingBidFaktoren?.verkaeufermotivation ?? ""}>
+            <option value="">— nicht eingeschätzt —</option>
+            <option value="NIEDRIG">Niedrig</option>
+            <option value="MITTEL">Mittel</option>
+            <option value="HOCH">Hoch</option>
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="konkurrenzsituation">Konkurrenzsituation (Interessenten)</label>
+          <select id="konkurrenzsituation" name="konkurrenzsituation" defaultValue={existing?.openingBidFaktoren?.konkurrenzsituation ?? ""}>
+            <option value="">— nicht eingeschätzt —</option>
+            <option value="NIEDRIG">Niedrig</option>
+            <option value="MITTEL">Mittel</option>
+            <option value="HOCH">Hoch</option>
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="capexRisikoStufe">Capex-Risiko (aus Due Diligence)</label>
+          <select id="capexRisikoStufe" name="capexRisikoStufe" defaultValue={existing?.openingBidFaktoren?.capexRisikoStufe ?? ""}>
+            <option value="">— nicht eingeschätzt —</option>
+            <option value="NIEDRIG">Niedrig</option>
+            <option value="MITTEL">Mittel</option>
+            <option value="HOCH">Hoch</option>
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="dokumentationsluecken">Dokumentationslücken</label>
+          <select id="dokumentationsluecken" name="dokumentationsluecken" defaultValue={existing?.openingBidFaktoren?.dokumentationsluecken ?? ""}>
+            <option value="">— nicht eingeschätzt —</option>
+            <option value="KEINE">Keine</option>
+            <option value="EINIGE">Einige</option>
+            <option value="VIELE">Viele</option>
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="vermietungsstatus">Vermietungsstatus</label>
+          <select id="vermietungsstatus" name="vermietungsstatus" defaultValue={existing?.openingBidFaktoren?.vermietungsstatus ?? ""}>
+            <option value="">— nicht eingeschätzt —</option>
+            <option value="VERMIETET">Vermietet</option>
+            <option value="UNVERMIETET">Unvermietet</option>
+          </select>
+        </div>
+      </div>
+
       <div className="field" style={{ marginTop: "1rem" }}>
         <label htmlFor="notes">Weitere Notizen</label>
         <textarea id="notes" name="notes" rows={2} defaultValue={existing?.notes} style={{ width: "100%" }} />

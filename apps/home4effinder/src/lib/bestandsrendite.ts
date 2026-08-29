@@ -39,6 +39,29 @@ import {
   type InvestmentTreiberResult,
 } from "@landfinder/financial-engine";
 
+/** Siehe `BestandsrenditeFacts.openingBidFaktoren`/`priceStrategy.ts::computeOpeningBidSuggestion`. */
+export type VerkaeufermotivationStufe = "NIEDRIG" | "MITTEL" | "HOCH";
+export type KonkurrenzStufe = "NIEDRIG" | "MITTEL" | "HOCH";
+export type CapexRisikoStufe = "NIEDRIG" | "MITTEL" | "HOCH";
+export type Dokumentationsluecken = "KEINE" | "EINIGE" | "VIELE";
+export type Vermietungsstatus = "VERMIETET" | "UNVERMIETET";
+
+/**
+ * Taktische Einschätzungsfaktoren für den Eröffnungsangebot-Vorschlag (Auftrag Abschnitt
+ * 8) — jedes Feld einzeln optional und vom Nutzer selbst eingeschätzt, keine
+ * automatisch abgeleiteten Werte. Reine Datenhaltung hier, die eigentliche
+ * Vorschlagsrechnung lebt bewusst in `priceStrategy.ts` (Preisstrategie-Modul).
+ */
+export interface OpeningBidFaktoren {
+  tageAmMarkt?: number;
+  preisreduktionenAnzahl?: number;
+  verkaeufermotivation?: VerkaeufermotivationStufe;
+  konkurrenzsituation?: KonkurrenzStufe;
+  capexRisikoStufe?: CapexRisikoStufe;
+  dokumentationsluecken?: Dokumentationsluecken;
+  vermietungsstatus?: Vermietungsstatus;
+}
+
 /**
  * Manuell erfasste Bestandsrendite-Fakten (`properties.bestandsrendite`, Migration
  * 0001). Jedes optionale Feld fällt auf den ehrlich als Platzhalter markierten
@@ -159,6 +182,16 @@ export interface BestandsrenditeFacts {
    * vorzutäuschen.
    */
   eroeffnungsangebotChf?: number;
+
+  /**
+   * Taktische Einschätzungsfaktoren für den Eröffnungsangebot-VORSCHLAG (Auftrag
+   * "Advanced Price Strategy & Investment Value Engine", Abschnitt 8) — siehe
+   * `priceStrategy.ts::computeOpeningBidSuggestion`. Rein additiv zu
+   * `eroeffnungsangebotChf` oben: der Vorschlag füllt das Feld nur VOR, ersetzt es nie
+   * automatisch (Nutzer-Entscheidung, siehe DECISIONS.md). Jedes Feld optional — nicht
+   * eingeschätzte Faktoren tragen 0 zum Vorschlag bei, nichts wird erfunden.
+   */
+  openingBidFaktoren?: OpeningBidFaktoren;
 
   mehrjahresmodell: {
     holdingPeriodYears?: number;
@@ -977,6 +1010,7 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
   const reserven = (body.reserven as Record<string, unknown>) ?? {};
   const mehrjahresmodell = (body.mehrjahresmodell as Record<string, unknown>) ?? {};
   const stweg = (body.stweg as StwegFacts) ?? {};
+  const openingBidFaktorenRaw = body.openingBidFaktoren as Record<string, unknown> | undefined;
 
   const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 
@@ -1058,6 +1092,17 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
       },
       kalkulatorischerSteuersatzPercent: num(body.kalkulatorischerSteuersatzPercent),
       eroeffnungsangebotChf: num(body.eroeffnungsangebotChf),
+      openingBidFaktoren: openingBidFaktorenRaw
+        ? {
+            tageAmMarkt: num(openingBidFaktorenRaw.tageAmMarkt),
+            preisreduktionenAnzahl: num(openingBidFaktorenRaw.preisreduktionenAnzahl),
+            verkaeufermotivation: openingBidFaktorenRaw.verkaeufermotivation as VerkaeufermotivationStufe | undefined,
+            konkurrenzsituation: openingBidFaktorenRaw.konkurrenzsituation as KonkurrenzStufe | undefined,
+            capexRisikoStufe: openingBidFaktorenRaw.capexRisikoStufe as CapexRisikoStufe | undefined,
+            dokumentationsluecken: openingBidFaktorenRaw.dokumentationsluecken as Dokumentationsluecken | undefined,
+            vermietungsstatus: openingBidFaktorenRaw.vermietungsstatus as Vermietungsstatus | undefined,
+          }
+        : undefined,
       mehrjahresmodell: {
         holdingPeriodYears: num(mehrjahresmodell.holdingPeriodYears),
         mietsteigerungPercentPerYear: num(mehrjahresmodell.mietsteigerungPercentPerYear),
