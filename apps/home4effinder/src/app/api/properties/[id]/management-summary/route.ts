@@ -58,6 +58,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     bruttoRenditeZielPercent: effectiveParams.bruttoRenditeZielPercent,
     nettoRenditeZielPercent: effectiveParams.nettoRenditeZielPercent,
     ubsWohnattraktivitaetHinweis: ubsWohnattraktivitaet ? formatUbsWohnattraktivitaetHinweis(ubsWohnattraktivitaet) : undefined,
+    inseratpreisChf: property.asking_price_chf,
   });
 
   const safeFilename = (property.title || property.address_text).replace(/[^a-zA-Z0-9äöüÄÖÜ_.-]+/g, "_");

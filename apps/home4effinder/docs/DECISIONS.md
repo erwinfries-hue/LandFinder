@@ -2849,6 +2849,55 @@ Bildunterschrift/Quellenangabe entsprechend angepasst (jetzt korrekt "UBS
 Wohnattraktivitätsindikator 2026, Seite 2 der Mitteilung" statt "© Blick Grafik").
 Keine sonstigen Änderungen — reiner Asset-/Attribution-Fix.
 
+## Nachgezogen (2026-08-29): Verhandlungskorridor griffiger — Relation zum Inseratpreis, Verhandlungsspielraum, visuelle Positionsleiste
+
+Wunsch: "der verhandlungskoridor muss noch aussagekräftiger, griffiger und
+realitätsnah gemacht werden und zus. ins Verhältnis zum
+Inserate-Start-Verkäuferpreis gesetzt werden". Der Korridor zeigte bisher vier
+CHF-Zahlen (Eröffnung/Zielpreis/Preisobergrenze/Maximum) ohne jeden Bezug zum
+tatsächlichen Inseratpreis (`property.asking_price_chf`) — für eine echte Verhandlung
+ist aber genau diese Relation ("wie viel unter dem Inserat muss ich anbieten?") der
+eigentlich handlungsrelevante Wert.
+
+- **`bestandsrendite.ts`**: `strengsteZielgroesse(korridor)` aus der bisher nur inline
+  in `computePreisStufentabelle` lebenden Logik extrahiert (die strengere/tiefere der
+  beiden gesetzten Zielgrössen) — jetzt an einer Stelle definiert, sowohl für die
+  Preis-Stufentabelle als auch neu für das "realistische Verhandlungsziel" im Korridor
+  verwendet. Neue Funktion `verhandlungskorridorRelation(punktChf, inseratpreisChf)`
+  liefert CHF- und Prozent-Differenz eines Korridor-Punkts zum Inseratpreis
+  (`property.kaufpreisChf`, derselbe Basis-Kaufpreis Wohnung, auf dem der Korridor
+  selbst rechnet — ohne Parkplatz/Garage/Hobbyraum).
+- **`BestandsrenditeAnalysisView.tsx`** (Objektseite):
+  - Neuer Prop `inseratpreisChf` (von `page.tsx` aus `property.asking_price_chf`).
+  - Neue Kopfzeile "Verhandlungsspielraum: CHF X (Y%) unter Inseratpreis" — basiert auf
+    `strengsteZielgroesse`, also demselben "realistischen Ziel", das auch die
+    Preis-Stufentabelle als unteren Anker verwendet. Zeigt stattdessen einen positiven
+    Hinweis, wenn das Ziel bereits beim/über dem Inseratpreis liegt (der Deal erreicht
+    das Renditeziel schon ohne Verhandlung).
+  - Neue `VerhandlungskorridorBar`: einfache Positionsleiste (farbige Punkte auf einer
+    Linie + Legende darunter) für Eröffnung/realistisches Ziel/Inseratpreis/Maximum —
+    auf einen Blick sichtbar, wo der Inseratpreis im Korridor liegt, statt nur eine
+    Zahlenreihe lesen zu müssen. Bewusst Legende statt positionierter Text-Labels an den
+    Punkten (Kollisionsgefahr bei eng beieinanderliegenden Werten) — kein Live-Browser-
+    Test in dieser Umgebung möglich, daher die robustere Variante gewählt.
+  - Jede der vier Metric-Kacheln zeigt zusätzlich die CHF-/%-Relation zum Inseratpreis
+    als Sub-Text. Maximum wird rot hervorgehoben, wenn es UNTER dem Inseratpreis liegt
+    (echtes Warnsignal: Objekt trägt sich zum Inseratpreis rechnerisch nicht) — vorher
+    stand diese Tatsache zwar implizit in den Zahlen, aber nirgends explizit ausgewiesen.
+  - Intro-Text umformuliert: benennt jetzt explizit, welche Zahl als tatsächliches
+    Verhandlungsziel gilt (die strengere der beiden Renditegrenzen), statt nur die vier
+    Grössen neutral zu erklären.
+- **`managementSummaryPdf.tsx`**: dieselbe Verhandlungsspielraum-Kopfzeile (kompakt) und
+  Maximum-Warnfarbe auch im PDF, neuer Pflicht-Prop `inseratpreisChf` (aus
+  `property.asking_price_chf`, `management-summary/route.ts`) — konsistent mit der
+  Objektseite. Bewusst OHNE die Positionsleiste (reines Text-/Zahlen-Layout in
+  react-pdf, eine Leiste mit absolut positionierten Punkten wäre dort unverhältnismässig
+  aufwendig für den kompakten One-Pager).
+
+Neue Tests (`bestandsrendite.test.ts`): `strengsteZielgroesse` (beide/nur eine/keine
+Grösse gesetzt) und `verhandlungskorridorRelation` (positive/negative Differenz,
+`undefined`-Fälle).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

@@ -651,6 +651,44 @@ export interface Verhandlungskorridor {
 }
 
 /**
+ * Die strengere (= tiefere) der beiden gesetzten Zielgrössen (Bruttorendite-Zielpreis /
+ * Nettorendite-Preisobergrenze) — in aller Regel liegt `nettoZielChf` deutlich unter
+ * `zielChf` (Nettorendite ist die strengere Grösse), das kehrt sich aber um, wenn
+ * `nettoRenditeZielPercent` auf dem Annahmen-Reiter deutlich lockerer gesetzt wird als
+ * `bruttoRenditeZielPercent` (beide frei überschreibbar) — dann wäre `zielChf` die
+ * strengere/tiefere Grenze. Verwendet sowohl als unterer Anker der Preis-Stufentabelle
+ * (`computePreisStufentabelle`) als auch als "realistisches Verhandlungsziel" im
+ * Verhandlungskorridor-Panel (Rückmeldung: "muss noch aussagekräftiger, griffiger und
+ * realitätsnah gemacht werden") — an EINER Stelle definiert statt zweimal dieselbe
+ * Min-Logik zu pflegen.
+ */
+export function strengsteZielgroesse(korridor: Pick<Verhandlungskorridor, "zielChf" | "nettoZielChf">): number | undefined {
+  const { zielChf, nettoZielChf } = korridor;
+  if (zielChf !== undefined && nettoZielChf !== undefined) return Math.min(zielChf, nettoZielChf);
+  return nettoZielChf ?? zielChf;
+}
+
+export interface VerhandlungskorridorRelation {
+  /** Negativ = Punkt liegt UNTER dem Inseratpreis (für Eröffnung/Ziel der Normalfall — Verhandlungsspielraum), positiv = darüber. */
+  diffChf: number;
+  diffPercent: number;
+}
+
+/**
+ * Setzt einen Verhandlungskorridor-Punkt (Eröffnung/Ziel/Preisobergrenze/Maximum) in
+ * Relation zum aktuellen Inseratpreis (`property.kaufpreisChf` — derselbe Basis-Kaufpreis
+ * Wohnung, auf dem auch `computeVerhandlungskorridor` selbst rechnet, OHNE Parkplatz/
+ * Garage/Hobbyraum-Zuschlag) — Rückmeldung: "zus. ins Verhältnis zum
+ * Inserate-Start-Verkäuferpreis gesetzt". `undefined`, wenn der Punkt selbst `undefined`
+ * ist oder kein positiver Inseratpreis vorliegt.
+ */
+export function verhandlungskorridorRelation(punktChf: number | undefined, inseratpreisChf: number): VerhandlungskorridorRelation | undefined {
+  if (punktChf === undefined || inseratpreisChf <= 0) return undefined;
+  const diffChf = punktChf - inseratpreisChf;
+  return { diffChf, diffPercent: (diffChf / inseratpreisChf) * 100 };
+}
+
+/**
  * Preisverhandlungsspanne (Eröffnungsangebot/Ziel/Maximum) — Wunsch aus dem ChatGPT-
  * Analysenvergleich: eine dort mitgelieferte Verhandlungsstrategie, die es bei HOME4efFINDER
  * noch nicht gab. Das Maximum ist der Kaufpreis, bei dem der bereits an anderer Stelle
@@ -741,17 +779,7 @@ export function computePreisStufentabelle(
   parameterOverrides?: ParameterOverrides,
   steps = 6,
 ): PreisStufe[] {
-  // Strengste (= tiefste) der beiden gesetzten Zielgrössen als unteren Anker verwenden,
-  // nicht unconditional nettoZielChf bevorzugen — in aller Regel liegt nettoZielChf zwar
-  // deutlich unter zielChf (Nettorendite ist die strengere Grösse), das kehrt sich aber
-  // um, wenn nettoRenditeZielPercent auf dem Annahmen-Reiter deutlich lockerer gesetzt
-  // wird als bruttoRenditeZielPercent (beide frei überschreibbar) — dann wäre zielChf die
-  // strengere/tiefere Grenze und würde ohne diesen Vergleich fälschlich aus der Tabelle
-  // fallen (Review-Fund).
-  const zielAnker =
-    verhandlungskorridor.nettoZielChf !== undefined && verhandlungskorridor.zielChf !== undefined
-      ? Math.min(verhandlungskorridor.nettoZielChf, verhandlungskorridor.zielChf)
-      : (verhandlungskorridor.nettoZielChf ?? verhandlungskorridor.zielChf);
+  const zielAnker = strengsteZielgroesse(verhandlungskorridor);
   if (zielAnker === undefined) return [];
 
   const rundenAuf5000 = (chf: number): number => Math.round(chf / 5_000) * 5_000;

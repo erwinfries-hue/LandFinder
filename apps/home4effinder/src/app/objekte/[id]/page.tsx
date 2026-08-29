@@ -197,6 +197,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             moeblierungsAlternative={moeblierungsAlternative}
             bruttoRenditeZielPercent={effectiveParams.bruttoRenditeZielPercent}
             nettoRenditeZielPercent={effectiveParams.nettoRenditeZielPercent}
+            inseratpreisChf={property.asking_price_chf}
           />
         ) : null}
 

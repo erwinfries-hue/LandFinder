@@ -2,7 +2,84 @@ import { Panel, Chip, InfoHint } from "@landfinder/ui";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
 import { renditeAmpelColor } from "@/lib/investmentScore";
+import { strengsteZielgroesse, verhandlungskorridorRelation } from "@/lib/bestandsrendite";
 import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, PreisStufe, MoeblierungsAlternative } from "@/lib/bestandsrendite";
+
+const VERHANDLUNGSKORRIDOR_BAR_TONE: Record<string, string> = {
+  eroeffnung: "var(--ink-faint)",
+  ziel: "var(--accent)",
+  inserat: "var(--warn)",
+  maximum: "var(--bad)",
+};
+
+/**
+ * Einfache Punkt-auf-Linie-Visualisierung des Verhandlungskorridors (Rückmeldung:
+ * "muss noch aussagekräftiger, griffiger [...] gemacht werden") — eine Zeile mit vier
+ * Zahlen ist auf einen Blick schwer einzuordnen, eine Linie mit Positionsmarkern zeigt
+ * sofort, wo Eröffnung/Ziel/Inseratpreis/Maximum zueinander liegen. Bewusst schlicht
+ * gehalten (farbige Punkte + Legende darunter statt positionierter Text-Labels direkt
+ * an den Punkten) — bei eng beieinanderliegenden Werten würden sich Text-Labels
+ * überlappen; die Legende bleibt davon unabhängig lesbar. Kein Live-Browser-Test in
+ * dieser Umgebung möglich (siehe DECISIONS.md), daher bewusst diese robustere Variante.
+ */
+function VerhandlungskorridorBar({
+  eroeffnungChf,
+  realistischesZielChf,
+  inseratpreisChf,
+  maximumChf,
+}: {
+  eroeffnungChf: number | undefined;
+  realistischesZielChf: number | undefined;
+  inseratpreisChf: number;
+  maximumChf: number;
+}) {
+  const points: { key: string; label: string; value: number }[] = [];
+  if (eroeffnungChf !== undefined) points.push({ key: "eroeffnung", label: "Eröffnung", value: eroeffnungChf });
+  if (realistischesZielChf !== undefined) points.push({ key: "ziel", label: "Realistisches Ziel", value: realistischesZielChf });
+  points.push({ key: "inserat", label: "Inseratpreis", value: inseratpreisChf });
+  points.push({ key: "maximum", label: "Maximum", value: maximumChf });
+
+  const values = points.map((p) => p.value);
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+  // Etwas Randabstand, damit Marker an den Enden nicht direkt auf dem Linienrand sitzen.
+  const pad = Math.max((rawMax - rawMin) * 0.08, 1);
+  const min = rawMin - pad;
+  const max = rawMax + pad;
+  const percent = (v: number): number => ((v - min) / (max - min)) * 100;
+
+  return (
+    <div style={{ marginTop: ".9rem", marginBottom: "1.1rem" }}>
+      <div style={{ position: "relative", height: "8px", background: "var(--line)", borderRadius: "4px", margin: "0 .4rem" }}>
+        {points.map((p) => (
+          <div
+            key={p.key}
+            title={`${p.label}: CHF ${formatChf(Math.round(p.value))}`}
+            style={{
+              position: "absolute",
+              left: `${percent(p.value)}%`,
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "12px",
+              height: "12px",
+              borderRadius: "50%",
+              background: VERHANDLUNGSKORRIDOR_BAR_TONE[p.key],
+              border: "2px solid var(--surface)",
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: ".3rem .9rem", fontSize: ".72rem", color: "var(--ink-soft)", marginTop: ".6rem" }}>
+        {points.map((p) => (
+          <span key={p.key} style={{ display: "inline-flex", alignItems: "center", gap: ".35rem" }}>
+            <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: VERHANDLUNGSKORRIDOR_BAR_TONE[p.key], display: "inline-block", flexShrink: 0 }} />
+            {p.label}: CHF {formatChf(Math.round(p.value))}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Reine Anzeige der drei Ebenen — die Berechnung selbst
@@ -17,6 +94,7 @@ export function BestandsrenditeAnalysisView({
   moeblierungsAlternative,
   bruttoRenditeZielPercent,
   nettoRenditeZielPercent,
+  inseratpreisChf,
 }: {
   result: BestandsrenditeAnalysisResult;
   /** `undefined`/`null`, wenn `computeVerhandlungskorridor` keine Bisektionslösung fand (Objekt trägt sich unter keinen Umständen). */
@@ -38,6 +116,15 @@ export function BestandsrenditeAnalysisView({
    */
   bruttoRenditeZielPercent: number;
   nettoRenditeZielPercent: number;
+  /**
+   * Aktueller Inseratpreis (`property.kaufpreisChf`, derselbe Basis-Kaufpreis Wohnung,
+   * auf dem auch der Verhandlungskorridor selbst rechnet) — Rückmeldung: der
+   * Verhandlungskorridor "muss noch aussagekräftiger, griffiger und realitätsnah
+   * gemacht werden und zus. ins Verhältnis zum Inserate-Start-Verkäuferpreis gesetzt
+   * werden". Setzt jeden Korridor-Punkt als CHF-/%-Differenz dazu in Bezug, siehe
+   * `verhandlungskorridorRelation`.
+   */
+  inseratpreisChf: number;
 }) {
   const {
     schnellcheck,
@@ -86,6 +173,25 @@ export function BestandsrenditeAnalysisView({
   // was alles inkl. ist im Total").
   const hypothekTotalChf = hypothek.ersteHypothekChf + hypothek.zweiteHypothekChf;
   const kaufnebenkostenChf = schnellcheck.eigenkapitalbedarfChf - schnellcheck.kaufpreisChf + hypothekTotalChf;
+
+  // Verhandlungskorridor ins Verhältnis zum Inseratpreis gesetzt (Rückmeldung: "muss noch
+  // aussagekräftiger, griffiger und realitätsnah gemacht werden und zus. ins Verhältnis
+  // zum Inserate-Start-Verkäuferpreis gesetzt werden") — "realistisches Ziel" ist die
+  // strengere der beiden gesetzten Zielgrössen, dieselbe Logik wie der untere Anker der
+  // Preis-Stufentabelle (siehe strengsteZielgroesse).
+  const realistischesZielChf = verhandlungskorridor ? strengsteZielgroesse(verhandlungskorridor) : undefined;
+  const eroeffnungRelation = verhandlungskorridorRelation(verhandlungskorridor?.eroeffnungChf, inseratpreisChf);
+  const zielRelation = verhandlungskorridorRelation(verhandlungskorridor?.zielChf, inseratpreisChf);
+  const nettoZielRelation = verhandlungskorridorRelation(verhandlungskorridor?.nettoZielChf, inseratpreisChf);
+  const maximumRelation = verhandlungskorridorRelation(verhandlungskorridor?.maximumChf, inseratpreisChf);
+  const realistischesZielRelation = verhandlungskorridorRelation(realistischesZielChf, inseratpreisChf);
+
+  function formatRelation(relation: { diffChf: number; diffPercent: number } | undefined): string | undefined {
+    if (!relation) return undefined;
+    const vorzeichen = relation.diffChf > 0 ? "+" : relation.diffChf < 0 ? "−" : "±";
+    const richtung = relation.diffChf < 0 ? "unter" : relation.diffChf > 0 ? "über" : "auf";
+    return `${vorzeichen}CHF ${formatChf(Math.abs(Math.round(relation.diffChf)))} (${vorzeichen}${Math.abs(relation.diffPercent).toFixed(1)}%) ${richtung} Inseratpreis`;
+  }
 
   return (
     <>
@@ -166,42 +272,99 @@ export function BestandsrenditeAnalysisView({
             <h2>Verhandlungskorridor</h2>
           </div>
           <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".6rem" }}>
-            Maximum ist der Kaufpreis, bei dem der nachhaltige Cashflow gerade CHF 0 erreicht — eine reine
-            Solvenzgrenze, keine Kaufempfehlung: bei tiefen Zinsen kann sie weit über einem Preis liegen, der unter
-            dem eigenen Renditeziel noch lohnt. Zielpreis ist der Kaufpreis, bei dem die Bruttorendite das
-            gespeicherte Renditeziel erreicht; Preisobergrenze (Nettorendite) derselbe Punkt für die Nettorendite vor
-            Finanzierung (beide Annahmen-Reiter). Eröffnungsangebot ist deine eigene, per Marktrecherche bestimmte
-            Einschätzung (Bestandsrendite-Fakten, Abschnitt &quot;Verhandlung&quot;) — kein Rechenwert.
+            Realistisches Verhandlungsziel ist die strengere der beiden gesetzten Renditegrenzen (Zielpreis/
+            Preisobergrenze Nettorendite) — die Zahl, an der sich ein Angebot orientieren sollte. Maximum ist
+            dagegen eine reine Cashflow-Solvenzgrenze (nachhaltiger Cashflow = CHF 0), keine Kaufempfehlung: bei
+            tiefen Zinsen kann sie weit über dem liegen, was unter dem eigenen Renditeziel noch lohnt. Alle Werte
+            gelten für den Basis-Kaufpreis Wohnung, ohne Parkplatz/Garage/Hobbyraum.
           </p>
+
+          {realistischesZielRelation ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: ".5rem",
+                flexWrap: "wrap",
+                background: "var(--surface-2)",
+                border: "1px solid var(--line)",
+                borderRadius: "var(--radius)",
+                padding: ".6rem .9rem",
+                marginBottom: ".7rem",
+              }}
+            >
+              <span style={{ fontWeight: 700, fontSize: "1.05rem", color: realistischesZielRelation.diffChf < 0 ? "var(--good)" : "var(--ink)" }}>
+                {realistischesZielRelation.diffChf < 0
+                  ? `Verhandlungsspielraum: CHF ${formatChf(Math.abs(Math.round(realistischesZielRelation.diffChf)))} (${Math.abs(realistischesZielRelation.diffPercent).toFixed(1)}%)`
+                  : "Kein rechnerischer Verhandlungsspielraum"}
+              </span>
+              <span style={{ fontSize: ".78rem", color: "var(--ink-soft)" }}>
+                {realistischesZielRelation.diffChf < 0
+                  ? `unter dem Inseratpreis von CHF ${formatChf(Math.round(inseratpreisChf))} — realistisches Ziel CHF ${formatChf(Math.round(realistischesZielChf!))}`
+                  : `— das realistische Ziel (CHF ${formatChf(Math.round(realistischesZielChf!))}) liegt bereits auf oder über dem Inseratpreis (CHF ${formatChf(Math.round(inseratpreisChf))}): der Deal erreicht das Renditeziel schon zum Inseratpreis.`}
+              </span>
+            </div>
+          ) : null}
+
+          <VerhandlungskorridorBar
+            eroeffnungChf={verhandlungskorridor.eroeffnungChf}
+            realistischesZielChf={realistischesZielChf}
+            inseratpreisChf={inseratpreisChf}
+            maximumChf={verhandlungskorridor.maximumChf}
+          />
+
           <div className="metricgrid">
             <Metric
               l="Eröffnungsangebot"
               v={verhandlungskorridor.eroeffnungChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.eroeffnungChf))}` : "—"}
-              sub={verhandlungskorridor.eroeffnungChf === undefined ? "eigene Markteinschätzung noch nicht erfasst" : undefined}
+              sub={verhandlungskorridor.eroeffnungChf === undefined ? "eigene Markteinschätzung noch nicht erfasst" : formatRelation(eroeffnungRelation)}
               hint="Eigene Markteinschätzung, siehe Bestandsrendite-Fakten, Abschnitt „Verhandlung“ — kein Rechenwert."
             />
             <Metric
               l="Zielpreis"
               v={verhandlungskorridor.zielChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.zielChf))}` : "—"}
-              sub={verhandlungskorridor.zielChf === undefined ? "kein Renditeziel gesetzt (Annahmen-Reiter)" : undefined}
+              sub={verhandlungskorridor.zielChf === undefined ? "kein Renditeziel gesetzt (Annahmen-Reiter)" : formatRelation(zielRelation)}
               hint="= Kaufpreis, bei dem die Bruttorendite (Kaufpreis) das Renditeziel erreicht (Annahmen-Reiter), gedeckelt auf das Maximum."
             />
             <Metric
               l="Preisobergrenze (Nettorendite)"
               v={verhandlungskorridor.nettoZielChf !== undefined ? `CHF ${formatChf(Math.round(verhandlungskorridor.nettoZielChf))}` : "—"}
               sub={
-                verhandlungskorridor.nettoZielChf === undefined
-                  ? "kein Nettorenditeziel gesetzt (Annahmen-Reiter)"
-                  : alt?.verhandlungskorridor.nettoZielChf !== undefined
-                    ? `${altLabel}: CHF ${formatChf(Math.round(alt.verhandlungskorridor.nettoZielChf))}`
-                    : undefined
+                verhandlungskorridor.nettoZielChf === undefined ? (
+                  "kein Nettorenditeziel gesetzt (Annahmen-Reiter)"
+                ) : (
+                  <>
+                    {formatRelation(nettoZielRelation)}
+                    {alt?.verhandlungskorridor.nettoZielChf !== undefined ? (
+                      <>
+                        <br />
+                        {altLabel}: CHF {formatChf(Math.round(alt.verhandlungskorridor.nettoZielChf))}
+                      </>
+                    ) : null}
+                  </>
+                )
               }
               hint="= Kaufpreis, bei dem die Nettorendite vor Finanzierung das Nettorenditeziel erreicht (Annahmen-Reiter), gedeckelt auf das Maximum — im Gegensatz zum Zielpreis inkl. Leerstand/Betriebskosten/Eigentümerkosten, meist die strengere Grenze."
             />
             <Metric
               l="Maximum"
               v={`CHF ${formatChf(Math.round(verhandlungskorridor.maximumChf))}`}
-              sub={alt?.verhandlungskorridor.maximumChf !== undefined ? `${altLabel}: CHF ${formatChf(Math.round(alt.verhandlungskorridor.maximumChf))}` : undefined}
+              valueColor={maximumRelation && maximumRelation.diffChf < 0 ? "var(--bad)" : undefined}
+              sub={
+                <>
+                  {maximumRelation && maximumRelation.diffChf < 0 ? (
+                    <span style={{ color: "var(--bad)" }}>Achtung: unter dem Inseratpreis — Objekt trägt sich zum Inseratpreis rechnerisch nicht.</span>
+                  ) : (
+                    formatRelation(maximumRelation)
+                  )}
+                  {alt?.verhandlungskorridor.maximumChf !== undefined ? (
+                    <>
+                      <br />
+                      {altLabel}: CHF {formatChf(Math.round(alt.verhandlungskorridor.maximumChf))}
+                    </>
+                  ) : null}
+                </>
+              }
               hint="Kaufpreis, bei dem der nachhaltige Cashflow (nach Zins, Amortisation, Steuer, Reparatur-/Leerstandsreserve) gerade CHF 0 erreicht — reine Solvenzgrenze, keine Kaufempfehlung: mehr zu zahlen ist unter den aktuellen Annahmen rechnerisch nicht mehr cashflow-tragfähig, sagt aber nichts über die Renditequalität des Deals aus."
             />
           </div>
