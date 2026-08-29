@@ -488,6 +488,52 @@ describe("computePreisStufentabelle", () => {
   });
 });
 
+describe("computeBestandsrenditeAnalysis — incrementalFurnitureNoi", () => {
+  const property = { kaufpreisChf: 870_000, wohnflaecheM2: 75 };
+  // leerstandPercent: 0 auf beiden Seiten (gilt laut computeBestandsrenditeAnalysis für
+  // beide Vergleichsszenarien gleich, siehe Modulkommentar dort) — macht effektiver =
+  // potenzieller Jahresertrag, damit sich die erwarteten CHF-Werte exakt von Hand
+  // nachrechnen lassen statt von den Platzhalter-Leerstand-Defaults abzuhängen.
+  const baseFacts: BestandsrenditeFacts = {
+    ...fullFacts,
+    miete: { ...fullFacts.miete, leerstandPercent: 0 },
+  };
+
+  it("ist positiv, wenn der Mietaufschlag die möblierungsspezifischen Zusatzkosten (Reinigung + Ersatzreserve) übersteigt", () => {
+    const facts: BestandsrenditeFacts = {
+      ...baseFacts,
+      moeblierung: { initialCostChf: 12_000, mietPremiumChfPerMonth: 300, jaehrlicherErsatzsatzPercent: 100, nutzungsdauerJahre: 10 },
+      betriebskosten: { ...baseFacts.betriebskosten, reinigungServiceUnmoebliertChfPerYear: 0, reinigungServiceMoebliertChfPerYear: 600 },
+    };
+    const result = computeBestandsrenditeAnalysis(property, facts);
+    // Reserve = 12'000 × 100% ÷ 10 Jahre = 1'200/Jahr. Mehrertrag = 300×12 = 3'600.
+    // Inkrementeller NOI = 3'600 − 600 (Reinigung) − 1'200 (Reserve) = 1'800.
+    expect(result.incrementalFurnitureNoi).toBeDefined();
+    expect(result.incrementalFurnitureNoi!.incrementalNoiChf).toBeCloseTo(1_800, 5);
+    expect(result.incrementalFurnitureNoi!.furnishedNoiChf - result.incrementalFurnitureNoi!.unfurnishedNoiChf).toBeCloseTo(1_800, 5);
+  });
+
+  it("ist NEGATIV trotz positivem Mehrertrag, wenn die Zusatzkosten den Mehrertrag übersteigen — Guardrail 'höherer Umsatz ≠ höherer Gewinn'", () => {
+    const facts: BestandsrenditeFacts = {
+      ...baseFacts,
+      moeblierung: { initialCostChf: 12_000, mietPremiumChfPerMonth: 100, jaehrlicherErsatzsatzPercent: 100, nutzungsdauerJahre: 10 },
+      betriebskosten: { ...baseFacts.betriebskosten, reinigungServiceUnmoebliertChfPerYear: 0, reinigungServiceMoebliertChfPerYear: 2_000 },
+    };
+    const result = computeBestandsrenditeAnalysis(property, facts);
+    // Mehrertrag = 100×12 = 1'200 (positiv!). Reserve = 1'200/Jahr, Reinigung = 2'000/Jahr.
+    // Inkrementeller NOI = 1'200 − 2'000 − 1'200 = −2'000 (negativ trotz positivem Mehrertrag).
+    expect(result.incrementalFurnitureNoi).toBeDefined();
+    expect(result.incrementalFurnitureNoi!.incrementalNoiChf).toBeCloseTo(-2_000, 5);
+  });
+
+  it("ist undefined, wenn keine Möblierungskosten erfasst sind — dieselbe Gating-Bedingung wie furnitureRoi", () => {
+    const facts: BestandsrenditeFacts = { ...baseFacts, moeblierung: { initialCostChf: 0, mietPremiumChfPerMonth: 0 } };
+    const result = computeBestandsrenditeAnalysis(property, facts);
+    expect(result.incrementalFurnitureNoi).toBeUndefined();
+    expect(result.furnitureRoi).toBeUndefined();
+  });
+});
+
 describe("strengsteZielgroesse", () => {
   it("wählt die tiefere der beiden Zielgrössen, wenn beide gesetzt sind", () => {
     expect(strengsteZielgroesse({ zielChf: 800_000, nettoZielChf: 850_000 })).toBe(800_000);

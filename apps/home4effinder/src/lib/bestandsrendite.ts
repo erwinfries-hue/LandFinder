@@ -217,6 +217,24 @@ export interface NoiBreakdown {
   noiChf: number;
 }
 
+/**
+ * Möblierung als NOI-Wirkung statt nur als Umsatz-Wirkung (Guardrail: "höheren
+ * möblierten Umsatz automatisch als höheren Gewinn interpretieren" ist ein Fehler, den
+ * die App nicht machen darf). `furnitureRoi`/`moeblierungsVergleich` vergleichen bewusst
+ * nur den ERTRAG (Miete), nicht den tatsächlichen Betriebsgewinn — der zusätzliche
+ * Reinigungsaufwand zwischen Mietern und die Möblierungs-Ersatzreserve sind zwei
+ * konkrete, direkt der Möblierung zurechenbare Zusatzkosten, die dort NICHT gegengerechnet
+ * werden. `incrementalNoiChf` schliesst genau diese Lücke: Mehrertrag minus diese beiden
+ * Zusatzkosten. Kann negativ sein, obwohl der Mehrertrag selbst positiv ist — genau der
+ * Fall, den die UI explizit ausweisen muss, statt ihn hinter einer reinen ROI-Prozentzahl
+ * zu verstecken.
+ */
+export interface IncrementalFurnitureNoi {
+  unfurnishedNoiChf: number;
+  furnishedNoiChf: number;
+  incrementalNoiChf: number;
+}
+
 /** Eines der beiden Vermietungsszenarien im Möblierungs-Vergleich — siehe `MoeblierungsVergleich`. */
 export interface MoeblierungsSzenario {
   mieteChfPerMonth: number;
@@ -270,6 +288,8 @@ export interface BestandsrenditeAnalysisResult {
   noiBreakdown: NoiBreakdown;
   breakEven: { mieteChfPerMonth: number | undefined; zinsPercent: number | undefined; auslastungPercent: number | undefined };
   furnitureRoi: ValueAddRoiResult | undefined;
+  /** Siehe `IncrementalFurnitureNoi` — `undefined` unter denselben Bedingungen wie `furnitureRoi` (keine Möblierungsdaten erfasst). */
+  incrementalFurnitureNoi: IncrementalFurnitureNoi | undefined;
   /** Geglättete jährliche Ersatzreserve für die Möblierung — rein informativ, nicht Grundlage der 15-Jahres-Cashflows (die rechnen mit dem tatsächlichen Ersatz-Cashout im Ersatzjahr, siehe mehrjahresmodell). */
   moeblierungReserveChfPerJahr: number | undefined;
   moeblierungsVergleich: MoeblierungsVergleich;
@@ -523,6 +543,23 @@ export function computeBestandsrenditeAnalysis(
   // Ersatz-Cashouts) gilt dieselbe Gating-Regel wie überall sonst in dieser Funktion.
   const moeblierungLebenszyklusEffective = moeblierungIstGewaehltesSzenario ? moeblierungLebenszyklus : undefined;
 
+  // Siehe IncrementalFurnitureNoi: Mehrertrag NETTO der beiden möblierungsspezifischen
+  // Zusatzkosten (Reinigung zwischen Mietern, Ersatzreserve) — nicht nur der rohe
+  // Mehrertrag wie bei furnitureRoi/moeblierungsVergleich. Gleiche Gating-Bedingung wie
+  // furnitureRoi (nur relevant, wenn überhaupt Möblierungskosten erfasst sind).
+  const incrementalFurnitureNoi: IncrementalFurnitureNoi | undefined =
+    facts.moeblierung.initialCostChf > 0
+      ? {
+          unfurnishedNoiChf: ertragUnmoebliert.effektiverJahresertragChf - facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear,
+          furnishedNoiChf: ertragMoebliert.effektiverJahresertragChf - facts.betriebskosten.reinigungServiceMoebliertChfPerYear - (moeblierungReserveChfPerJahr ?? 0),
+          incrementalNoiChf:
+            ertragMoebliert.effektiverJahresertragChf -
+            facts.betriebskosten.reinigungServiceMoebliertChfPerYear -
+            (moeblierungReserveChfPerJahr ?? 0) -
+            (ertragUnmoebliert.effektiverJahresertragChf - facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear),
+        }
+      : undefined;
+
   const moeblierungsVergleich: MoeblierungsVergleich = {
     unmoebliert: {
       mieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth,
@@ -607,6 +644,7 @@ export function computeBestandsrenditeAnalysis(
       auslastungPercent: breakEvenAuslastungPercent(investmentCaseInput),
     },
     furnitureRoi,
+    incrementalFurnitureNoi,
     moeblierungReserveChfPerJahr,
     moeblierungsVergleich,
     renovationRoi,
