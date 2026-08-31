@@ -2,7 +2,7 @@ import { Panel, Chip, InfoHint } from "@landfinder/ui";
 import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
 import { renditeAmpelColor } from "@/lib/investmentScore";
-import { strengsteZielgroesse, verhandlungskorridorRelation } from "@/lib/bestandsrendite";
+import { strengsteZielgroesse, verhandlungskorridorRelation, VERMIETUNGSMODELL_LABELS } from "@/lib/bestandsrendite";
 import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, PreisStufe, MoeblierungsAlternative, VermietungsstrategienVergleich } from "@/lib/bestandsrendite";
 import { computePriceZones, classifyPriceZone, priceZoneTone, computeValueCreation } from "@/lib/priceStrategy";
 import type { MarketValueRange, CashOnCashBreakdown, PriceZoneBand, OpeningBidSuggestion } from "@/lib/priceStrategy";
@@ -203,6 +203,7 @@ export function BestandsrenditeAnalysisView({
     furnishedRentalDelta,
     furnishedOpexBreakdown,
     moeblierungReserveChfPerJahr,
+    moeblierungsVergleichVariante,
     moeblierungsVergleich,
     renovationRoi,
     renovationSummary,
@@ -936,7 +937,8 @@ export function BestandsrenditeAnalysisView({
           <h2>Value-Add — Möblierung</h2>
         </div>
         <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".6rem" }}>
-          Zwei vollständige Szenarien im Vergleich — Paket 1 (unmöbliert) und Paket 2 (möbliert), siehe Eingabe oben.
+          Zwei vollständige Szenarien im Vergleich — Paket 1 (unmöbliert) und Paket 2 ({VERMIETUNGSMODELL_LABELS[moeblierungsVergleichVariante]}), siehe
+          Eingabe oben.
         </p>
         <div style={{ overflowX: "auto" }}>
           <table className="stresstable">
@@ -944,7 +946,7 @@ export function BestandsrenditeAnalysisView({
               <tr>
                 <th></th>
                 <th>Paket 1 — unmöbliert</th>
-                <th>Paket 2 — möbliert</th>
+                <th>Paket 2 — {VERMIETUNGSMODELL_LABELS[moeblierungsVergleichVariante]}</th>
               </tr>
             </thead>
             <tbody>

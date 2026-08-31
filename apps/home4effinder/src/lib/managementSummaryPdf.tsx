@@ -92,6 +92,8 @@ export interface ManagementSummaryInput {
   /** Referenzwerte aus dem "Annahmen"-Reiter, wie bereits auf der Objektseite (BestandsrenditeAnalysisView) verwendet — färbt die Rendite-Kennzahlen unten relativ zum Ziel (Review-Fund: PDF hatte bisher keine Ampel/Ziel-Anzeige, obwohl die Objektseite selbst schon eine hat). */
   bruttoRenditeZielPercent: number;
   nettoRenditeZielPercent: number;
+  /** Referenzwert für die Möblierungs-Upside-Ampel (siehe bewertungsAmpel.ts). */
+  minimumRequiredFurnitureRoiPercent: number;
   /** Vorformatierter Hinweistext aus ubsWohnattraktivitaet.ts, falls die Gemeinde dort genannt ist — sonst undefined (kein Platzhalter-Text). */
   ubsWohnattraktivitaetHinweis?: string;
   /** Aktueller Inseratpreis (`property.asking_price_chf`) — setzt den Verhandlungskorridor in Relation dazu, siehe verhandlungskorridorRelation in bestandsrendite.ts. */
@@ -110,6 +112,7 @@ function ManagementSummaryDocument({
   moeblierungsAlternative,
   bruttoRenditeZielPercent,
   nettoRenditeZielPercent,
+  minimumRequiredFurnitureRoiPercent,
   ubsWohnattraktivitaetHinweis,
   inseratpreisChf,
 }: ManagementSummaryInput) {
@@ -132,6 +135,7 @@ function ManagementSummaryDocument({
     nachhaltigerCashflowChf: investmentCase.wasserfall.nachhaltigerCashflowChf,
     dueDiligenceOverallStatus: dueDiligence?.overallStatus,
     moeblierungFurnitureRoiPercent: analysis.furnishingRoi?.roiPercent,
+    minimumRequiredFurnitureRoiPercent,
   });
 
   return (

@@ -376,6 +376,8 @@ export interface BestandsrenditeAnalysisResult {
   furnishedOpexBreakdown: FurnishedOpexBreakdown | undefined;
   /** Geglättete jährliche Ersatzreserve für Möbel + Haushaltsinventar zusammen — rein informativ, nicht Grundlage der 15-Jahres-Cashflows (die rechnen mit dem tatsächlichen Ersatz-Cashout im jeweiligen Ersatzjahr, siehe mehrjahresmodell). */
   moeblierungReserveChfPerJahr: number | undefined;
+  /** Welche möblierte Dauer-Variante die "möbliert"-Seite von `moeblierungsVergleich` tatsächlich abbildet (siehe `resolveMoeblierungsVergleichVariante`) — für die UI-Beschriftung, da "möbliert" seit den drei Dauer-Varianten allein nicht mehr eindeutig ist. Label via `VERMIETUNGSMODELL_LABELS`. */
+  moeblierungsVergleichVariante: Vermietungsmodell;
   moeblierungsVergleich: MoeblierungsVergleich;
   renovationRoi: ValueAddRoiResult | undefined;
   renovationSummary: RenovationPositionenSummary;
@@ -833,6 +835,7 @@ export function computeBestandsrenditeAnalysis(
     furnishedRentalDelta,
     furnishedOpexBreakdown,
     moeblierungReserveChfPerJahr,
+    moeblierungsVergleichVariante,
     moeblierungsVergleich,
     renovationRoi,
     renovationSummary,
@@ -1076,10 +1079,21 @@ export function computePreisStufentabelle(
 }
 
 export interface MoeblierungsAlternative {
-  label: "unmöbliert" | "möbliert";
+  /** Konkretes Vermietungsmodell-Label der Alternative (z.B. "Möbliert Mittelzeit", nicht nur pauschal "möbliert") — siehe `VERMIETUNGSMODELL_LABELS`. */
+  label: string;
   analysis: BestandsrenditeAnalysisResult;
   verhandlungskorridor: Verhandlungskorridor;
 }
+
+const VERMIETUNGSMODELL_VALUES: Vermietungsmodell[] = ["LANGFRISTIG_UNMOEBLIERT", "LANGFRISTIG_MOEBLIERT", "MITTELFRISTIG_MOEBLIERT", "SHORT_STAY"];
+
+/** Anzeigetext je Vermietungsmodell, z.B. für `MoeblierungsAlternative.label`/`VermietungsstrategieErgebnis.label` und zur Beschriftung von `moeblierungsVergleichVariante` in der UI. */
+export const VERMIETUNGSMODELL_LABELS: Record<Vermietungsmodell, string> = {
+  LANGFRISTIG_UNMOEBLIERT: "Unmöbliert",
+  LANGFRISTIG_MOEBLIERT: "Möbliert Langzeit",
+  MITTELFRISTIG_MOEBLIERT: "Möbliert Mittelzeit",
+  SHORT_STAY: "Möbliert Kurzzeit",
+};
 
 /**
  * Rechnet das jeweils ANDERE Szenario (möbliert/unmöbliert) komplett durch — für eine
@@ -1111,20 +1125,11 @@ export function computeMoeblierungsAlternative(
 
   const alternativeFacts: BestandsrenditeFacts = { ...facts, miete: { ...facts.miete, vermietungsmodell: alternativesModell } };
   return {
-    label: alternativesModellIstMoebliert ? "möbliert" : "unmöbliert",
+    label: VERMIETUNGSMODELL_LABELS[alternativesModell],
     analysis: computeBestandsrenditeAnalysis(property, alternativeFacts, parameterOverrides),
     verhandlungskorridor: computeVerhandlungskorridor(property, alternativeFacts, parameterOverrides),
   };
 }
-
-const VERMIETUNGSMODELL_VALUES: Vermietungsmodell[] = ["LANGFRISTIG_UNMOEBLIERT", "LANGFRISTIG_MOEBLIERT", "MITTELFRISTIG_MOEBLIERT", "SHORT_STAY"];
-
-const VERMIETUNGSMODELL_LABELS: Record<Vermietungsmodell, string> = {
-  LANGFRISTIG_UNMOEBLIERT: "Unmöbliert",
-  LANGFRISTIG_MOEBLIERT: "Möbliert Langzeit",
-  MITTELFRISTIG_MOEBLIERT: "Möbliert Mittelzeit",
-  SHORT_STAY: "Möbliert Kurzzeit",
-};
 
 /** Wie verlässlich die Annahmen einer Vermietungsstrategie im 4-Wege-Vergleich sind — dieselbe Skala wie `priceStrategy.ts::ConfidenceLevel`, hier bewusst lokal definiert statt importiert (priceStrategy.ts importiert bereits von diesem Modul, ein Rückimport würde einen Zirkelbezug erzeugen). */
 export type VermietungsstrategieConfidence = "HIGH" | "MEDIUM" | "LOW";
