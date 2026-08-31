@@ -22,8 +22,14 @@ const facts: BestandsrenditeFacts = {
   stweg: {},
   nebenkosten: {},
   renovation: { initialRenovationCostChf: 0, positionen: [] },
-  reparatur: { jaehrlichUnmoebliertChf: 0, jaehrlichMoebliertChf: 0 },
-  moeblierung: { initialCostChf: 10_000, mietPremiumChfPerMonth: 300 },
+  reparatur: { jaehrlichUnmoebliertChf: 0 },
+  moeblierung: {
+    initialCostChf: 10_000,
+    haushaltinventarInitialCostChf: 0,
+    mietPremiumLangzeitChfPerMonth: 300,
+    mietPremiumMittelzeitChfPerMonth: 300,
+    mietPremiumKurzzeitChfPerMonth: 300,
+  },
   miete: {
     wohnungsMieteChfPerMonth: 1_450,
     parkplatzMieteChfPerMonth: 0,
@@ -39,8 +45,23 @@ const facts: BestandsrenditeFacts = {
     eigentuemerkostenChfPerYear: 1_000,
     vermietungskostenChfPerYear: 200,
     reinigungServiceUnmoebliertChfPerYear: 0,
-    reinigungServiceMoebliertChfPerYear: 0,
-    nebenkostenMoebliertChfPerYear: 0,
+  },
+  moebliertBetriebskosten: {
+    internetChfPerMonth: 0,
+    kabelTvChfPerMonth: 0,
+    streamingChfPerMonth: 0,
+    stromChfPerMonth: 0,
+    abfallChfPerMonth: 0,
+    mieterwechselProJahr: 0,
+    reinigungProWechselChf: 0,
+    waescheProWechselChf: 0,
+    inseratProWechselChf: 0,
+    verbrauchsmaterialChfPerMonth: 0,
+    kleinreparaturenChfPerMonth: 0,
+    hausratversicherungChfPerMonth: 0,
+    schadenreserveChfPerMonth: 0,
+    verwaltungsgebuehrPercent: 0,
+    plattformgebuehrPercent: 0,
   },
   reserven: { reparaturChfPerYear: 1_500 },
   hypothek: {
@@ -57,7 +78,7 @@ describe("applyScenarioOverrides", () => {
     expect(result.facts.miete.wohnungsMieteChfPerMonth).toBe(1_500);
     expect(result.facts.hypothek.interestRatePercent).toBe(3);
     // Unverändert:
-    expect(result.facts.moeblierung.mietPremiumChfPerMonth).toBe(300);
+    expect(result.facts.moeblierung.mietPremiumMittelzeitChfPerMonth).toBe(300);
     expect(result.property.kaufpreisChf).toBe(870_000);
     // Original bleibt unmutiert.
     expect(facts.miete.wohnungsMieteChfPerMonth).toBe(1_450);

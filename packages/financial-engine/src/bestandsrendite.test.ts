@@ -126,18 +126,18 @@ describe("calculateJahresertrag", () => {
 
 describe("calculateBetriebskosten", () => {
   it("summiert alle vier Kostenkategorien", () => {
-    expect(calculateBetriebskosten({ stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0, reparaturChfPerYear: 0, nebenkostenMoebliertChfPerYear: 0 })).toBe(5_300);
+    expect(calculateBetriebskosten({ stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0, reparaturChfPerYear: 0, moebliertOpexChfPerYear: 0 })).toBe(5_300);
   });
 
-  it("summiert auch jährliche Reparaturkosten und möblierte Nebenkosten (WLAN/Kabel/Streaming/Abfall)", () => {
+  it("summiert auch den möblierten Betriebskosten-Gesamtposten (siehe bestandsrenditeFurnishedRental.ts::calculateFurnishedOpex)", () => {
     expect(
       calculateBetriebskosten({
         stwegAkontobeitragChfPerYear: 4_800,
         eigentuemerkostenChfPerYear: 300,
         vermietungskostenChfPerYear: 200,
         reinigungServiceChfPerYear: 400,
-        reparaturChfPerYear: 400,
-        nebenkostenMoebliertChfPerYear: 1_500,
+        reparaturChfPerYear: 0,
+        moebliertOpexChfPerYear: 1_900,
       }),
     ).toBe(7_600);
   });
@@ -218,7 +218,7 @@ const baseInvestmentCaseInput: InvestmentCaseInput = {
     vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT",
     leerstandPercent: 2,
   },
-  betriebskosten: { stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0, reparaturChfPerYear: 0, nebenkostenMoebliertChfPerYear: 0 },
+  betriebskosten: { stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0, reparaturChfPerYear: 0, moebliertOpexChfPerYear: 0 },
   hypothekChf: 630_000,
   interestRatePercent: 2,
   amortisationChfPerYear: 5_000,

@@ -1,26 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-  calculateFurnitureRoi,
   calculateRenovationRoi,
   moeblierungGeglaetteReserveChfPerJahr,
   moeblierungErsatzCashflowChf,
   summarizeRenovationPositionen,
 } from "./bestandsrenditeValueAdd";
-
-describe("calculateFurnitureRoi", () => {
-  it("Beispiel aus der Rückmeldung: CHF 300/Monat Premium auf CHF 10'000 Investition = 36% ROI", () => {
-    const result = calculateFurnitureRoi({ moeblierungInitialChf: 10_000, mietPremiumChfPerMonth: 300 });
-    expect(result.zusaetzlicherJahresertragChf).toBe(3_600);
-    expect(result.roiPercent).toBeCloseTo(36, 5);
-    expect(result.paybackYears).toBeCloseTo(10_000 / 3_600, 5);
-  });
-
-  it("liefert payback undefined, wenn kein Mehrertrag entsteht", () => {
-    const result = calculateFurnitureRoi({ moeblierungInitialChf: 10_000, mietPremiumChfPerMonth: 0 });
-    expect(result.paybackYears).toBeUndefined();
-    expect(result.roiPercent).toBe(0);
-  });
-});
 
 describe("calculateRenovationRoi", () => {
   it("Beispiel aus der Rückmeldung: CHF 150/Monat Mehrertrag auf CHF 25'000 Renovation ≈ 7.2% ROI, ≈13.9 Jahre Payback", () => {

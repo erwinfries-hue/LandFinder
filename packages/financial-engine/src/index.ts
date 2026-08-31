@@ -8,4 +8,5 @@ export * from "./szenarien";
 export * from "./numeric";
 export * from "./bestandsrendite";
 export * from "./bestandsrenditeValueAdd";
+export * from "./bestandsrenditeFurnishedRental";
 export * from "./bestandsrenditeMehrjahresmodell";

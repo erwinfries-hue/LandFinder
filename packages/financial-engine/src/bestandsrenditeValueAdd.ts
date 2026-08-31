@@ -13,21 +13,10 @@ export interface ValueAddRoiResult {
   paybackYears: number | undefined;
 }
 
-function calculateValueAddRoi(investmentChf: number, zusaetzlicherJahresertragChf: number): ValueAddRoiResult {
+export function calculateValueAddRoi(investmentChf: number, zusaetzlicherJahresertragChf: number): ValueAddRoiResult {
   const roiPercent = investmentChf > 0 ? (zusaetzlicherJahresertragChf / investmentChf) * 100 : 0;
   const paybackYears = zusaetzlicherJahresertragChf > 0 ? investmentChf / zusaetzlicherJahresertragChf : undefined;
   return { zusaetzlicherJahresertragChf, roiPercent, paybackYears };
-}
-
-export interface FurnitureRoiInput {
-  moeblierungInitialChf: number;
-  /** Marktmiete möbliert minus unmöbliert, CHF/Monat. */
-  mietPremiumChfPerMonth: number;
-}
-
-/** "Furniture ROI": Mehrertrag aus möblierter Vermietung ÷ Möblierungsinvestment. */
-export function calculateFurnitureRoi(input: FurnitureRoiInput): ValueAddRoiResult {
-  return calculateValueAddRoi(input.moeblierungInitialChf, input.mietPremiumChfPerMonth * 12);
 }
 
 export interface RenovationRoiInput {

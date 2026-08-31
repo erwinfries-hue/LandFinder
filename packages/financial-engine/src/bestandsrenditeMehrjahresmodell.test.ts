@@ -15,7 +15,7 @@ const baseInput: MehrjahresmodellInput = {
     vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT",
     leerstandPercent: 2,
   },
-  betriebskostenJahr1: { stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0, reparaturChfPerYear: 0, nebenkostenMoebliertChfPerYear: 0 },
+  betriebskostenJahr1: { stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0, reparaturChfPerYear: 0, moebliertOpexChfPerYear: 0 },
   reparaturreserveJahr1Chf: 2_700,
   leerstandsreserveJahr1Chf: 1_500,
   mietsteigerungPercentPerYear: 1,
@@ -128,6 +128,20 @@ describe("runMehrjahresmodell", () => {
     expect(withFurniture.years[6].nachhaltigerCashflowChf).toBeLessThan(withoutFurniture.years[6].nachhaltigerCashflowChf);
     // In einem Jahr ohne Ersatz sind beide Szenarien identisch.
     expect(withFurniture.years[0].nachhaltigerCashflowChf).toBeCloseTo(withoutFurniture.years[0].nachhaltigerCashflowChf, 5);
+  });
+
+  it("Haushaltsinventar-Ersatz ist unabhängig vom Möbel-Ersatz fällig (eigene Nutzungsdauer) und addiert sich in einem gemeinsamen Ersatzjahr", () => {
+    const moeblierung = { initialCostChf: 10_000, nutzungsdauerJahre: 7, ersatzquotePercent: 100, kostensteigerungPercentPerYear: 1.5 };
+    const haushaltinventar = { initialCostChf: 2_000, nutzungsdauerJahre: 5, ersatzquotePercent: 100, kostensteigerungPercentPerYear: 1.5 };
+    const result = runMehrjahresmodell({ ...baseInput, moeblierung, haushaltinventar });
+
+    expect(result.years[4].moeblierungsErsatzChf).toBeGreaterThan(0); // Jahr 5 = Inventar-Nutzungsdauer, Möbel noch nicht fällig
+    expect(result.years[6].moeblierungsErsatzChf).toBeGreaterThan(0); // Jahr 7 = Möbel-Nutzungsdauer
+    // Jahr 35 (kgV von 5 und 7) wäre der einzige gemeinsame Ersatzzeitpunkt — mit 15 Jahren
+    // Haltedauer hier nicht erreichbar, daher stattdessen direkt die Summenformel geprüft:
+    const nurMoebel = runMehrjahresmodell({ ...baseInput, moeblierung, haushaltinventar: undefined });
+    const nurInventar = runMehrjahresmodell({ ...baseInput, moeblierung: undefined, haushaltinventar });
+    expect(result.years[6].moeblierungsErsatzChf).toBeCloseTo(nurMoebel.years[6].moeblierungsErsatzChf + nurInventar.years[6].moeblierungsErsatzChf, 5);
   });
 
   it("Exit: Verkaufserlös = Immobilienwert - Restschuld - Verkaufskosten (ohne Grundstückgewinnsteuer, wenn nicht gesetzt)", () => {

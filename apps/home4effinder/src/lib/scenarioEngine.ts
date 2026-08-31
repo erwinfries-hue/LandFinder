@@ -1,5 +1,5 @@
 import { BESTANDSRENDITE_PARAMETERS, defaultsOf } from "@landfinder/financial-engine";
-import { computeBestandsrenditeAnalysis } from "./bestandsrendite";
+import { computeBestandsrenditeAnalysis, resolveMietPremiumChfPerMonth } from "./bestandsrendite";
 import type { BestandsrenditeFacts, BestandsrenditePropertyInput, BestandsrenditeAnalysisResult, ParameterOverrides } from "./bestandsrendite";
 
 /**
@@ -62,7 +62,28 @@ function resolveEffectiveVacancyPercent(facts: BestandsrenditeFacts, parameterOv
   const P = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
   if (facts.miete.vermietungsmodell === "SHORT_STAY") return 100 - (facts.miete.auslastungPercent ?? 100);
   if (facts.miete.leerstandPercent !== undefined) return facts.miete.leerstandPercent;
-  return facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT" ? P.leerstandMoebliertPercent : P.leerstandLangfristigPercent;
+  return facts.miete.vermietungsmodell === "LANGFRISTIG_MOEBLIERT" || facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT"
+    ? P.leerstandMoebliertPercent
+    : P.leerstandLangfristigPercent;
+}
+
+/** Schreibt einen Mietaufschlag-Override in das je nach `vermietungsmodell` passende der drei Felder — die anderen beiden bleiben unverändert (siehe `resolveMietPremiumChfPerMonth`). No-op bei unmöblierter Vermietung. */
+function withMietPremiumOverride(
+  moeblierung: BestandsrenditeFacts["moeblierung"],
+  vermietungsmodell: BestandsrenditeFacts["miete"]["vermietungsmodell"],
+  overridePremiumChfPerMonth: number | undefined,
+): BestandsrenditeFacts["moeblierung"] {
+  if (overridePremiumChfPerMonth === undefined) return moeblierung;
+  switch (vermietungsmodell) {
+    case "LANGFRISTIG_MOEBLIERT":
+      return { ...moeblierung, mietPremiumLangzeitChfPerMonth: overridePremiumChfPerMonth };
+    case "MITTELFRISTIG_MOEBLIERT":
+      return { ...moeblierung, mietPremiumMittelzeitChfPerMonth: overridePremiumChfPerMonth };
+    case "SHORT_STAY":
+      return { ...moeblierung, mietPremiumKurzzeitChfPerMonth: overridePremiumChfPerMonth };
+    case "LANGFRISTIG_UNMOEBLIERT":
+      return moeblierung;
+  }
 }
 
 /** Überträgt einen ScenarioOverrides-Satz in eine neue, unveränderte Kopie von Property/Facts — reine Funktion, keine Mutation der Originale. */
@@ -83,8 +104,7 @@ export function applyScenarioOverrides(
         auslastungPercent: overrides.vacancyPercent !== undefined && isShortStay ? 100 - overrides.vacancyPercent : facts.miete.auslastungPercent,
       },
       moeblierung: {
-        ...facts.moeblierung,
-        mietPremiumChfPerMonth: overrides.moeblierteMietPremiumChfPerMonth ?? facts.moeblierung.mietPremiumChfPerMonth,
+        ...withMietPremiumOverride(facts.moeblierung, facts.miete.vermietungsmodell, overrides.moeblierteMietPremiumChfPerMonth),
         initialCostChf: overrides.furnishingCostChf ?? facts.moeblierung.initialCostChf,
       },
       renovation: {
@@ -130,7 +150,7 @@ export function buildDefaultScenarios(facts: BestandsrenditeFacts, parameterOver
       label: "Conservative",
       overrides: {
         wohnungsMieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth * (1 + DEFAULT_SCENARIO_DELTA.CONSERVATIVE.mieteFactor),
-        moeblierteMietPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth * (1 + DEFAULT_SCENARIO_DELTA.CONSERVATIVE.mieteFactor),
+        moeblierteMietPremiumChfPerMonth: resolveMietPremiumChfPerMonth(facts.miete.vermietungsmodell, facts.moeblierung) * (1 + DEFAULT_SCENARIO_DELTA.CONSERVATIVE.mieteFactor),
         vacancyPercent: clampVacancy(effectiveVacancy + DEFAULT_SCENARIO_DELTA.CONSERVATIVE.vacancyPercentPoints),
         interestRatePercent: Math.max(0, facts.hypothek.interestRatePercent + DEFAULT_SCENARIO_DELTA.CONSERVATIVE.interestRatePercentPoints),
         eigentuemerkostenChfPerYear: facts.betriebskosten.eigentuemerkostenChfPerYear * (1 + DEFAULT_SCENARIO_DELTA.CONSERVATIVE.ownerCostsFactor),
@@ -142,7 +162,7 @@ export function buildDefaultScenarios(facts: BestandsrenditeFacts, parameterOver
       label: "Upside",
       overrides: {
         wohnungsMieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth * (1 + DEFAULT_SCENARIO_DELTA.UPSIDE.mieteFactor),
-        moeblierteMietPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth * (1 + DEFAULT_SCENARIO_DELTA.UPSIDE.mieteFactor),
+        moeblierteMietPremiumChfPerMonth: resolveMietPremiumChfPerMonth(facts.miete.vermietungsmodell, facts.moeblierung) * (1 + DEFAULT_SCENARIO_DELTA.UPSIDE.mieteFactor),
         vacancyPercent: clampVacancy(effectiveVacancy + DEFAULT_SCENARIO_DELTA.UPSIDE.vacancyPercentPoints),
         interestRatePercent: Math.max(0, facts.hypothek.interestRatePercent + DEFAULT_SCENARIO_DELTA.UPSIDE.interestRatePercentPoints),
         eigentuemerkostenChfPerYear: Math.max(0, facts.betriebskosten.eigentuemerkostenChfPerYear * (1 + DEFAULT_SCENARIO_DELTA.UPSIDE.ownerCostsFactor)),

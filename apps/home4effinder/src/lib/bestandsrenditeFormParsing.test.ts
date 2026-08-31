@@ -19,29 +19,35 @@ describe("buildBestandsrenditeFactsFromFormData", () => {
     expect((facts.miete as Record<string, unknown>).hobbyraumMieteChfPerMonth).toBe(0);
     expect((facts.renovation as Record<string, unknown>).initialRenovationCostChf).toBe(0);
     expect((facts.reparatur as Record<string, unknown>).jaehrlichUnmoebliertChf).toBe(0);
-    expect((facts.reparatur as Record<string, unknown>).jaehrlichMoebliertChf).toBe(0);
     expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceUnmoebliertChfPerYear).toBe(0);
-    expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceMoebliertChfPerYear).toBe(0);
-    expect((facts.betriebskosten as Record<string, unknown>).nebenkostenMoebliertChfPerYear).toBe(0);
+    const moebliertBetriebskosten = facts.moebliertBetriebskosten as Record<string, unknown>;
+    expect(moebliertBetriebskosten.internetChfPerMonth).toBe(0);
+    expect(moebliertBetriebskosten.mieterwechselProJahr).toBe(0);
+    expect(moebliertBetriebskosten.verwaltungsgebuehrPercent).toBe(0);
   });
 
-  it("liest die Paket-1/Paket-2-Reparatur-/Reinigungskosten und die möblierten Nebenkosten aus den je eigenen Formularfeldern", () => {
+  it("liest die Paket-1-Reparatur-/Reinigungskosten und den granularen Paket-2-Kostenblock aus den je eigenen Formularfeldern", () => {
     const facts = buildBestandsrenditeFactsFromFormData(
       formDataFrom({
         reparaturJaehrlichUnmoebliertChf: "800",
-        reparaturJaehrlichMoebliertChf: "300",
         reinigungServiceUnmoebliertChfPerYear: "0",
-        reinigungServiceMoebliertChfPerYear: "2400",
-        nebenkostenMoebliertChfPerYear: "1500",
+        internetChfPerMonth: "65",
+        streamingChfPerMonth: "23",
+        mieterwechselProJahr: "3",
+        reinigungProWechselChf: "180",
+        kleinreparaturenChfPerMonth: "30",
       }),
       "MITTELFRISTIG_MOEBLIERT",
       [],
     );
     expect((facts.reparatur as Record<string, unknown>).jaehrlichUnmoebliertChf).toBe(800);
-    expect((facts.reparatur as Record<string, unknown>).jaehrlichMoebliertChf).toBe(300);
     expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceUnmoebliertChfPerYear).toBe(0);
-    expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceMoebliertChfPerYear).toBe(2400);
-    expect((facts.betriebskosten as Record<string, unknown>).nebenkostenMoebliertChfPerYear).toBe(1500);
+    const moebliertBetriebskosten = facts.moebliertBetriebskosten as Record<string, unknown>;
+    expect(moebliertBetriebskosten.internetChfPerMonth).toBe(65);
+    expect(moebliertBetriebskosten.streamingChfPerMonth).toBe(23);
+    expect(moebliertBetriebskosten.mieterwechselProJahr).toBe(3);
+    expect(moebliertBetriebskosten.reinigungProWechselChf).toBe(180);
+    expect(moebliertBetriebskosten.kleinreparaturenChfPerMonth).toBe(30);
   });
 
   it("lässt optionale Zahlenfelder (num) bei leerer Eingabe undefined", () => {
@@ -50,25 +56,36 @@ describe("buildBestandsrenditeFactsFromFormData", () => {
     expect(facts.baujahr).toBeUndefined();
   });
 
-  it("rechnet die im Formular als Paket-2-Absolutwert erfasste 'Miete möbliert' in den intern gespeicherten Mietaufschlag um", () => {
+  it("rechnet die im Formular als Paket-2-Absolutwerte erfassten 'Miete möbliert Langzeit/Mittelzeit/Kurzzeit' je in den intern gespeicherten Mietaufschlag um", () => {
     const ohneMoeblierteMiete = buildBestandsrenditeFactsFromFormData(formDataFrom({ wohnungsMieteChfPerMonth: "1450" }), "LANGFRISTIG_UNMOEBLIERT", []);
-    expect((ohneMoeblierteMiete.moeblierung as Record<string, unknown>).mietPremiumChfPerMonth).toBe(0); // kein Paket-2-Wert erfasst → kein Aufschlag
+    const ohneMoeblierung = ohneMoeblierteMiete.moeblierung as Record<string, unknown>;
+    expect(ohneMoeblierung.mietPremiumLangzeitChfPerMonth).toBe(0); // kein Paket-2-Wert erfasst → kein Aufschlag
+    expect(ohneMoeblierung.mietPremiumMittelzeitChfPerMonth).toBe(0);
+    expect(ohneMoeblierung.mietPremiumKurzzeitChfPerMonth).toBe(0);
 
     const mitMoeblierterMiete = buildBestandsrenditeFactsFromFormData(
-      formDataFrom({ wohnungsMieteChfPerMonth: "1450", moeblierteMieteChfPerMonth: "1750" }),
+      formDataFrom({
+        wohnungsMieteChfPerMonth: "1450",
+        moeblierteMieteLangzeitChfPerMonth: "1650",
+        moeblierteMieteMittelzeitChfPerMonth: "1750",
+        moeblierteMieteKurzzeitChfPerMonth: "2100",
+      }),
       "MITTELFRISTIG_MOEBLIERT",
       [],
     );
-    expect((mitMoeblierterMiete.moeblierung as Record<string, unknown>).mietPremiumChfPerMonth).toBe(300);
+    const moeblierung = mitMoeblierterMiete.moeblierung as Record<string, unknown>;
+    expect(moeblierung.mietPremiumLangzeitChfPerMonth).toBe(200);
+    expect(moeblierung.mietPremiumMittelzeitChfPerMonth).toBe(300);
+    expect(moeblierung.mietPremiumKurzzeitChfPerMonth).toBe(650);
     expect((mitMoeblierterMiete.miete as Record<string, unknown>).wohnungsMieteChfPerMonth).toBe(1450); // Paket 1 bleibt unverändert
 
     // Möblierte Miete unter der unmöblierten eingetragen (unplausibel) — kein negativer Aufschlag.
     const unterUnmoebliert = buildBestandsrenditeFactsFromFormData(
-      formDataFrom({ wohnungsMieteChfPerMonth: "1450", moeblierteMieteChfPerMonth: "1000" }),
+      formDataFrom({ wohnungsMieteChfPerMonth: "1450", moeblierteMieteMittelzeitChfPerMonth: "1000" }),
       "MITTELFRISTIG_MOEBLIERT",
       [],
     );
-    expect((unterUnmoebliert.moeblierung as Record<string, unknown>).mietPremiumChfPerMonth).toBe(0);
+    expect((unterUnmoebliert.moeblierung as Record<string, unknown>).mietPremiumMittelzeitChfPerMonth).toBe(0);
   });
 
   it("übernimmt gesetzte Werte korrekt", () => {

@@ -22,12 +22,17 @@ export function buildBestandsrenditeFactsFromFormData(
 
   // Paket 1 (unmöbliert) und Paket 2 (möbliert) werden im Formular je mit ihrer eigenen
   // "erwartete Miete" erfasst (siehe BestandsrenditeFactsFields.tsx) — gespeichert wird
-  // weiterhin intern als Mietaufschlag (mietPremiumChfPerMonth), damit die Rechenformeln
-  // (calculateJahresertrag & Co.) unverändert bleiben. Kein Aufschlag ohne erfasste
-  // Möbliert-Miete oder falls sie unter der unmöblierten Miete läge (kein negativer Wert).
+  // weiterhin intern als Mietaufschlag (mietPremium{Langzeit,Mittelzeit,Kurzzeit}
+  // ChfPerMonth), damit die Rechenformeln (calculateJahresertrag & Co.) unverändert
+  // bleiben. Kein Aufschlag ohne erfasste Möbliert-Miete oder falls sie unter der
+  // unmöblierten Miete läge (kein negativer Wert). Alle drei Dauer-Varianten teilen sich
+  // EINEN granularen Kostenblock (`moebliertBetriebskosten`), nur die Mietaufschläge
+  // unterscheiden sich je Variante (SIPIS Furnished-Rental-Modul v1.1).
   const wohnungsMieteChfPerMonth = req("wohnungsMieteChfPerMonth");
-  const moeblierteMieteChfPerMonth = num("moeblierteMieteChfPerMonth");
-  const mietPremiumChfPerMonth = moeblierteMieteChfPerMonth !== undefined ? Math.max(0, moeblierteMieteChfPerMonth - wohnungsMieteChfPerMonth) : 0;
+  const mietPremiumChfPerMonth = (moeblierteMieteFeldName: string): number => {
+    const moeblierteMieteChfPerMonth = num(moeblierteMieteFeldName);
+    return moeblierteMieteChfPerMonth !== undefined ? Math.max(0, moeblierteMieteChfPerMonth - wohnungsMieteChfPerMonth) : 0;
+  };
 
   return {
     zimmerzahl: num("zimmerzahl"),
@@ -63,14 +68,16 @@ export function buildBestandsrenditeFactsFromFormData(
     },
     reparatur: {
       jaehrlichUnmoebliertChf: req("reparaturJaehrlichUnmoebliertChf"),
-      jaehrlichMoebliertChf: req("reparaturJaehrlichMoebliertChf"),
     },
     moeblierung: {
       initialCostChf: req("moeblierungInitialCostChf"),
-      mietPremiumChfPerMonth,
-      jaehrlicherErsatzsatzPercent: num("jaehrlicherErsatzsatzPercent"),
       nutzungsdauerJahre: num("moeblierungNutzungsdauerJahre"),
       kostensteigerungPercentPerYear: num("moeblierungKostensteigerungPercentPerYear"),
+      haushaltinventarInitialCostChf: req("haushaltinventarInitialCostChf"),
+      haushaltinventarNutzungsdauerJahre: num("haushaltinventarNutzungsdauerJahre"),
+      mietPremiumLangzeitChfPerMonth: mietPremiumChfPerMonth("moeblierteMieteLangzeitChfPerMonth"),
+      mietPremiumMittelzeitChfPerMonth: mietPremiumChfPerMonth("moeblierteMieteMittelzeitChfPerMonth"),
+      mietPremiumKurzzeitChfPerMonth: mietPremiumChfPerMonth("moeblierteMieteKurzzeitChfPerMonth"),
     },
     miete: {
       wohnungsMieteChfPerMonth,
@@ -88,8 +95,23 @@ export function buildBestandsrenditeFactsFromFormData(
       eigentuemerkostenChfPerYear: req("eigentuemerkostenChfPerYear"),
       vermietungskostenChfPerYear: req("vermietungskostenChfPerYear"),
       reinigungServiceUnmoebliertChfPerYear: req("reinigungServiceUnmoebliertChfPerYear"),
-      reinigungServiceMoebliertChfPerYear: req("reinigungServiceMoebliertChfPerYear"),
-      nebenkostenMoebliertChfPerYear: req("nebenkostenMoebliertChfPerYear"),
+    },
+    moebliertBetriebskosten: {
+      internetChfPerMonth: req("internetChfPerMonth"),
+      kabelTvChfPerMonth: req("kabelTvChfPerMonth"),
+      streamingChfPerMonth: req("streamingChfPerMonth"),
+      stromChfPerMonth: req("stromChfPerMonth"),
+      abfallChfPerMonth: req("abfallChfPerMonth"),
+      mieterwechselProJahr: req("mieterwechselProJahr"),
+      reinigungProWechselChf: req("reinigungProWechselChf"),
+      waescheProWechselChf: req("waescheProWechselChf"),
+      inseratProWechselChf: req("inseratProWechselChf"),
+      verbrauchsmaterialChfPerMonth: req("verbrauchsmaterialChfPerMonth"),
+      kleinreparaturenChfPerMonth: req("kleinreparaturenChfPerMonth"),
+      hausratversicherungChfPerMonth: req("hausratversicherungChfPerMonth"),
+      schadenreserveChfPerMonth: req("schadenreserveChfPerMonth"),
+      verwaltungsgebuehrPercent: req("verwaltungsgebuehrPercent"),
+      plattformgebuehrPercent: req("plattformgebuehrPercent"),
     },
     reserven: {
       reparaturChfPerYear: num("reparaturChfPerYear"),
