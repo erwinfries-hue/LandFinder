@@ -62,8 +62,8 @@ export function buildBestandsrenditeFactsFromFormData(
       mieteNachRenovationChfPerMonth: num("mieteNachRenovationChfPerMonth"),
     },
     reparatur: {
-      initialUnmoebliertChf: req("reparaturInitialUnmoebliertChf"),
-      initialMoebliertChf: req("reparaturInitialMoebliertChf"),
+      jaehrlichUnmoebliertChf: req("reparaturJaehrlichUnmoebliertChf"),
+      jaehrlichMoebliertChf: req("reparaturJaehrlichMoebliertChf"),
     },
     moeblierung: {
       initialCostChf: req("moeblierungInitialCostChf"),
@@ -89,6 +89,7 @@ export function buildBestandsrenditeFactsFromFormData(
       vermietungskostenChfPerYear: req("vermietungskostenChfPerYear"),
       reinigungServiceUnmoebliertChfPerYear: req("reinigungServiceUnmoebliertChfPerYear"),
       reinigungServiceMoebliertChfPerYear: req("reinigungServiceMoebliertChfPerYear"),
+      nebenkostenMoebliertChfPerYear: req("nebenkostenMoebliertChfPerYear"),
     },
     reserven: {
       reparaturChfPerYear: num("reparaturChfPerYear"),

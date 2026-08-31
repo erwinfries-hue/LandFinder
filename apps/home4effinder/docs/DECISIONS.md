@@ -3236,6 +3236,62 @@ Strategic Fit.
   im Decision Log ohne echte Lauf-Historie, `askingPriceChf` nicht in der
   Übernahme-Allowlist).
 
+## Nachgezogen (2026-08-31): step="any" auf allen Zahlenfeldern + Reparaturkosten jährlich + möblierte Nebenkosten
+
+Nutzer-Rückmeldung (Live-App, mobiler Browser) mit Screenshots: Eingabe "400," im Feld
+"Reparaturkosten (CHF, einmalig)" löste die native Browser-Fehlermeldung "Gib einen
+gültigen Wert ein. Die zwei nächstliegenden gültigen Werte sind 0 und 500." aus.
+
+- **Ursache**: HTML5-`<input type="number">` mit numerischem `step`-Attribut (z.B.
+  `step="500"`) erzwingt Browser-seitig (`stepMismatch`-Validierung), dass eingegebene
+  Werte exakt auf ein Vielfaches des Schritts fallen — unabhängig vom serverseitigen
+  Parsing, das beliebige Zahlen akzeptiert hätte. **Fix**: alle numerischen
+  `step="..."`-Attribute in `BestandsrenditeFactsFields.tsx`, `PropertyCreateForm.tsx`,
+  `PropertyEditForm.tsx`, `KaufpreisAufteilungFields.tsx` auf `step="any"` umgestellt
+  (56 Vorkommen) — deaktiviert die Schrittweiten-Prüfung, jeder Zahlenwert (inkl.
+  Dezimalstellen) bleibt eingebbar. Reine Formular-Attribut-Korrektur, keine
+  Verhaltensänderung der Berechnung.
+- **Reparaturkosten: einmalig → jährlich wiederkehrend** (Rückmeldung: "die kosten für
+  reparaturen sind jährlich wiederkehrende kosten"). `BestandsrenditeFacts.reparatur`
+  umbenannt (`initialUnmoebliertChf`/`initialMoebliertChf` →
+  `jaehrlichUnmoebliertChf`/`jaehrlichMoebliertChf`), Formularlabel entsprechend auf
+  "Reparaturkosten (CHF/Jahr)" angepasst. Fliessen jetzt wie Reinigung/Service als Teil
+  der laufenden Betriebskosten in den NOI (`BetriebskostenInput.reparaturChfPerYear` in
+  `packages/financial-engine`, im 15-Jahres-Modell jährlich mit der Kosteninflation
+  eskaliert), NICHT mehr in die einmalige All-in-Investitionssumme
+  (`calculateAllInInvestition`) — dieselbe Gating-Regel wie bisher (nur der Betrag des
+  tatsächlich gewählten Vermietungsmodells fliesst ein). Bewusst weiterhin getrennt von
+  der bereits bestehenden, unabhängigen `reserven.reparatur*`-Sicherheitsreserve (nach
+  Steuer am Ende des Cashflow-Wasserfalls abgezogen) — unterschiedliche Position in der
+  Kaskade, keine Zusammenlegung.
+- **Neue Kostenposition für Paket 2 (möbliert)**: WLAN/Kabel/Streaming/Abfallgebühren
+  (Rückmeldung: "bei der variante möbliert noch eine zusatzkostenposition einfügen für
+  high speed wlan, kabelgebühren, netflix, abfallgebühren — vorschlagswert initial
+  recherchieren"). Neues Feld `betriebskosten.nebenkostenMoebliertChfPerYear`, nur bei
+  möblierter/mittelfristiger Vermietung relevant (0 bei unmöbliert — Mieter trägt dort
+  üblicherweise eigene Verträge). Recherchierter Vorschlagswert **CHF 1'500/Jahr**
+  (Web-Recherche Stand 2026, vier Komponenten, gerundete Grobschätzung, KEIN
+  verifizierter objektspezifischer Marktwert): High-Speed-Internet (≥1 Gbit/s,
+  Sunrise/Salt/Swisscom-Abos) ~CHF 600/Jahr (CHF 40-50/Monat), Kabelanschlussgebühr
+  (Vermieter-/Verwaltungstarif) ~CHF 480/Jahr (CHF 39.90/Monat), Netflix Standard ~CHF
+  275/Jahr (CHF 22.90/Monat), Kehrichtsackgebühren für einen kleinen Haushalt ~CHF
+  200/Jahr (städtische Durchschnittswerte reichen von CHF 240/Jahr bis CHF 900/Jahr je
+  Gemeinde) — Summe ~CHF 1'555/Jahr, auf CHF 1'500 gerundet als Formular-Default, frei
+  überschreibbar. Fliesst wie Reparatur/Reinigung als Betriebskosten-Posten in den NOI
+  (`BetriebskostenInput.nebenkostenMoebliertChfPerYear`), im 15-Jahres-Modell mit
+  eskaliert.
+- **NOI-Aufschlüsselung** (`BestandsrenditeAnalysisView.tsx`, "NOI aufschlüsseln"): zwei
+  neue Zeilen für Reparaturkosten (jährlich) und möblierte Nebenkosten (letztere nur
+  sichtbar, wenn > 0) — dieselbe Line-Item-Transparenz wie die bestehenden
+  Betriebskosten-Zeilen, statt beide Posten nur unsichtbar im
+  `betriebskostenTotalChf`-Total zu verstecken.
+- Aktualisierte/neue Tests in `packages/financial-engine` (`bestandsrendite.test.ts`,
+  `bestandsrenditeMehrjahresmodell.test.ts`) und `apps/home4effinder`
+  (`bestandsrendite.test.ts`, `scenarioEngine.test.ts`, `bestandsrenditeFormParsing.test.ts`)
+  für die umbenannten/neuen Felder — insbesondere Regressionstest, dass Reparaturkosten
+  jetzt NICHT mehr die All-in-Investition verändern (nur noch die Möblierungskosten tun
+  das beim Vermietungsmodell-Wechsel), sondern korrekt paketgegatet in den NOI einfliessen.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

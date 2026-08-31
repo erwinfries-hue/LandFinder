@@ -18,27 +18,30 @@ describe("buildBestandsrenditeFactsFromFormData", () => {
     expect((facts.miete as Record<string, unknown>).garagenplatzMieteChfPerMonth).toBe(0);
     expect((facts.miete as Record<string, unknown>).hobbyraumMieteChfPerMonth).toBe(0);
     expect((facts.renovation as Record<string, unknown>).initialRenovationCostChf).toBe(0);
-    expect((facts.reparatur as Record<string, unknown>).initialUnmoebliertChf).toBe(0);
-    expect((facts.reparatur as Record<string, unknown>).initialMoebliertChf).toBe(0);
+    expect((facts.reparatur as Record<string, unknown>).jaehrlichUnmoebliertChf).toBe(0);
+    expect((facts.reparatur as Record<string, unknown>).jaehrlichMoebliertChf).toBe(0);
     expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceUnmoebliertChfPerYear).toBe(0);
     expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceMoebliertChfPerYear).toBe(0);
+    expect((facts.betriebskosten as Record<string, unknown>).nebenkostenMoebliertChfPerYear).toBe(0);
   });
 
-  it("liest die Paket-1/Paket-2-Reparatur-/Reinigungskosten aus den je eigenen Formularfeldern", () => {
+  it("liest die Paket-1/Paket-2-Reparatur-/Reinigungskosten und die möblierten Nebenkosten aus den je eigenen Formularfeldern", () => {
     const facts = buildBestandsrenditeFactsFromFormData(
       formDataFrom({
-        reparaturInitialUnmoebliertChf: "8000",
-        reparaturInitialMoebliertChf: "3000",
+        reparaturJaehrlichUnmoebliertChf: "800",
+        reparaturJaehrlichMoebliertChf: "300",
         reinigungServiceUnmoebliertChfPerYear: "0",
         reinigungServiceMoebliertChfPerYear: "2400",
+        nebenkostenMoebliertChfPerYear: "1500",
       }),
       "MITTELFRISTIG_MOEBLIERT",
       [],
     );
-    expect((facts.reparatur as Record<string, unknown>).initialUnmoebliertChf).toBe(8000);
-    expect((facts.reparatur as Record<string, unknown>).initialMoebliertChf).toBe(3000);
+    expect((facts.reparatur as Record<string, unknown>).jaehrlichUnmoebliertChf).toBe(800);
+    expect((facts.reparatur as Record<string, unknown>).jaehrlichMoebliertChf).toBe(300);
     expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceUnmoebliertChfPerYear).toBe(0);
     expect((facts.betriebskosten as Record<string, unknown>).reinigungServiceMoebliertChfPerYear).toBe(2400);
+    expect((facts.betriebskosten as Record<string, unknown>).nebenkostenMoebliertChfPerYear).toBe(1500);
   });
 
   it("lässt optionale Zahlenfelder (num) bei leerer Eingabe undefined", () => {

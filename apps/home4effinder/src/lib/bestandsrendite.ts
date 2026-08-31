@@ -101,18 +101,21 @@ export interface BestandsrenditeFacts {
   };
 
   /**
-   * Einmalige Reparaturkosten — je Vermietungsmodell separat erfasst (Rückmeldung:
-   * "bei den beiden Paketen anstelle Renovation den Posten Reparatur einfügen"), nur der
-   * Betrag des tatsächlich gewählten Modells (`miete.vermietungsmodell`) fliesst in die
-   * Investitionssumme ein, exakt dieselbe Gating-Regel wie bei den Möblierungskosten
-   * (siehe `moeblierungIstGewaehltesSzenario`). SHORT_STAY nutzt denselben Wert wie
-   * unmöbliert (keine eigene dritte Variante). Bewusst getrennt von `reserven.reparatur*`
-   * (das ist eine laufende JÄHRLICHE Reserve für künftige Reparaturen, hier geht es um
-   * bereits bekannte, einmalige Reparaturkosten beim Einstieg).
+   * Jährlich wiederkehrende Reparaturkosten — je Vermietungsmodell separat erfasst
+   * (Rückmeldung: "die kosten für reparaturen sind jährlich wiederkehrende kosten"),
+   * nur der Betrag des tatsächlich gewählten Modells (`miete.vermietungsmodell`)
+   * fliesst in die Betriebskosten/den NOI ein, exakt dieselbe Gating-Regel wie bei
+   * Möblierungs-/Reinigungskosten (siehe `moeblierungIstGewaehltesSzenario`).
+   * SHORT_STAY nutzt denselben Wert wie unmöbliert (keine eigene dritte Variante).
+   * Bewusst weiterhin getrennt von `reserven.reparatur*`: das dort ist eine zusätzliche
+   * SICHERHEITSRESERVE für unvorhergesehene künftige Reparaturen, nach Steuer am Ende
+   * des Cashflow-Wasserfalls abgezogen — hier geht es um die tatsächlich erwarteten,
+   * bereits bekannten jährlichen Reparaturkosten, Teil der Betriebskosten/des NOI wie
+   * z.B. Reinigung/Service.
    */
   reparatur: {
-    initialUnmoebliertChf: number;
-    initialMoebliertChf: number;
+    jaehrlichUnmoebliertChf: number;
+    jaehrlichMoebliertChf: number;
   };
 
   moeblierung: {
@@ -152,9 +155,26 @@ export interface BestandsrenditeFacts {
     stwegAkontobeitragUeberwaelzbarChfPerYear: number;
     eigentuemerkostenChfPerYear: number;
     vermietungskostenChfPerYear: number;
-    /** Je Vermietungsmodell separat erfasst, analog zu `reparatur.initialUnmoebliertChf`/`initialMoebliertChf` — kurzfristig/möbliert vermietete Wohnungen brauchen typischerweise Reinigung zwischen Mietern, langfristig/unmöbliert meist nicht. */
+    /** Je Vermietungsmodell separat erfasst, analog zu `reparatur.jaehrlichUnmoebliertChf`/`jaehrlichMoebliertChf` — kurzfristig/möbliert vermietete Wohnungen brauchen typischerweise Reinigung zwischen Mietern, langfristig/unmöbliert meist nicht. */
     reinigungServiceUnmoebliertChfPerYear: number;
     reinigungServiceMoebliertChfPerYear: number;
+    /**
+     * Nur bei möblierter/mittelfristiger Vermietung relevant (Rückmeldung: "bei der
+     * variante möbliert noch eine zusatzkostenposition einfügen für high speed wlan,
+     * kabelgebühren, netflix, abfallgebühren") — bei unmöblierter Langfristvermietung
+     * trägt dies in der Schweiz üblicherweise der Mieter selbst über eigene Verträge,
+     * daher kein Pendant für unmöbliert. Default-Vorschlag CHF 1'500/Jahr — recherchierte
+     * Grobschätzung aus vier Positionen (Stand 2026, jeweils gerundet, siehe
+     * DECISIONS.md für die Quellen): High-Speed-Internet ~CHF 600/Jahr (Sunrise/
+     * Salt/Swisscom-Abos für ≥1 Gbit/s liegen bei CHF 40-50/Monat), Kabelanschlussgebühr
+     * ~CHF 480/Jahr (Vermieter-/Verwaltungstarif CHF 39.90/Monat), Netflix Standard
+     * ~CHF 275/Jahr (CHF 22.90/Monat), Kehrichtsackgebühren ~CHF 200/Jahr (für einen
+     * kleinen 1-2-Personen-Haushalt, städtische Durchschnittswerte reichen von
+     * CHF 240/Jahr für eine Familie bis CHF 900/Jahr in teureren Gemeinden). KEIN
+     * verifizierter, objektspezifischer Marktwert — nur ein sinnvoller Startpunkt, frei
+     * überschreibbar.
+     */
+    nebenkostenMoebliertChfPerYear: number;
   };
 
   reserven: {
@@ -246,6 +266,8 @@ export interface NoiBreakdown {
   eigentuemerkostenChfPerYear: number;
   vermietungskostenChfPerYear: number;
   reinigungServiceChfPerYear: number;
+  reparaturChfPerYear: number;
+  nebenkostenMoebliertChfPerYear: number;
   betriebskostenTotalChf: number;
   noiChf: number;
 }
@@ -402,15 +424,20 @@ export function computeBestandsrenditeAnalysis(
   const moeblierungIstGewaehltesSzenario = facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT";
   const moeblierungsPremiumChfPerMonth = moeblierungIstGewaehltesSzenario ? facts.moeblierung.mietPremiumChfPerMonth : 0;
   const moeblierungInitialChfEffective = moeblierungIstGewaehltesSzenario ? facts.moeblierung.initialCostChf : 0;
-  // Reparatur/Reinigung sind je Vermietungsmodell separat erfasst (siehe BestandsrenditeFacts) —
-  // dieselbe Gating-Regel wie oben bei der Möblierung: nur der Betrag des tatsächlich
-  // gewählten Modells fliesst in die Berechnung ein.
-  const reparaturInitialChfEffective = moeblierungIstGewaehltesSzenario
-    ? facts.reparatur.initialMoebliertChf
-    : facts.reparatur.initialUnmoebliertChf;
+  // Reparatur/Reinigung/möblierte Nebenkosten sind je Vermietungsmodell separat erfasst
+  // (siehe BestandsrenditeFacts) — dieselbe Gating-Regel wie oben bei der Möblierung: nur
+  // der Betrag des tatsächlich gewählten Modells fliesst in die Berechnung ein.
+  // Reparaturkosten sind jährlich wiederkehrend (Rückmeldung: "die kosten für
+  // reparaturen sind jährlich wiederkehrende kosten") — fliessen daher wie
+  // Reinigung/Service in die laufenden Betriebskosten/den NOI, NICHT in die
+  // Investitionssumme (siehe unten, `calculateAllInInvestition` ohne Reparaturkosten).
+  const reparaturChfPerYearEffective = moeblierungIstGewaehltesSzenario
+    ? facts.reparatur.jaehrlichMoebliertChf
+    : facts.reparatur.jaehrlichUnmoebliertChf;
   const reinigungServiceChfPerYearEffective = moeblierungIstGewaehltesSzenario
     ? facts.betriebskosten.reinigungServiceMoebliertChfPerYear
     : facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear;
+  const nebenkostenMoebliertChfPerYearEffective = moeblierungIstGewaehltesSzenario ? facts.betriebskosten.nebenkostenMoebliertChfPerYear : 0;
   // Nur der NICHT überwälzbare Anteil des STWEG-Akontobeitrags ist Vermieterkosten (siehe
   // BestandsrenditeFacts.betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear) — der
   // überwälzbare Anteil wird bei korrektem Mietvertrag 1:1 über die Nebenkosten vom
@@ -424,6 +451,8 @@ export function computeBestandsrenditeAnalysis(
     eigentuemerkostenChfPerYear: facts.betriebskosten.eigentuemerkostenChfPerYear,
     vermietungskostenChfPerYear: facts.betriebskosten.vermietungskostenChfPerYear,
     reinigungServiceChfPerYear: reinigungServiceChfPerYearEffective,
+    reparaturChfPerYear: reparaturChfPerYearEffective,
+    nebenkostenMoebliertChfPerYear: nebenkostenMoebliertChfPerYearEffective,
   };
 
   const allInInvestitionChf = calculateAllInInvestition({
@@ -431,10 +460,10 @@ export function computeBestandsrenditeAnalysis(
     nebenkosten,
     renovationInitialChf: facts.renovation.initialRenovationCostChf,
     moeblierungInitialChf: moeblierungInitialChfEffective,
-    // Kein eigener Parameter in der Engine für Reparaturkosten (Rückmeldung: "anstelle
-    // Renovation den Posten Reparatur einfügen") — nutzt bewusst den bereits vorhandenen,
-    // generischen `sonstigeInitialkostenChf`-Slot statt die Engine anzufassen.
-    sonstigeInitialkostenChf: reparaturInitialChfEffective,
+    // Reparaturkosten sind jährlich wiederkehrend und fliessen oben in die
+    // Betriebskosten — kein einmaliger Posten mehr, daher hier 0 statt des früheren
+    // `sonstigeInitialkostenChf`-Werts.
+    sonstigeInitialkostenChf: 0,
   });
 
   const ersteHypothekChf = kaufpreisChf * (facts.hypothek.ersteHypothek.belehnungPercent / 100);
@@ -524,6 +553,8 @@ export function computeBestandsrenditeAnalysis(
     eigentuemerkostenChfPerYear: investmentCaseInput.betriebskosten.eigentuemerkostenChfPerYear,
     vermietungskostenChfPerYear: investmentCaseInput.betriebskosten.vermietungskostenChfPerYear,
     reinigungServiceChfPerYear: investmentCaseInput.betriebskosten.reinigungServiceChfPerYear,
+    reparaturChfPerYear: investmentCaseInput.betriebskosten.reparaturChfPerYear,
+    nebenkostenMoebliertChfPerYear: investmentCaseInput.betriebskosten.nebenkostenMoebliertChfPerYear,
     betriebskostenTotalChf,
     noiChf: investmentCase.wasserfall.noiChf,
   };
@@ -819,7 +850,7 @@ export interface PreisStufe {
   bruttoRenditePercent: number;
   nettoRenditeVorFinanzierungPercent: number;
   nachhaltigerCashflowChf: number;
-  /** = `allInInvestitionChf` bei diesem Kaufpreis (Kaufpreis + Nebenkosten + Renovation + Reparatur + Möblierung). */
+  /** = `allInInvestitionChf` bei diesem Kaufpreis (Kaufpreis + Nebenkosten + Renovation + Möblierung — Reparaturkosten sind jährlich wiederkehrend und fliessen NICHT in die Investitionssumme, siehe `BestandsrenditeFacts.reparatur`). */
   totalInvestitionChf: number;
   /** = All-in-Investition − Hypothek bei diesem Kaufpreis. */
   eigenkapitalChf: number;
@@ -1037,8 +1068,8 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
         mieteNachRenovationChfPerMonth: num(renovation.mieteNachRenovationChfPerMonth),
       },
       reparatur: {
-        initialUnmoebliertChf: num(reparatur.initialUnmoebliertChf) ?? 0,
-        initialMoebliertChf: num(reparatur.initialMoebliertChf) ?? 0,
+        jaehrlichUnmoebliertChf: num(reparatur.jaehrlichUnmoebliertChf) ?? 0,
+        jaehrlichMoebliertChf: num(reparatur.jaehrlichMoebliertChf) ?? 0,
       },
       moeblierung: {
         initialCostChf: num(moeblierung.initialCostChf) ?? 0,
@@ -1064,6 +1095,7 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
         vermietungskostenChfPerYear: num(betriebskosten.vermietungskostenChfPerYear) ?? 0,
         reinigungServiceUnmoebliertChfPerYear: num(betriebskosten.reinigungServiceUnmoebliertChfPerYear) ?? 0,
         reinigungServiceMoebliertChfPerYear: num(betriebskosten.reinigungServiceMoebliertChfPerYear) ?? 0,
+        nebenkostenMoebliertChfPerYear: num(betriebskosten.nebenkostenMoebliertChfPerYear) ?? 0,
       },
       reserven: {
         reparaturChfPerYear: num(reserven.reparaturChfPerYear),

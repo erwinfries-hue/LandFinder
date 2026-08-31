@@ -663,7 +663,7 @@ export function PropertyCreateForm({ parameterOverrides }: { parameterOverrides?
             <input
               id="askingPriceChf"
               type="number"
-              step="1000"
+              step="any"
               min="0"
               required
               value={askingPriceChf}
@@ -676,7 +676,7 @@ export function PropertyCreateForm({ parameterOverrides }: { parameterOverrides?
             <input
               id="wohnflaecheM2"
               type="number"
-              step="0.5"
+              step="any"
               min="1"
               required
               value={wohnflaecheM2}
