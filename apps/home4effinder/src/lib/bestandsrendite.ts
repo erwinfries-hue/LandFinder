@@ -24,13 +24,18 @@ import {
   type BestandsrenditeParameterKey,
 } from "@landfinder/financial-engine";
 import {
-  calculateFurnitureRoi,
   calculateRenovationRoi,
   moeblierungGeglaetteReserveChfPerJahr,
   summarizeRenovationPositionen,
+  calculateFurnishedOpex,
+  calculateFurnishingRoi,
+  calculateFurnishedRentalDelta,
   type RenovationPosition,
   type ValueAddRoiResult,
   type RenovationPositionenSummary,
+  type MoebliertBetriebskostenInput,
+  type FurnishedOpexBreakdown,
+  type FurnishedRentalDeltaResult,
 } from "@landfinder/financial-engine";
 import {
   runMehrjahresmodell,
@@ -101,30 +106,55 @@ export interface BestandsrenditeFacts {
   };
 
   /**
-   * Jährlich wiederkehrende Reparaturkosten — je Vermietungsmodell separat erfasst
-   * (Rückmeldung: "die kosten für reparaturen sind jährlich wiederkehrende kosten"),
-   * nur der Betrag des tatsächlich gewählten Modells (`miete.vermietungsmodell`)
-   * fliesst in die Betriebskosten/den NOI ein, exakt dieselbe Gating-Regel wie bei
-   * Möblierungs-/Reinigungskosten (siehe `moeblierungIstGewaehltesSzenario`).
-   * SHORT_STAY nutzt denselben Wert wie unmöbliert (keine eigene dritte Variante).
-   * Bewusst weiterhin getrennt von `reserven.reparatur*`: das dort ist eine zusätzliche
+   * Jährlich wiederkehrende Reparaturkosten NUR für unmöbliert (Paket 1) — Rückmeldung:
+   * "die kosten für reparaturen sind jährlich wiederkehrende kosten", Teil der
+   * Betriebskosten/des NOI wie z.B. Reinigung/Service. Das möblierte Pendant lebt seit
+   * dem SIPIS Furnished-Rental-Modul (v1.1) granularer in
+   * `moebliertBetriebskosten.kleinreparaturenChfPerMonth`, nicht mehr hier. Bewusst
+   * weiterhin getrennt von `reserven.reparatur*`: das dort ist eine zusätzliche
    * SICHERHEITSRESERVE für unvorhergesehene künftige Reparaturen, nach Steuer am Ende
    * des Cashflow-Wasserfalls abgezogen — hier geht es um die tatsächlich erwarteten,
-   * bereits bekannten jährlichen Reparaturkosten, Teil der Betriebskosten/des NOI wie
-   * z.B. Reinigung/Service.
+   * bereits bekannten jährlichen Reparaturkosten.
    */
   reparatur: {
     jaehrlichUnmoebliertChf: number;
-    jaehrlichMoebliertChf: number;
   };
 
+  /**
+   * Erst-Möblierung (Möbel) — Initialkosten + Nutzungsdauer, für alle drei möblierten
+   * Dauer-Varianten (Langzeit/Mittelzeit/Kurzzeit) gemeinsam erfasst (EIN Objekt wird
+   * jeweils auf EINE Art möbliert, unabhängig davon, wie lange vermietet wird). Je
+   * Dauer-Variante EIGENER Mietaufschlag (`mietPremium{Langzeit,Mittelzeit,Kurzzeit}
+   * ChfPerMonth`) — Kurzzeit erzielt typischerweise einen höheren Aufschlag als
+   * Langzeit, siehe SIPIS Furnished-Rental-Modul v1.1, "4-Wege-Investment-Value-
+   * Vergleich" (`computeVermietungsstrategienVergleich`). Kein `jaehrlicherErsatzsatzPercent`
+   * mehr (bis v1.0 eine 70%-Teil-Wiederverwendungsannahme) — die v1.1-Spec kennt kein
+   * Teil-Wiederverwendungskonzept, Ersatz wird zu 100% der (inflationierten)
+   * Initialkosten angesetzt.
+   */
   moeblierung: {
     initialCostChf: number;
-    mietPremiumChfPerMonth: number;
-    jaehrlicherErsatzsatzPercent?: number;
     nutzungsdauerJahre?: number;
     kostensteigerungPercentPerYear?: number;
+    /** Separat von der Möblierung selbst erfasst (Geschirr, Kleingeräte, Textilien) — eigene Initialkosten/Nutzungsdauer, typischerweise kürzer als die Möbel. */
+    haushaltinventarInitialCostChf: number;
+    haushaltinventarNutzungsdauerJahre?: number;
+    mietPremiumLangzeitChfPerMonth: number;
+    mietPremiumMittelzeitChfPerMonth: number;
+    mietPremiumKurzzeitChfPerMonth: number;
   };
+
+  /**
+   * Granularer Kostenblock für möblierte Vermietung (SIPIS Furnished-Rental-Modul v1.1)
+   * — gilt gemeinsam für alle drei möblierten Dauer-Varianten (Langzeit/Mittelzeit/
+   * Kurzzeit teilen sich EINEN Kostenblock, nur die Mietaufschläge oben unterscheiden
+   * sich je Variante). Ersetzt vollständig die bisherigen Pauschalfelder
+   * `reinigungServiceMoebliertChfPerYear`/`nebenkostenMoebliertChfPerYear`/
+   * `reparatur.jaehrlichMoebliertChf` (kein Doppelzählungsrisiko). Alle Default-Werte
+   * 1:1 aus der vom Auftraggeber gelieferten Fachspezifikation übernommen, siehe
+   * DECISIONS.md.
+   */
+  moebliertBetriebskosten: MoebliertBetriebskostenInput;
 
   miete: {
     wohnungsMieteChfPerMonth: number;
@@ -155,26 +185,8 @@ export interface BestandsrenditeFacts {
     stwegAkontobeitragUeberwaelzbarChfPerYear: number;
     eigentuemerkostenChfPerYear: number;
     vermietungskostenChfPerYear: number;
-    /** Je Vermietungsmodell separat erfasst, analog zu `reparatur.jaehrlichUnmoebliertChf`/`jaehrlichMoebliertChf` — kurzfristig/möbliert vermietete Wohnungen brauchen typischerweise Reinigung zwischen Mietern, langfristig/unmöbliert meist nicht. */
+    /** Nur noch für Paket 1 (unmöbliert) — das möblierte Pendant lebt seit dem SIPIS Furnished-Rental-Modul (v1.1) im granularen `moebliertBetriebskosten`-Block (siehe dort). */
     reinigungServiceUnmoebliertChfPerYear: number;
-    reinigungServiceMoebliertChfPerYear: number;
-    /**
-     * Nur bei möblierter/mittelfristiger Vermietung relevant (Rückmeldung: "bei der
-     * variante möbliert noch eine zusatzkostenposition einfügen für high speed wlan,
-     * kabelgebühren, netflix, abfallgebühren") — bei unmöblierter Langfristvermietung
-     * trägt dies in der Schweiz üblicherweise der Mieter selbst über eigene Verträge,
-     * daher kein Pendant für unmöbliert. Default-Vorschlag CHF 1'500/Jahr — recherchierte
-     * Grobschätzung aus vier Positionen (Stand 2026, jeweils gerundet, siehe
-     * DECISIONS.md für die Quellen): High-Speed-Internet ~CHF 600/Jahr (Sunrise/
-     * Salt/Swisscom-Abos für ≥1 Gbit/s liegen bei CHF 40-50/Monat), Kabelanschlussgebühr
-     * ~CHF 480/Jahr (Vermieter-/Verwaltungstarif CHF 39.90/Monat), Netflix Standard
-     * ~CHF 275/Jahr (CHF 22.90/Monat), Kehrichtsackgebühren ~CHF 200/Jahr (für einen
-     * kleinen 1-2-Personen-Haushalt, städtische Durchschnittswerte reichen von
-     * CHF 240/Jahr für eine Familie bis CHF 900/Jahr in teureren Gemeinden). KEIN
-     * verifizierter, objektspezifischer Marktwert — nur ein sinnvoller Startpunkt, frei
-     * überschreibbar.
-     */
-    nebenkostenMoebliertChfPerYear: number;
   };
 
   reserven: {
@@ -266,8 +278,10 @@ export interface NoiBreakdown {
   eigentuemerkostenChfPerYear: number;
   vermietungskostenChfPerYear: number;
   reinigungServiceChfPerYear: number;
+  /** Nur bei unmöblierter Vermietung > 0 — bei möbliert bereits Teil von `moebliertOpexChfPerYear`. */
   reparaturChfPerYear: number;
-  nebenkostenMoebliertChfPerYear: number;
+  /** = `FurnishedOpexBreakdown.totalChfPerYear` (siehe `furnishedOpexBreakdown` auf `BestandsrenditeAnalysisResult` für die granulare Aufschlüsselung) — 0 bei unmöblierter Vermietung. */
+  moebliertOpexChfPerYear: number;
   betriebskostenTotalChf: number;
   noiChf: number;
 }
@@ -294,7 +308,7 @@ export interface IncrementalFurnitureNoi {
 export interface MoeblierungsSzenario {
   mieteChfPerMonth: number;
   kostenInitialChf: number;
-  /** Geglättete jährliche Ersatzreserve — `undefined` beim unmöblierten Szenario (keine Möbel, keine Ersatzreserve). */
+  /** Geglättete jährliche Ersatzreserve für Möbel + Haushaltsinventar zusammen — `undefined` beim unmöblierten Szenario (keine Möbel/kein Inventar, keine Ersatzreserve). */
   reserveChfPerJahr: number | undefined;
   effektiverJahresertragChf: number;
   bruttoRenditePercent: number;
@@ -305,6 +319,10 @@ export interface MoeblierungsSzenario {
  * nebeneinander vergleichbare Pakete dar (Kosten + erwartete Miete + resultierender
  * Ertrag je Szenario) — unabhängig davon, welches `vermietungsmodell` tatsächlich für
  * die übrigen Berechnungen (Schnellcheck/Investment Case/15-Jahres-Modell) aktiv ist.
+ * Für die "möbliert"-Seite wird die aktuell gewählte möblierte Dauer-Variante genutzt,
+ * falls eine gewählt ist, sonst die von der SIPIS-Spec vorgegebene Default-Strategie
+ * "Möbliert Mittelzeit" (siehe `resolveMoeblierungsVergleichVariante`) — für den vollen
+ * Vergleich aller vier Modelle siehe stattdessen `computeVermietungsstrategienVergleich`.
  * Beide Szenarien nutzen denselben Leerstand/Auslastung-Faktor des aktiven Modells —
  * der einzige Unterschied ist der Möblierungs-Mietaufschlag und die Möblierungskosten.
  */
@@ -342,10 +360,21 @@ export interface BestandsrenditeAnalysisResult {
   investmentCase: InvestmentCaseResult;
   noiBreakdown: NoiBreakdown;
   breakEven: { mieteChfPerMonth: number | undefined; zinsPercent: number | undefined; auslastungPercent: number | undefined };
-  furnitureRoi: ValueAddRoiResult | undefined;
-  /** Siehe `IncrementalFurnitureNoi` — `undefined` unter denselben Bedingungen wie `furnitureRoi` (keine Möblierungsdaten erfasst). */
+  /**
+   * NETTO-basierte "Furniture ROI" (SIPIS Furnished-Rental-Modul v1.1: `furnishing_ROI =
+   * incremental_NOI / incremental_furnishing_investment`) — ersetzt die frühere, rein
+   * bruttomietbasierte `furnitureRoi` (Guardrail: höherer Umsatz durch Möblierung darf
+   * nicht automatisch als höherer Gewinn interpretiert werden). `undefined` unter
+   * denselben Bedingungen wie `incrementalFurnitureNoi` (keine Möblierungsdaten erfasst).
+   */
+  furnishingRoi: ValueAddRoiResult | undefined;
+  /** Siehe `IncrementalFurnitureNoi` — `undefined`, wenn keine Möblierungsdaten erfasst sind (weder Möbel- noch Haushaltsinventar-Initialkosten, noch ein Mietaufschlag der Vergleichsvariante). */
   incrementalFurnitureNoi: IncrementalFurnitureNoi | undefined;
-  /** Geglättete jährliche Ersatzreserve für die Möblierung — rein informativ, nicht Grundlage der 15-Jahres-Cashflows (die rechnen mit dem tatsächlichen Ersatz-Cashout im Ersatzjahr, siehe mehrjahresmodell). */
+  /** Break-even-/Mindestrendite-Kennzahlen der SIPIS-Spec (siehe `FurnishedRentalDeltaResult`) — `undefined` unter denselben Bedingungen wie `incrementalFurnitureNoi`. */
+  furnishedRentalDelta: FurnishedRentalDeltaResult | undefined;
+  /** Granulare möblierte Betriebskosten-Aufschlüsselung der Vergleichsvariante (siehe `resolveMoeblierungsVergleichVariante`) — `undefined` unter denselben Bedingungen wie `incrementalFurnitureNoi`. */
+  furnishedOpexBreakdown: FurnishedOpexBreakdown | undefined;
+  /** Geglättete jährliche Ersatzreserve für Möbel + Haushaltsinventar zusammen — rein informativ, nicht Grundlage der 15-Jahres-Cashflows (die rechnen mit dem tatsächlichen Ersatz-Cashout im jeweiligen Ersatzjahr, siehe mehrjahresmodell). */
   moeblierungReserveChfPerJahr: number | undefined;
   moeblierungsVergleich: MoeblierungsVergleich;
   renovationRoi: ValueAddRoiResult | undefined;
@@ -362,6 +391,33 @@ export interface BestandsrenditeAnalysisResult {
   /** Unveränderte STWEG-Fakten aus den Facts — reine Datenhaltung ohne Scoring/Formel, siehe StwegFacts. */
   stweg: StwegFacts;
   assumptionNotes: string[];
+}
+
+/** Wählt je Vermietungsmodell den passenden der drei Mietaufschlag-Werte — 0 bei unmöblierter Vermietung (siehe `BestandsrenditeFacts.moeblierung`). */
+export function resolveMietPremiumChfPerMonth(vermietungsmodell: Vermietungsmodell, moeblierung: BestandsrenditeFacts["moeblierung"]): number {
+  switch (vermietungsmodell) {
+    case "LANGFRISTIG_MOEBLIERT":
+      return moeblierung.mietPremiumLangzeitChfPerMonth;
+    case "MITTELFRISTIG_MOEBLIERT":
+      return moeblierung.mietPremiumMittelzeitChfPerMonth;
+    case "SHORT_STAY":
+      return moeblierung.mietPremiumKurzzeitChfPerMonth;
+    case "LANGFRISTIG_UNMOEBLIERT":
+      return 0;
+  }
+}
+
+/**
+ * Für den 2-Wege-Vergleich (`moeblierungsVergleich`/`incrementalFurnitureNoi`/
+ * `furnishingRoi`/`furnishedRentalDelta`): welche möblierte Dauer-Variante dient als
+ * "die" möblierte Vergleichsseite? Ist bereits eine möblierte Variante das gewählte
+ * Vermietungsmodell, wird genau diese verwendet — sonst die von der SIPIS-Spec (v1.1)
+ * selbst benannte "DEFAULT STRATEGY FOR FURNISHED RENTAL": Möbliert Mittelzeit. Der
+ * VOLLE Vergleich aller vier Modelle unabhängig von dieser Wahl lebt in
+ * `computeVermietungsstrategienVergleich`.
+ */
+function resolveMoeblierungsVergleichVariante(vermietungsmodell: Vermietungsmodell): Vermietungsmodell {
+  return vermietungsmodell === "LANGFRISTIG_UNMOEBLIERT" ? "MITTELFRISTIG_MOEBLIERT" : vermietungsmodell;
 }
 
 /**
@@ -407,37 +463,61 @@ export function computeBestandsrenditeAnalysis(
 
   const renovationSummary = summarizeRenovationPositionen(facts.renovation.positionen);
 
-  const jaehrlicherErsatzsatzPercent = facts.moeblierung.jaehrlicherErsatzsatzPercent ?? P.moeblierungErsatzquotePercent;
   const moeblierungNutzungsdauerJahre = facts.moeblierung.nutzungsdauerJahre ?? P.moeblierungNutzungsdauerJahre;
+  const haushaltinventarNutzungsdauerJahre = facts.moeblierung.haushaltinventarNutzungsdauerJahre ?? P.haushaltinventarNutzungsdauerJahre;
   const moeblierungKostensteigerung = facts.moeblierung.kostensteigerungPercentPerYear ?? P.kosteninflationPercentPerYear;
 
   // "Vermietungsmodell" ist das eigentliche Auswahlfeld für das bevorzugte Szenario
-  // (unmöbliert/möbliert, siehe DECISIONS.md) — Möblierungskosten/-mietaufschlag dürfen
-  // NUR einfliessen, wenn möbliert tatsächlich das gewählte Modell ist. Vorher
-  // inkonsistent: Ebene A (Schnellcheck) ignorierte sie immer, Ebene B/C (All-in-
-  // Investition, Investment Case, Mehrjahresmodell, Verhandlungskorridor)
-  // berücksichtigten sie immer, sobald erfasst — unabhängig vom gewählten Modell. Der
-  // volle Vergleich beider Szenarien bleibt in `moeblierungsVergleich`/`furnitureRoi`
-  // (Value-Add-Möblierung-Panel) unverändert erhalten — die verwenden bewusst weiterhin
-  // die ungegateten Rohwerte, weil sie unabhängig vom aktuell gewählten Szenario
-  // beantworten sollen, ob sich Möblieren überhaupt lohnen würde.
-  const moeblierungIstGewaehltesSzenario = facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT";
-  const moeblierungsPremiumChfPerMonth = moeblierungIstGewaehltesSzenario ? facts.moeblierung.mietPremiumChfPerMonth : 0;
+  // (unmöbliert oder eine der drei möblierten Dauer-Varianten, siehe DECISIONS.md) —
+  // Möblierungskosten/-mietaufschlag dürfen NUR einfliessen, wenn eine möblierte
+  // Variante tatsächlich das gewählte Modell ist (SIPIS Furnished-Rental-Modul v1.1,
+  // Gating-Bugfix: bis dahin rechnete SHORT_STAY fälschlich mit den unmöblierten
+  // Werten — "SHORT_STAY nutzt denselben Wert wie unmöbliert" war ein Fehler, keine
+  // Absicht). Der volle Vergleich aller vier Modelle bleibt in
+  // `computeVermietungsstrategienVergleich` unverändert erhalten — der nutzt bewusst
+  // weiterhin die ungegateten Rohwerte je Modell, weil er unabhängig vom aktuell
+  // gewählten Szenario beantworten soll, welche Strategie sich am meisten lohnen würde.
+  const moeblierungIstGewaehltesSzenario = facts.miete.vermietungsmodell !== "LANGFRISTIG_UNMOEBLIERT";
+  const moeblierungsPremiumChfPerMonth = moeblierungIstGewaehltesSzenario ? resolveMietPremiumChfPerMonth(facts.miete.vermietungsmodell, facts.moeblierung) : 0;
   const moeblierungInitialChfEffective = moeblierungIstGewaehltesSzenario ? facts.moeblierung.initialCostChf : 0;
-  // Reparatur/Reinigung/möblierte Nebenkosten sind je Vermietungsmodell separat erfasst
-  // (siehe BestandsrenditeFacts) — dieselbe Gating-Regel wie oben bei der Möblierung: nur
-  // der Betrag des tatsächlich gewählten Modells fliesst in die Berechnung ein.
-  // Reparaturkosten sind jährlich wiederkehrend (Rückmeldung: "die kosten für
-  // reparaturen sind jährlich wiederkehrende kosten") — fliessen daher wie
-  // Reinigung/Service in die laufenden Betriebskosten/den NOI, NICHT in die
-  // Investitionssumme (siehe unten, `calculateAllInInvestition` ohne Reparaturkosten).
-  const reparaturChfPerYearEffective = moeblierungIstGewaehltesSzenario
-    ? facts.reparatur.jaehrlichMoebliertChf
-    : facts.reparatur.jaehrlichUnmoebliertChf;
-  const reinigungServiceChfPerYearEffective = moeblierungIstGewaehltesSzenario
-    ? facts.betriebskosten.reinigungServiceMoebliertChfPerYear
-    : facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear;
-  const nebenkostenMoebliertChfPerYearEffective = moeblierungIstGewaehltesSzenario ? facts.betriebskosten.nebenkostenMoebliertChfPerYear : 0;
+  const haushaltinventarInitialChfEffective = moeblierungIstGewaehltesSzenario ? facts.moeblierung.haushaltinventarInitialCostChf : 0;
+
+  // SHORT_STAY nutzt weiterhin seinen eigenen Auslastungsprozentsatz statt einer
+  // Leerstandsquote (siehe calculateJahresertrag) — die beiden übrigen möblierten
+  // Varianten (Langzeit/Mittelzeit) nutzen wie bisher den höheren möblierten
+  // Leerstand-Default statt des langfristig-unmöblierten (Gating-Bugfix: bisher nur für
+  // MITTELFRISTIG_MOEBLIERT).
+  const leerstandDefaultPercent =
+    facts.miete.vermietungsmodell === "LANGFRISTIG_MOEBLIERT" || facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT"
+      ? P.leerstandMoebliertPercent
+      : P.leerstandLangfristigPercent;
+
+  // Möblierte Betriebskosten (granularer Kostenblock, gemeinsam für alle drei
+  // Dauer-Varianten, siehe `BestandsrenditeFacts.moebliertBetriebskosten`) — Verwaltungs-/
+  // Plattformgebühr sind ein Prozentsatz des effektiven möblierten Jahresertrags, daher
+  // hier vorab mit denselben Mietwerten berechnet, die auch weiter unten in
+  // `investmentCaseInput.ertrag` einfliessen (dieselbe Formel wie `calculateJahresertrag`).
+  const effektiverJahresertragMoebliertChf = moeblierungIstGewaehltesSzenario
+    ? calculateJahresertrag({
+        wohnungsMieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth,
+        parkplatzMieteChfPerMonth: nebenraeumeMieteChfPerMonth,
+        moeblierungsPremiumChfPerMonth,
+        sonstigeEinnahmenChfPerYear: facts.miete.sonstigeEinnahmenChfPerYear,
+        vermietungsmodell: facts.miete.vermietungsmodell,
+        leerstandPercent: facts.miete.leerstandPercent ?? leerstandDefaultPercent,
+        auslastungPercent: facts.miete.auslastungPercent,
+      }).effektiverJahresertragChf
+    : 0;
+  const moebliertOpexBreakdownEffective: FurnishedOpexBreakdown | undefined = moeblierungIstGewaehltesSzenario
+    ? calculateFurnishedOpex(facts.moebliertBetriebskosten, effektiverJahresertragMoebliertChf)
+    : undefined;
+  // Reparaturkosten sind jährlich wiederkehrend und Teil der laufenden Betriebskosten/
+  // des NOI, NICHT der einmaligen Investitionssumme (siehe unten,
+  // `calculateAllInInvestition` ohne Reparaturkosten) — nur bei unmöblierter Vermietung
+  // ein eigener Posten (Paket 1), bei möbliert bereits Teil von `moebliertOpexBreakdownEffective`
+  // (Kleinreparaturen-Zeile).
+  const reparaturChfPerYearEffective = moeblierungIstGewaehltesSzenario ? 0 : facts.reparatur.jaehrlichUnmoebliertChf;
+  const reinigungServiceChfPerYearEffective = moeblierungIstGewaehltesSzenario ? 0 : facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear;
   // Nur der NICHT überwälzbare Anteil des STWEG-Akontobeitrags ist Vermieterkosten (siehe
   // BestandsrenditeFacts.betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear) — der
   // überwälzbare Anteil wird bei korrektem Mietvertrag 1:1 über die Nebenkosten vom
@@ -452,14 +532,14 @@ export function computeBestandsrenditeAnalysis(
     vermietungskostenChfPerYear: facts.betriebskosten.vermietungskostenChfPerYear,
     reinigungServiceChfPerYear: reinigungServiceChfPerYearEffective,
     reparaturChfPerYear: reparaturChfPerYearEffective,
-    nebenkostenMoebliertChfPerYear: nebenkostenMoebliertChfPerYearEffective,
+    moebliertOpexChfPerYear: moebliertOpexBreakdownEffective?.totalChfPerYear ?? 0,
   };
 
   const allInInvestitionChf = calculateAllInInvestition({
     kaufpreisChf,
     nebenkosten,
     renovationInitialChf: facts.renovation.initialRenovationCostChf,
-    moeblierungInitialChf: moeblierungInitialChfEffective,
+    moeblierungInitialChf: moeblierungInitialChfEffective + haushaltinventarInitialChfEffective,
     // Reparaturkosten sind jährlich wiederkehrend und fliessen oben in die
     // Betriebskosten — kein einmaliger Posten mehr, daher hier 0 statt des früheren
     // `sonstigeInitialkostenChf`-Werts.
@@ -508,7 +588,6 @@ export function computeBestandsrenditeAnalysis(
     kaufpreisChf,
   });
 
-  const leerstandDefaultPercent = facts.miete.vermietungsmodell === "MITTELFRISTIG_MOEBLIERT" ? P.leerstandMoebliertPercent : P.leerstandLangfristigPercent;
   const kalkulatorischerSteuersatzPercent = facts.kalkulatorischerSteuersatzPercent ?? cantonDefaults?.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent;
 
   const investmentCaseInput: InvestmentCaseInput = {
@@ -554,34 +633,43 @@ export function computeBestandsrenditeAnalysis(
     vermietungskostenChfPerYear: investmentCaseInput.betriebskosten.vermietungskostenChfPerYear,
     reinigungServiceChfPerYear: investmentCaseInput.betriebskosten.reinigungServiceChfPerYear,
     reparaturChfPerYear: investmentCaseInput.betriebskosten.reparaturChfPerYear,
-    nebenkostenMoebliertChfPerYear: investmentCaseInput.betriebskosten.nebenkostenMoebliertChfPerYear,
+    moebliertOpexChfPerYear: investmentCaseInput.betriebskosten.moebliertOpexChfPerYear,
     betriebskostenTotalChf,
     noiChf: investmentCase.wasserfall.noiChf,
   };
 
-  const furnitureRoi = facts.moeblierung.initialCostChf > 0 ? calculateFurnitureRoi({ moeblierungInitialChf: facts.moeblierung.initialCostChf, mietPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth }) : undefined;
-
   // "ich möchte zwei Szenarien sehen: unmöbliert vs. möbliert" — beide vollständig
   // nebeneinander gerechnet, statt nur den Mehrertrag/ROI der Möblierung isoliert zu
-  // zeigen (siehe DECISIONS.md). Jedes Szenario nutzt seinen EIGENEN Leerstand-Default
-  // (möbliert/mittelfristig hat empirisch höheren Leerstand als unmöbliert/langfristig,
-  // siehe BESTANDSRENDITE_PARAMETERS.leerstandMoebliertPercent vs. .leerstandLangfristigPercent)
+  // zeigen (siehe DECISIONS.md). Die möblierte Seite nutzt die aktuell gewählte
+  // möblierte Dauer-Variante, falls eine gewählt ist, sonst die Default-Strategie
+  // "Möbliert Mittelzeit" (siehe `resolveMoeblierungsVergleichVariante`) — für den
+  // vollen Vergleich aller vier Modelle siehe `vermietungsstrategienVergleich` unten.
+  // Jedes Szenario nutzt seinen EIGENEN Leerstand-Default (möbliert hat empirisch
+  // höheren Leerstand als unmöbliert/langfristig, siehe
+  // BESTANDSRENDITE_PARAMETERS.leerstandMoebliertPercent vs. .leerstandLangfristigPercent)
   // statt für beide denselben Wert des aktuell gewählten Vermietungsmodells zu übernehmen
   // — sonst hätte das jeweils NICHT gewählte Szenario einen unrealistischen Leerstand
   // gezeigt (Review-Fund). Nur relevant, wenn ein manueller Leerstand-Wert NICHT erfasst
   // ist — ist er erfasst, gilt er bewusst für beide Szenarien (eine einzelne manuelle
-  // Einschätzung, kein separates Feld je Szenario). Bei SHORT_STAY wirkungslos (dort
-  // zählt `auslastungPercent`, nicht `leerstandPercent`).
+  // Einschätzung, kein separates Feld je Szenario).
+  const moeblierungsVergleichVariante = resolveMoeblierungsVergleichVariante(facts.miete.vermietungsmodell);
+  const moeblierungsVergleichPremiumChfPerMonth = resolveMietPremiumChfPerMonth(moeblierungsVergleichVariante, facts.moeblierung);
   const ertragUnmoebliert = calculateJahresertrag({
     ...investmentCaseInput.ertrag,
     moeblierungsPremiumChfPerMonth: 0,
+    vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT",
     leerstandPercent: facts.miete.leerstandPercent ?? P.leerstandLangfristigPercent,
   });
   const ertragMoebliert = calculateJahresertrag({
     ...investmentCaseInput.ertrag,
-    moeblierungsPremiumChfPerMonth: facts.moeblierung.mietPremiumChfPerMonth,
+    moeblierungsPremiumChfPerMonth: moeblierungsVergleichPremiumChfPerMonth,
+    vermietungsmodell: moeblierungsVergleichVariante,
     leerstandPercent: facts.miete.leerstandPercent ?? P.leerstandMoebliertPercent,
   });
+  const furnishedOpexBreakdown: FurnishedOpexBreakdown | undefined =
+    facts.moeblierung.initialCostChf > 0 || facts.moeblierung.haushaltinventarInitialCostChf > 0 || moeblierungsVergleichPremiumChfPerMonth > 0
+      ? calculateFurnishedOpex(facts.moebliertBetriebskosten, ertragMoebliert.effektiverJahresertragChf)
+      : undefined;
   // "Miete vor Renovation" fällt, wenn nicht explizit abweichend erfasst, auf die
   // bereits oben erfasste "Nettomiete Wohnung" zurück — Rückmeldung: separates
   // Doppelt-Erfassen derselben Ist-Miete "aus meiner Sicht überflüssig". Weiterhin
@@ -599,29 +687,62 @@ export function computeBestandsrenditeAnalysis(
 
   const moeblierungLebenszyklus =
     facts.moeblierung.initialCostChf > 0
-      ? { initialCostChf: facts.moeblierung.initialCostChf, nutzungsdauerJahre: moeblierungNutzungsdauerJahre, ersatzquotePercent: jaehrlicherErsatzsatzPercent, kostensteigerungPercentPerYear: moeblierungKostensteigerung }
+      ? { initialCostChf: facts.moeblierung.initialCostChf, nutzungsdauerJahre: moeblierungNutzungsdauerJahre, ersatzquotePercent: 100, kostensteigerungPercentPerYear: moeblierungKostensteigerung }
       : undefined;
-  const moeblierungReserveChfPerJahr = moeblierungLebenszyklus ? moeblierungGeglaetteReserveChfPerJahr(moeblierungLebenszyklus) : undefined;
-  // `moeblierungLebenszyklus` bleibt oben ungegatet (Value-Add-Reserve ist informativ,
-  // unabhängig vom gewählten Szenario) — für das tatsächliche 15-Jahres-Modell (reale
-  // Ersatz-Cashouts) gilt dieselbe Gating-Regel wie überall sonst in dieser Funktion.
+  const haushaltinventarLebenszyklus =
+    facts.moeblierung.haushaltinventarInitialCostChf > 0
+      ? { initialCostChf: facts.moeblierung.haushaltinventarInitialCostChf, nutzungsdauerJahre: haushaltinventarNutzungsdauerJahre, ersatzquotePercent: 100, kostensteigerungPercentPerYear: moeblierungKostensteigerung }
+      : undefined;
+  const moeblierungReserveChfPerJahr =
+    moeblierungLebenszyklus || haushaltinventarLebenszyklus
+      ? (moeblierungLebenszyklus ? moeblierungGeglaetteReserveChfPerJahr(moeblierungLebenszyklus) : 0) +
+        (haushaltinventarLebenszyklus ? moeblierungGeglaetteReserveChfPerJahr(haushaltinventarLebenszyklus) : 0)
+      : undefined;
+  // `moeblierungLebenszyklus`/`haushaltinventarLebenszyklus` bleiben oben ungegatet
+  // (Value-Add-Reserve ist informativ, unabhängig vom gewählten Szenario) — für das
+  // tatsächliche 15-Jahres-Modell (reale Ersatz-Cashouts) gilt dieselbe Gating-Regel wie
+  // überall sonst in dieser Funktion.
   const moeblierungLebenszyklusEffective = moeblierungIstGewaehltesSzenario ? moeblierungLebenszyklus : undefined;
+  const haushaltinventarLebenszyklusEffective = moeblierungIstGewaehltesSzenario ? haushaltinventarLebenszyklus : undefined;
 
-  // Siehe IncrementalFurnitureNoi: Mehrertrag NETTO der beiden möblierungsspezifischen
-  // Zusatzkosten (Reinigung zwischen Mietern, Ersatzreserve) — nicht nur der rohe
-  // Mehrertrag wie bei furnitureRoi/moeblierungsVergleich. Gleiche Gating-Bedingung wie
-  // furnitureRoi (nur relevant, wenn überhaupt Möblierungskosten erfasst sind).
-  const incrementalFurnitureNoi: IncrementalFurnitureNoi | undefined =
-    facts.moeblierung.initialCostChf > 0
-      ? {
-          unfurnishedNoiChf: ertragUnmoebliert.effektiverJahresertragChf - facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear,
-          furnishedNoiChf: ertragMoebliert.effektiverJahresertragChf - facts.betriebskosten.reinigungServiceMoebliertChfPerYear - (moeblierungReserveChfPerJahr ?? 0),
-          incrementalNoiChf:
-            ertragMoebliert.effektiverJahresertragChf -
-            facts.betriebskosten.reinigungServiceMoebliertChfPerYear -
-            (moeblierungReserveChfPerJahr ?? 0) -
-            (ertragUnmoebliert.effektiverJahresertragChf - facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear),
-        }
+  // Siehe IncrementalFurnitureNoi: Mehrertrag NETTO der jeweils EIGENEN vollständigen
+  // Betriebskosten beider Pakete (nicht nur der rohe Mehrertrag wie bei
+  // moeblierungsVergleich) — Paket 1 (unmöbliert) netto seiner Reinigung/Reparatur,
+  // Paket 2 (möbliert) netto des granularen Kostenblocks + der Möblierungs-/
+  // Inventar-Ersatzreserve. Nur relevant, wenn überhaupt Möblierungsdaten erfasst sind.
+  const incrementalFurnitureNoi: IncrementalFurnitureNoi | undefined = furnishedOpexBreakdown
+    ? {
+        unfurnishedNoiChf: ertragUnmoebliert.effektiverJahresertragChf - facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear - facts.reparatur.jaehrlichUnmoebliertChf,
+        furnishedNoiChf: ertragMoebliert.effektiverJahresertragChf - furnishedOpexBreakdown.totalChfPerYear - (moeblierungReserveChfPerJahr ?? 0),
+        incrementalNoiChf:
+          ertragMoebliert.effektiverJahresertragChf -
+          furnishedOpexBreakdown.totalChfPerYear -
+          (moeblierungReserveChfPerJahr ?? 0) -
+          (ertragUnmoebliert.effektiverJahresertragChf - facts.betriebskosten.reinigungServiceUnmoebliertChfPerYear - facts.reparatur.jaehrlichUnmoebliertChf),
+      }
+    : undefined;
+
+  const incrementalFurnishingInvestmentChf = facts.moeblierung.initialCostChf + facts.moeblierung.haushaltinventarInitialCostChf;
+  const furnishingRoi = incrementalFurnitureNoi ? calculateFurnishingRoi({ incrementalFurnishingInvestmentChf, incrementalNoiChf: incrementalFurnitureNoi.incrementalNoiChf }) : undefined;
+  const furnishedRentalDelta =
+    incrementalFurnitureNoi && furnishedOpexBreakdown
+      ? calculateFurnishedRentalDelta({
+          incrementalOpexChfPerYear: furnishedOpexBreakdown.totalChfPerYear,
+          // Möbliert hat typischerweise einen höheren Leerstand-Default als unmöbliert
+          // (siehe oben) — der zusätzliche Mietausfall dadurch, auf 0 gedeckelt (falls
+          // beide Szenarien denselben manuell erfassten Leerstand nutzen, ist die
+          // Differenz 0).
+          incrementalVacancyLossChfPerYear: Math.max(
+            0,
+            ertragMoebliert.potenziellerJahresertragChf -
+              ertragMoebliert.effektiverJahresertragChf -
+              (ertragUnmoebliert.potenziellerJahresertragChf - ertragUnmoebliert.effektiverJahresertragChf),
+          ),
+          incrementalFurnishingInvestmentChf,
+          minimumRequiredFurnitureRoiPercent: P.minimumRequiredFurnitureRoiPercent,
+          additionalGrossRentalIncomeChfPerYear: ertragMoebliert.potenziellerJahresertragChf - ertragUnmoebliert.potenziellerJahresertragChf,
+          incrementalNoiChf: incrementalFurnitureNoi.incrementalNoiChf,
+        })
       : undefined;
 
   const moeblierungsVergleich: MoeblierungsVergleich = {
@@ -633,8 +754,8 @@ export function computeBestandsrenditeAnalysis(
       bruttoRenditePercent: kaufpreisChf > 0 ? (ertragUnmoebliert.effektiverJahresertragChf / kaufpreisChf) * 100 : 0,
     },
     moebliert: {
-      mieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth + facts.moeblierung.mietPremiumChfPerMonth,
-      kostenInitialChf: facts.moeblierung.initialCostChf,
+      mieteChfPerMonth: facts.miete.wohnungsMieteChfPerMonth + moeblierungsVergleichPremiumChfPerMonth,
+      kostenInitialChf: incrementalFurnishingInvestmentChf,
       reserveChfPerJahr: moeblierungReserveChfPerJahr,
       effektiverJahresertragChf: ertragMoebliert.effektiverJahresertragChf,
       bruttoRenditePercent: kaufpreisChf > 0 ? (ertragMoebliert.effektiverJahresertragChf / kaufpreisChf) * 100 : 0,
@@ -655,6 +776,7 @@ export function computeBestandsrenditeAnalysis(
     wertsteigerungPercentPerYear: facts.mehrjahresmodell.wertsteigerungPercentPerYear ?? P.wertsteigerungPercentPerYear,
     wertvermehrendeRenovationChf: renovationSummary.totalByKategorie.WERTVERMEHREND,
     moeblierung: moeblierungLebenszyklusEffective,
+    haushaltinventar: haushaltinventarLebenszyklusEffective,
     hypothek: {
       ersteHypothek: { initialLoanChf: ersteHypothekChf, amortisation: facts.hypothek.ersteHypothek.amortisation },
       zweiteHypothek: { initialLoanChf: zweiteHypothekChf, amortisation: facts.hypothek.zweiteHypothek.amortisation },
@@ -670,9 +792,8 @@ export function computeBestandsrenditeAnalysis(
   const mehrjahresmodell = runMehrjahresmodell(mehrjahresmodellInput);
   const investmentTreiber = computeInvestmentTreiber(mehrjahresmodellInput);
 
-  if (facts.moeblierung.initialCostChf > 0 && facts.moeblierung.jaehrlicherErsatzsatzPercent === undefined) assumptionNotes.push(`Möblierungs-Ersatzquote nicht erfasst — Platzhalter-Default (${jaehrlicherErsatzsatzPercent}%) verwendet.`);
-  if (facts.moeblierung.initialCostChf > 0 && facts.moeblierung.kostensteigerungPercentPerYear === undefined) {
-    assumptionNotes.push(`Kosteninflation Möblierung nicht erfasst — allgemeine Kosteninflation (${moeblierungKostensteigerung}%/Jahr) verwendet.`);
+  if ((facts.moeblierung.initialCostChf > 0 || facts.moeblierung.haushaltinventarInitialCostChf > 0) && facts.moeblierung.kostensteigerungPercentPerYear === undefined) {
+    assumptionNotes.push(`Kosteninflation Möblierung/Haushaltsinventar nicht erfasst — allgemeine Kosteninflation (${moeblierungKostensteigerung}%/Jahr) verwendet.`);
   }
   if (facts.miete.leerstandPercent === undefined && facts.miete.vermietungsmodell !== "SHORT_STAY") assumptionNotes.push(`Leerstandsquote nicht erfasst — Platzhalter-Default (${leerstandDefaultPercent}%) verwendet.`);
   if (facts.kalkulatorischerSteuersatzPercent === undefined) assumptionNotes.push(`Kalkulatorischer Steuersatz nicht erfasst — Platzhalter-Default (${kalkulatorischerSteuersatzPercent}%) verwendet, kein Steuerberatungsersatz.`);
@@ -707,8 +828,10 @@ export function computeBestandsrenditeAnalysis(
       zinsPercent: breakEvenZinsPercent(investmentCaseInput),
       auslastungPercent: breakEvenAuslastungPercent(investmentCaseInput),
     },
-    furnitureRoi,
+    furnishingRoi,
     incrementalFurnitureNoi,
+    furnishedRentalDelta,
+    furnishedOpexBreakdown,
     moeblierungReserveChfPerJahr,
     moeblierungsVergleich,
     renovationRoi,
@@ -967,9 +1090,13 @@ export interface MoeblierungsAlternative {
  * Szenario abhängigen Kennzahlen (IRR, Equity Multiple, Verhandlungskorridor, …), die sich
  * nicht einfach algebraisch aus den beiden Ertragswerten ableiten lassen.
  *
- * `null`, wenn kein sinnvolles Alternativszenario existiert: SHORT_STAY kennt keine
- * unmöbliert/möbliert-Unterscheidung, und ohne erfasste Möblierungsdaten (weder Kosten
- * noch Mietaufschlag) wäre das Alternativszenario ohnehin identisch mit dem Hauptszenario.
+ * `null`, wenn kein sinnvolles Alternativszenario existiert: ohne erfasste
+ * Möblierungsdaten (weder Möbel-/Haushaltsinventar-Initialkosten noch ein Mietaufschlag
+ * der Alternativ-Variante) wäre das Alternativszenario ohnehin identisch mit dem
+ * Hauptszenario. Ist bereits eine möblierte Variante gewählt, ist "die Alternative"
+ * unmöbliert; ist unmöbliert gewählt, ist es die Vergleichsvariante aus
+ * `resolveMoeblierungsVergleichVariante` (Default "Möbliert Mittelzeit"). Für den vollen
+ * Vergleich aller vier Modelle siehe stattdessen `computeVermietungsstrategienVergleich`.
  */
 export function computeMoeblierungsAlternative(
   property: BestandsrenditePropertyInput,
@@ -977,19 +1104,147 @@ export function computeMoeblierungsAlternative(
   parameterOverrides?: ParameterOverrides,
 ): MoeblierungsAlternative | null {
   const aktuell = facts.miete.vermietungsmodell;
-  if (aktuell !== "LANGFRISTIG_UNMOEBLIERT" && aktuell !== "MITTELFRISTIG_MOEBLIERT") return null;
-  if (facts.moeblierung.initialCostChf <= 0 && facts.moeblierung.mietPremiumChfPerMonth <= 0) return null;
+  const alternativesModell: Vermietungsmodell = aktuell === "LANGFRISTIG_UNMOEBLIERT" ? resolveMoeblierungsVergleichVariante(aktuell) : "LANGFRISTIG_UNMOEBLIERT";
+  const alternativesModellIstMoebliert = alternativesModell !== "LANGFRISTIG_UNMOEBLIERT";
+  const relevanterMietPremiumChfPerMonth = resolveMietPremiumChfPerMonth(alternativesModellIstMoebliert ? alternativesModell : aktuell, facts.moeblierung);
+  if (facts.moeblierung.initialCostChf <= 0 && facts.moeblierung.haushaltinventarInitialCostChf <= 0 && relevanterMietPremiumChfPerMonth <= 0) return null;
 
-  const alternativesModell: Vermietungsmodell = aktuell === "LANGFRISTIG_UNMOEBLIERT" ? "MITTELFRISTIG_MOEBLIERT" : "LANGFRISTIG_UNMOEBLIERT";
   const alternativeFacts: BestandsrenditeFacts = { ...facts, miete: { ...facts.miete, vermietungsmodell: alternativesModell } };
   return {
-    label: alternativesModell === "MITTELFRISTIG_MOEBLIERT" ? "möbliert" : "unmöbliert",
+    label: alternativesModellIstMoebliert ? "möbliert" : "unmöbliert",
     analysis: computeBestandsrenditeAnalysis(property, alternativeFacts, parameterOverrides),
     verhandlungskorridor: computeVerhandlungskorridor(property, alternativeFacts, parameterOverrides),
   };
 }
 
-const VERMIETUNGSMODELL_VALUES: Vermietungsmodell[] = ["LANGFRISTIG_UNMOEBLIERT", "MITTELFRISTIG_MOEBLIERT", "SHORT_STAY"];
+const VERMIETUNGSMODELL_VALUES: Vermietungsmodell[] = ["LANGFRISTIG_UNMOEBLIERT", "LANGFRISTIG_MOEBLIERT", "MITTELFRISTIG_MOEBLIERT", "SHORT_STAY"];
+
+const VERMIETUNGSMODELL_LABELS: Record<Vermietungsmodell, string> = {
+  LANGFRISTIG_UNMOEBLIERT: "Unmöbliert",
+  LANGFRISTIG_MOEBLIERT: "Möbliert Langzeit",
+  MITTELFRISTIG_MOEBLIERT: "Möbliert Mittelzeit",
+  SHORT_STAY: "Möbliert Kurzzeit",
+};
+
+/** Wie verlässlich die Annahmen einer Vermietungsstrategie im 4-Wege-Vergleich sind — dieselbe Skala wie `priceStrategy.ts::ConfidenceLevel`, hier bewusst lokal definiert statt importiert (priceStrategy.ts importiert bereits von diesem Modul, ein Rückimport würde einen Zirkelbezug erzeugen). */
+export type VermietungsstrategieConfidence = "HIGH" | "MEDIUM" | "LOW";
+
+/** Eine einzelne Zeile im 4-Wege-Vergleich — siehe `computeVermietungsstrategienVergleich`. */
+export interface VermietungsstrategieErgebnis {
+  modell: Vermietungsmodell;
+  label: string;
+  stabilisierterNoiChf: number;
+  nettoRenditeVorFinanzierungPercent: number;
+  cashOnCashPercent: number;
+  /** = stabilisierterNoiChf ÷ (Nettorendite-Ziel ÷ 100), siehe `computeVermietungsstrategienVergleich`. */
+  investmentValueChf: number;
+  /** = investmentValueChf dieser Strategie − investmentValueChf von "Unmöbliert" (0 für Unmöbliert selbst). */
+  valueCreationChf: number;
+  confidence: VermietungsstrategieConfidence;
+}
+
+export interface VermietungsstrategienVergleich {
+  /** Immer alle vier Vermietungsmodelle, in fester Reihenfolge (siehe `VERMIETUNGSMODELL_VALUES`). */
+  strategien: VermietungsstrategieErgebnis[];
+  /**
+   * Unter den Strategien mit Confidence ≠ LOW diejenige mit dem höchsten stabilisierten
+   * NOI — "Unmöbliert" braucht nie einen Mietaufschlag und ist daher nie LOW, fällt die
+   * Empfehlung also automatisch auf "Unmöbliert" zurück, wenn keine möblierte Variante
+   * verlässlich genug ist (kein erfasster Mietaufschlag). `undefined` nur theoretisch
+   * möglich (leere Strategienliste kommt praktisch nicht vor, da immer alle vier Modelle
+   * durchgerechnet werden).
+   */
+  empfehlung: { modell: Vermietungsmodell; begruendung: string } | undefined;
+}
+
+/**
+ * HIGH: Mietaufschlag der Variante ist erfasst UND Leerstand ist manuell erfasst (nicht
+ * auf Platzhalter-Default angewiesen). MEDIUM: Mietaufschlag erfasst, Leerstand auf
+ * Default. LOW: für eine möblierte Variante gar kein Mietaufschlag erfasst — deren
+ * Zielmiete ist dann komplett ungeprüft, nicht Grundlage einer automatischen Empfehlung.
+ * "Unmöbliert" braucht keinen Aufschlag, daher nie LOW.
+ */
+function resolveVermietungsstrategieConfidence(modell: Vermietungsmodell, facts: BestandsrenditeFacts): VermietungsstrategieConfidence {
+  // SHORT_STAY nutzt auslastungPercent statt leerstandPercent für den Mietausfall (siehe
+  // calculateJahresertrag) — die "ist der Mietausfall manuell erfasst"-Frage muss daher
+  // je Modell das jeweils richtige Feld prüfen.
+  const mietausfallErfasst = modell === "SHORT_STAY" ? facts.miete.auslastungPercent !== undefined : facts.miete.leerstandPercent !== undefined;
+  if (modell === "LANGFRISTIG_UNMOEBLIERT") return mietausfallErfasst ? "HIGH" : "MEDIUM";
+  const premiumChfPerMonth = resolveMietPremiumChfPerMonth(modell, facts.moeblierung);
+  if (premiumChfPerMonth <= 0) return "LOW";
+  return mietausfallErfasst ? "HIGH" : "MEDIUM";
+}
+
+/**
+ * SIPIS Furnished-Rental-Modul (v1.1) — voller Vergleich aller vier Vermietungsmodelle
+ * (Investment Value/Cash-on-Cash/Nettorendite/Value Creation je Modell, plus eine
+ * Empfehlung) unabhängig davon, welches Modell aktuell tatsächlich gewählt ist. Anders
+ * als `computeMoeblierungsAlternative` (EIN "Schatten"-Alternativszenario mit vollem
+ * IRR/Verhandlungskorridor) hier bewusst NUR die für einen schnellen Strategie-Vergleich
+ * nötigen Kennzahlen, dafür alle vier Modelle gleichzeitig — für JEDES Modell wird
+ * `computeBestandsrenditeAnalysis` einmal komplett durchgerechnet (mit dem jeweils
+ * passenden Mietaufschlag, siehe `resolveMietPremiumChfPerMonth`).
+ *
+ * `investmentValueChf = stabilisierterNoiChf / (nettoRenditeZielPercent / 100)` — direkte
+ * Umsetzung der Spec-Formel, kein Bisektionsverfahren wie beim Verhandlungskorridor.
+ *
+ * Empfehlung: unter den Strategien mit Confidence ≠ LOW (nichts auf Basis einer reinen
+ * Rateweite empfehlen) diejenige mit dem höchsten stabilisierten NOI, bei Gleichstand der
+ * höchste Investment Value. "Unmöbliert" braucht nie einen Mietaufschlag und ist daher nie
+ * LOW — erreicht keine möblierte Variante mindestens MEDIUM-Confidence, fällt die
+ * Empfehlung automatisch auf "Unmöbliert" zurück (die einzig verlässlich einschätzbare
+ * Option), statt ganz zu entfallen.
+ *
+ * Bewusst NICHT modelliert: operativer Aufwand und Risiko (zwei der sechs von der Spec
+ * genannten Entscheidungskriterien) — HOME4efFINDER hat dafür keine Datenquelle, ein
+ * erfundener Wert wäre keine Verbesserung (dieselbe Linie wie bei "Objektqualität" im
+ * SIPIS-Score, siehe DECISIONS.md). Guardrail der Spec: "Highest gross rent MUST NOT
+ * automatically be considered the best strategy" — die Empfehlung basiert auf NOI/
+ * Investment Value (bereits netto aller möblierungsspezifischen Zusatzkosten), nicht auf
+ * der Bruttomiete.
+ */
+export function computeVermietungsstrategienVergleich(
+  property: BestandsrenditePropertyInput,
+  facts: BestandsrenditeFacts,
+  parameterOverrides?: ParameterOverrides,
+): VermietungsstrategienVergleich {
+  const P = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
+
+  const strategien: VermietungsstrategieErgebnis[] = VERMIETUNGSMODELL_VALUES.map((modell) => {
+    const modellFacts: BestandsrenditeFacts = { ...facts, miete: { ...facts.miete, vermietungsmodell: modell } };
+    const analysis = computeBestandsrenditeAnalysis(property, modellFacts, parameterOverrides);
+    const stabilisierterNoiChf = analysis.investmentCase.wasserfall.noiChf;
+    const investmentValueChf = P.nettoRenditeZielPercent > 0 ? stabilisierterNoiChf / (P.nettoRenditeZielPercent / 100) : 0;
+    return {
+      modell,
+      label: VERMIETUNGSMODELL_LABELS[modell],
+      stabilisierterNoiChf,
+      nettoRenditeVorFinanzierungPercent: analysis.investmentCase.nettoRenditeVorFinanzierungPercent,
+      cashOnCashPercent: analysis.investmentCase.cashOnCashPercent,
+      investmentValueChf,
+      valueCreationChf: 0, // unten relativ zu "Unmöbliert" nachgetragen
+      confidence: resolveVermietungsstrategieConfidence(modell, facts),
+    };
+  });
+
+  const unmoebliertInvestmentValueChf = strategien.find((s) => s.modell === "LANGFRISTIG_UNMOEBLIERT")?.investmentValueChf ?? 0;
+  for (const s of strategien) s.valueCreationChf = s.investmentValueChf - unmoebliertInvestmentValueChf;
+
+  const kandidaten = strategien.filter((s) => s.confidence !== "LOW");
+  let empfehlung: VermietungsstrategienVergleich["empfehlung"];
+  if (kandidaten.length > 0) {
+    const beste = kandidaten.reduce((best, s) =>
+      s.stabilisierterNoiChf > best.stabilisierterNoiChf || (s.stabilisierterNoiChf === best.stabilisierterNoiChf && s.investmentValueChf > best.investmentValueChf) ? s : best,
+    );
+    empfehlung = {
+      modell: beste.modell,
+      begruendung:
+        "Höchster stabilisierter NOI unter den Strategien mit ausreichend verlässlichen Annahmen (Mietaufschlag erfasst) — operativer Aufwand und Risiko sind mangels Datenquelle nicht Teil dieser automatischen Einschätzung, höhere Bruttomiete allein war nicht ausschlaggebend.",
+    };
+  }
+
+  return { strategien, empfehlung };
+}
 
 /**
  * Manuelle Validierung statt einer Schema-Bibliothek (keine im Projekt vorhanden,
@@ -1004,7 +1259,7 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
   const miete = body.miete as Record<string, unknown> | undefined;
   if (!miete || typeof miete.wohnungsMieteChfPerMonth !== "number") return { error: "miete.wohnungsMieteChfPerMonth fehlt" };
   if (typeof miete.vermietungsmodell !== "string" || !VERMIETUNGSMODELL_VALUES.includes(miete.vermietungsmodell as Vermietungsmodell)) {
-    return { error: "miete.vermietungsmodell muss LANGFRISTIG_UNMOEBLIERT/MITTELFRISTIG_MOEBLIERT/SHORT_STAY sein" };
+    return { error: "miete.vermietungsmodell muss LANGFRISTIG_UNMOEBLIERT/LANGFRISTIG_MOEBLIERT/MITTELFRISTIG_MOEBLIERT/SHORT_STAY sein" };
   }
 
   const hypothek = body.hypothek as Record<string, unknown> | undefined;
@@ -1038,6 +1293,7 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
   const renovation = (body.renovation as Record<string, unknown>) ?? {};
   const reparatur = (body.reparatur as Record<string, unknown>) ?? {};
   const moeblierung = (body.moeblierung as Record<string, unknown>) ?? {};
+  const moebliertBetriebskosten = (body.moebliertBetriebskosten as Record<string, unknown>) ?? {};
   const reserven = (body.reserven as Record<string, unknown>) ?? {};
   const mehrjahresmodell = (body.mehrjahresmodell as Record<string, unknown>) ?? {};
   const stweg = (body.stweg as StwegFacts) ?? {};
@@ -1069,14 +1325,16 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
       },
       reparatur: {
         jaehrlichUnmoebliertChf: num(reparatur.jaehrlichUnmoebliertChf) ?? 0,
-        jaehrlichMoebliertChf: num(reparatur.jaehrlichMoebliertChf) ?? 0,
       },
       moeblierung: {
         initialCostChf: num(moeblierung.initialCostChf) ?? 0,
-        mietPremiumChfPerMonth: num(moeblierung.mietPremiumChfPerMonth) ?? 0,
-        jaehrlicherErsatzsatzPercent: num(moeblierung.jaehrlicherErsatzsatzPercent),
         nutzungsdauerJahre: num(moeblierung.nutzungsdauerJahre),
         kostensteigerungPercentPerYear: num(moeblierung.kostensteigerungPercentPerYear),
+        haushaltinventarInitialCostChf: num(moeblierung.haushaltinventarInitialCostChf) ?? 0,
+        haushaltinventarNutzungsdauerJahre: num(moeblierung.haushaltinventarNutzungsdauerJahre),
+        mietPremiumLangzeitChfPerMonth: num(moeblierung.mietPremiumLangzeitChfPerMonth) ?? 0,
+        mietPremiumMittelzeitChfPerMonth: num(moeblierung.mietPremiumMittelzeitChfPerMonth) ?? 0,
+        mietPremiumKurzzeitChfPerMonth: num(moeblierung.mietPremiumKurzzeitChfPerMonth) ?? 0,
       },
       miete: {
         wohnungsMieteChfPerMonth: miete.wohnungsMieteChfPerMonth,
@@ -1094,8 +1352,23 @@ export function parseBestandsrenditeFacts(input: unknown): { facts: Bestandsrend
         eigentuemerkostenChfPerYear: num(betriebskosten.eigentuemerkostenChfPerYear) ?? 0,
         vermietungskostenChfPerYear: num(betriebskosten.vermietungskostenChfPerYear) ?? 0,
         reinigungServiceUnmoebliertChfPerYear: num(betriebskosten.reinigungServiceUnmoebliertChfPerYear) ?? 0,
-        reinigungServiceMoebliertChfPerYear: num(betriebskosten.reinigungServiceMoebliertChfPerYear) ?? 0,
-        nebenkostenMoebliertChfPerYear: num(betriebskosten.nebenkostenMoebliertChfPerYear) ?? 0,
+      },
+      moebliertBetriebskosten: {
+        internetChfPerMonth: num(moebliertBetriebskosten.internetChfPerMonth) ?? 0,
+        kabelTvChfPerMonth: num(moebliertBetriebskosten.kabelTvChfPerMonth) ?? 0,
+        streamingChfPerMonth: num(moebliertBetriebskosten.streamingChfPerMonth) ?? 0,
+        stromChfPerMonth: num(moebliertBetriebskosten.stromChfPerMonth) ?? 0,
+        abfallChfPerMonth: num(moebliertBetriebskosten.abfallChfPerMonth) ?? 0,
+        mieterwechselProJahr: num(moebliertBetriebskosten.mieterwechselProJahr) ?? 0,
+        reinigungProWechselChf: num(moebliertBetriebskosten.reinigungProWechselChf) ?? 0,
+        waescheProWechselChf: num(moebliertBetriebskosten.waescheProWechselChf) ?? 0,
+        inseratProWechselChf: num(moebliertBetriebskosten.inseratProWechselChf) ?? 0,
+        verbrauchsmaterialChfPerMonth: num(moebliertBetriebskosten.verbrauchsmaterialChfPerMonth) ?? 0,
+        kleinreparaturenChfPerMonth: num(moebliertBetriebskosten.kleinreparaturenChfPerMonth) ?? 0,
+        hausratversicherungChfPerMonth: num(moebliertBetriebskosten.hausratversicherungChfPerMonth) ?? 0,
+        schadenreserveChfPerMonth: num(moebliertBetriebskosten.schadenreserveChfPerMonth) ?? 0,
+        verwaltungsgebuehrPercent: num(moebliertBetriebskosten.verwaltungsgebuehrPercent) ?? 0,
+        plattformgebuehrPercent: num(moebliertBetriebskosten.plattformgebuehrPercent) ?? 0,
       },
       reserven: {
         reparaturChfPerYear: num(reserven.reparaturChfPerYear),

@@ -19,7 +19,10 @@ const GROUPS: { title: string; keys: BestandsrenditeParameterKey[] }[] = [
   { title: "Kaufnebenkosten", keys: ["handaenderungssteuerPercent", "notariatGrundbuchPercent", "maklerprovisionPercent"] },
   { title: "Eigene Reserven", keys: ["reparaturreservePercentOfKaufpreis", "leerstandsreservePercentOfKaufpreis"] },
   { title: "Steuer", keys: ["kalkulatorischerSteuersatzPercent"] },
-  { title: "Möblierung", keys: ["moeblierungNutzungsdauerJahre", "moeblierungErsatzquotePercent"] },
+  {
+    title: "Möblierung",
+    keys: ["moeblierungNutzungsdauerJahre", "haushaltinventarNutzungsdauerJahre", "minimumRequiredFurnitureRoiPercent"],
+  },
   {
     title: "15-Jahres-Modell",
     keys: ["holdingPeriodYearsDefault", "mietsteigerungPercentPerYear", "kosteninflationPercentPerYear", "wertsteigerungPercentPerYear", "sellingCostPercent"],

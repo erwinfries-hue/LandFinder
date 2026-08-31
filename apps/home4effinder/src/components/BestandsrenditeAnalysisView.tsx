@@ -3,7 +3,7 @@ import { Metric } from "@/components/MetricPrimitives";
 import { formatChf } from "@/lib/format";
 import { renditeAmpelColor } from "@/lib/investmentScore";
 import { strengsteZielgroesse, verhandlungskorridorRelation } from "@/lib/bestandsrendite";
-import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, PreisStufe, MoeblierungsAlternative } from "@/lib/bestandsrendite";
+import type { BestandsrenditeAnalysisResult, Verhandlungskorridor, PreisStufe, MoeblierungsAlternative, VermietungsstrategienVergleich } from "@/lib/bestandsrendite";
 import { computePriceZones, classifyPriceZone, priceZoneTone, computeValueCreation } from "@/lib/priceStrategy";
 import type { MarketValueRange, CashOnCashBreakdown, PriceZoneBand, OpeningBidSuggestion } from "@/lib/priceStrategy";
 import { isReturnMateriallyRateDependent } from "@/lib/scenarioEngine";
@@ -123,6 +123,7 @@ export function BestandsrenditeAnalysisView({
   verhandlungskorridor,
   preisStufentabelle,
   moeblierungsAlternative,
+  vermietungsstrategienVergleich,
   bruttoRenditeZielPercent,
   nettoRenditeZielPercent,
   inseratpreisChf,
@@ -145,6 +146,13 @@ export function BestandsrenditeAnalysisView({
    * erfasst), siehe `computeMoeblierungsAlternative`.
    */
   moeblierungsAlternative?: MoeblierungsAlternative | null;
+  /**
+   * SIPIS Furnished-Rental-Modul (v1.1) — voller Vergleich aller vier Vermietungsmodelle
+   * (Investment Value/Cash-on-Cash/Nettorendite/Value Creation je Modell, plus eine
+   * Empfehlung), siehe `computeVermietungsstrategienVergleich`. `undefined`/`null`, wenn
+   * keine Bestandsrendite-Fakten vorliegen.
+   */
+  vermietungsstrategienVergleich?: VermietungsstrategienVergleich | null;
   /**
    * Referenzwerte aus dem "Annahmen"-Reiter (`BESTANDSRENDITE_PARAMETERS.bruttoRenditeZielPercent`/
    * `nettoRenditeZielPercent`) — Rückmeldung: "die ampel [...] überall dort [einbauen], wo werte
@@ -190,8 +198,10 @@ export function BestandsrenditeAnalysisView({
     kategorienRenditen,
     mehrjahresmodell,
     investmentTreiber,
-    furnitureRoi,
+    furnishingRoi,
     incrementalFurnitureNoi,
+    furnishedRentalDelta,
+    furnishedOpexBreakdown,
     moeblierungReserveChfPerJahr,
     moeblierungsVergleich,
     renovationRoi,
@@ -749,10 +759,13 @@ export function BestandsrenditeAnalysisView({
                         </td>
                         <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.reparaturChfPerYear))}</td>
                       </tr>
-                      {noiBreakdown.nebenkostenMoebliertChfPerYear > 0 ? (
+                      {noiBreakdown.moebliertOpexChfPerYear > 0 ? (
                         <tr>
-                          <td>− WLAN/Kabel/Streaming/Abfall (möbliert)</td>
-                          <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.nebenkostenMoebliertChfPerYear))}</td>
+                          <td>
+                            − Möblierte Betriebskosten (granular){" "}
+                            <InfoHint text="Internet/Kabel/Streaming/Strom/Abfall, Mieterwechselkosten (Reinigung/Wäsche/Inserat), Verbrauchsmaterial/Kleinreparaturen/Versicherung/Schadenreserve, Verwaltungs-/Plattformgebühr — vollständige Aufschlüsselung im Value-Add-Möblierung-Panel." />
+                          </td>
+                          <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.moebliertOpexChfPerYear))}</td>
                         </tr>
                       ) : null}
                       <tr>
@@ -964,26 +977,40 @@ export function BestandsrenditeAnalysisView({
           </table>
         </div>
 
-        {furnitureRoi ? (
+        {furnishingRoi ? (
           <div className="metricgrid" style={{ marginTop: "1rem" }}>
             <Metric
-              l="Zusätzlicher Jahresertrag"
-              v={`CHF ${formatChf(Math.round(furnitureRoi.zusaetzlicherJahresertragChf))}`}
-              hint="= Mietaufschlag möbliert ggü. unmöbliert (CHF/Monat) × 12."
+              l="Möblierungsaufschlag CHF/Mt."
+              v={`CHF ${formatChf(Math.round(moeblierungsVergleich.moebliert.mieteChfPerMonth - moeblierungsVergleich.unmoebliert.mieteChfPerMonth))}`}
+              hint="Mietaufschlag der aktuell gewählten (oder, falls unmöbliert gewählt ist, der Default-Strategie „Möbliert Mittelzeit“) möblierten Dauer-Variante ggü. unmöbliert."
             />
-            <Metric l="Furniture ROI" v={`${furnitureRoi.roiPercent.toFixed(1)}%`} hint="= zusätzlicher Jahresertrag ÷ Möblierungsinvestition × 100." />
-            {incrementalFurnitureNoi ? (
+            {furnishedOpexBreakdown ? (
               <Metric
-                l="Inkrementeller NOI"
-                v={`CHF ${formatChf(Math.round(incrementalFurnitureNoi.incrementalNoiChf))}`}
-                valueColor={incrementalFurnitureNoi.incrementalNoiChf <= 0 ? "var(--bad)" : "var(--good)"}
-                sub={
-                  incrementalFurnitureNoi.incrementalNoiChf <= 0
-                    ? "Möblierung erhöht den Umsatz, aber nicht den operativen Gewinn."
-                    : `= CHF ${formatChf(Math.round(incrementalFurnitureNoi.furnishedNoiChf))} (möbliert) − CHF ${formatChf(Math.round(incrementalFurnitureNoi.unfurnishedNoiChf))} (unmöbliert)`
-                }
-                hint="= (effektiver Jahresertrag möbliert − Reinigung/Service möbliert − Möblierungs-Ersatzreserve) − (effektiver Jahresertrag unmöbliert − Reinigung/Service unmöbliert) — anders als „Zusätzlicher Jahresertrag“ oben NETTO der möblierungsspezifischen Zusatzkosten, nicht nur der rohe Mietaufschlag."
+                l="Möbliert-spezifische Kosten CHF/Mt."
+                v={`CHF ${formatChf(Math.round(furnishedOpexBreakdown.totalChfPerYear / 12))}`}
+                hint="= granularer möblierter Betriebskosten-Block ÷ 12 (Internet/Kabel/Streaming/Strom/Abfall, Mieterwechselkosten, Verbrauchsmaterial/Kleinreparaturen/Versicherung/Schadenreserve, Verwaltungs-/Plattformgebühr)."
               />
+            ) : null}
+            {incrementalFurnitureNoi ? (
+              <>
+                <Metric
+                  l="Netto-Mehrertrag CHF/Mt."
+                  v={`CHF ${formatChf(Math.round(incrementalFurnitureNoi.incrementalNoiChf / 12))}`}
+                  valueColor={incrementalFurnitureNoi.incrementalNoiChf <= 0 ? "var(--bad)" : "var(--good)"}
+                  hint="= inkrementeller NOI ÷ 12."
+                />
+                <Metric
+                  l="Netto-Mehrertrag CHF/Jahr (inkrementeller NOI)"
+                  v={`CHF ${formatChf(Math.round(incrementalFurnitureNoi.incrementalNoiChf))}`}
+                  valueColor={incrementalFurnitureNoi.incrementalNoiChf <= 0 ? "var(--bad)" : "var(--good)"}
+                  sub={
+                    incrementalFurnitureNoi.incrementalNoiChf <= 0
+                      ? "Möblierung erhöht den Umsatz, aber nicht den operativen Gewinn."
+                      : `= CHF ${formatChf(Math.round(incrementalFurnitureNoi.furnishedNoiChf))} (möbliert) − CHF ${formatChf(Math.round(incrementalFurnitureNoi.unfurnishedNoiChf))} (unmöbliert)`
+                  }
+                  hint="Beide Seiten NETTO ihrer jeweils eigenen vollständigen Betriebskosten (Paket 1: Reinigung + Reparatur; Paket 2: granularer Kostenblock + Möblierungs-/Inventar-Ersatzreserve) — Guardrail: höherer Umsatz durch Möblierung wird NICHT automatisch als höherer Gewinn interpretiert."
+                />
+              </>
             ) : null}
             {furnitureValueCreation ? (
               <Metric
@@ -993,20 +1020,105 @@ export function BestandsrenditeAnalysisView({
               />
             ) : null}
             <Metric
-              l="Payback"
-              v={furnitureRoi.paybackYears !== undefined ? `${furnitureRoi.paybackYears.toFixed(1)} Jahre` : "—"}
-              hint="= Möblierungsinvestition ÷ zusätzlicher Jahresertrag; ohne Wert, wenn kein Mehrertrag entsteht (Payback wäre unendlich)."
+              l="Rendite auf Möblierungsinvestition (Furniture ROI)"
+              v={`${furnishingRoi.roiPercent.toFixed(1)}%`}
+              hint="= inkrementeller NOI ÷ (Möbel- + Haushaltsinventar-Initialkosten) × 100 — NETTO-basiert, nicht der rohe Mietaufschlag."
             />
+            <Metric
+              l="Payback-Dauer Möblierung"
+              v={furnishingRoi.paybackYears !== undefined ? `${furnishingRoi.paybackYears.toFixed(1)} Jahre` : "—"}
+              hint="= (Möbel- + Haushaltsinventar-Initialkosten) ÷ inkrementeller NOI; ohne Wert, wenn kein positiver Mehrertrag entsteht (Payback wäre unendlich)."
+            />
+            {furnishedRentalDelta ? (
+              <>
+                <Metric
+                  l="Break-even-Möblierungszuschlag"
+                  v={`CHF ${formatChf(Math.round(furnishedRentalDelta.breakEvenFurnishingPremiumChfPerMonth))}/Mt.`}
+                  hint="Mindest-Mietaufschlag, der nötig ist, um die möblierungsbedingten Mehrkosten (granularer Kostenblock + Mehr-Leerstand ggü. unmöbliert) zu decken — noch OHNE Rendite auf die Möblierungsinvestition."
+                />
+                <Metric
+                  l="Minimum wirtschaftlich sinnvoller Zuschlag"
+                  v={`CHF ${formatChf(Math.round(furnishedRentalDelta.minimumEconomicFurnishingPremiumChfPerYear / 12))}/Mt.`}
+                  hint="Break-even-Zuschlag zzgl. der geforderten Mindestrendite auf die Möblierungsinvestition (siehe „Mindestrendite Möblierungsinvestition“, Annahmen-Reiter)."
+                />
+                {furnishedRentalDelta.furnishingEfficiencyRatio !== undefined ? (
+                  <Metric
+                    l="Furnishing Efficiency Ratio"
+                    v={`${(furnishedRentalDelta.furnishingEfficiencyRatio * 100).toFixed(0)}%`}
+                    hint="= inkrementeller NOI ÷ zusätzlicher Bruttomietertrag — wie viel vom zusätzlichen Bruttoertrag tatsächlich als Mehrgewinn ankommt (100% = keine möblierungsspezifischen Zusatzkosten, <0% = Möblierung senkt den Gewinn trotz höherer Bruttomiete)."
+                  />
+                ) : null}
+              </>
+            ) : null}
             {moeblierungReserveChfPerJahr !== undefined ? (
               <Metric
-                l="Geglättete Ersatzreserve"
+                l="Geglättete Ersatzreserve (Möbel + Inventar)"
                 v={`CHF ${formatChf(Math.round(moeblierungReserveChfPerJahr))} p.a.`}
-                hint="Rein informativ — die 15-Jahres-Cashflows rechnen mit dem tatsächlichen Ersatz-Cashout im Ersatzjahr, nicht mit dieser geglätteten Reserve."
+                hint="Rein informativ — die 15-Jahres-Cashflows rechnen mit dem tatsächlichen Ersatz-Cashout im jeweiligen Ersatzjahr, nicht mit dieser geglätteten Reserve."
               />
             ) : null}
           </div>
         ) : null}
       </Panel>
+
+      {vermietungsstrategienVergleich ? (
+        <Panel id="vermietungsstrategie-vergleich" className="anchor-target" style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>
+          <div className="sectionhead">
+            <h2>Vermietungsstrategie-Vergleich</h2>
+          </div>
+          <p style={{ fontSize: ".8125rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".6rem" }}>
+            Alle vier Vermietungsmodelle im direkten Vergleich (SIPIS Furnished-Rental-Modul v1.1) — Investment
+            Value = stabilisierter NOI ÷ Nettorendite-Ziel. Höchste Bruttomiete ist NICHT automatisch die beste
+            Strategie: die Empfehlung stützt sich auf den NOI (bereits netto aller möblierungsspezifischen
+            Zusatzkosten), nicht auf den Umsatz.
+          </p>
+          {vermietungsstrategienVergleich.empfehlung ? (
+            <p style={{ fontSize: ".84rem", marginBottom: ".8rem" }}>
+              <strong>Empfohlene Strategie: {vermietungsstrategienVergleich.strategien.find((s) => s.modell === vermietungsstrategienVergleich.empfehlung!.modell)?.label}.</strong>{" "}
+              {vermietungsstrategienVergleich.empfehlung.begruendung}
+            </p>
+          ) : (
+            <p style={{ fontSize: ".84rem", color: "var(--warn)", marginBottom: ".8rem" }}>
+              Keine automatische Empfehlung möglich — für keine möblierte Variante ist ein Mietaufschlag erfasst
+              (nichts wird erfunden).
+            </p>
+          )}
+          <div style={{ overflowX: "auto" }}>
+            <table className="stresstable">
+              <thead>
+                <tr>
+                  <th>Modell</th>
+                  <th>Stabilisierter NOI</th>
+                  <th>Nettorendite</th>
+                  <th>Cash-on-Cash</th>
+                  <th>Investment Value</th>
+                  <th>Value Creation</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vermietungsstrategienVergleich.strategien.map((s) => (
+                  <tr key={s.modell} style={s.modell === vermietungsstrategienVergleich.empfehlung?.modell ? { fontWeight: 600 } : undefined}>
+                    <td>{s.label}</td>
+                    <td className="num mono">CHF {formatChf(Math.round(s.stabilisierterNoiChf))}</td>
+                    <td className="num mono" style={{ color: renditeAmpelColor(s.nettoRenditeVorFinanzierungPercent, nettoRenditeZielPercent) }}>
+                      {s.nettoRenditeVorFinanzierungPercent.toFixed(2)}%
+                    </td>
+                    <td className="num mono">{s.cashOnCashPercent.toFixed(2)}%</td>
+                    <td className="num mono">CHF {formatChf(Math.round(s.investmentValueChf))}</td>
+                    <td className="num mono" style={{ color: s.valueCreationChf > 0 ? "var(--good)" : s.valueCreationChf < 0 ? "var(--bad)" : undefined }}>
+                      {s.modell === "LANGFRISTIG_UNMOEBLIERT" ? "—" : `CHF ${formatChf(Math.round(s.valueCreationChf))}`}
+                    </td>
+                    <td>
+                      <Chip tone={s.confidence === "HIGH" ? "good" : s.confidence === "MEDIUM" ? "warn" : "bad"}>{s.confidence}</Chip>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      ) : null}
 
       {renovationRoi || renovationSummary.totalChf > 0 ? (
         <Panel style={{ padding: "0.9rem 1.1rem", marginTop: "1rem" }}>

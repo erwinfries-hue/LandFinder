@@ -12,6 +12,7 @@ import {
   computeVerhandlungskorridor,
   computePreisStufentabelle,
   computeMoeblierungsAlternative,
+  computeVermietungsstrategienVergleich,
   parseBestandsrenditeFacts,
   isAllowedUpdateField,
   isProposalAlreadyApplied,
@@ -84,6 +85,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
   const preisStufentabelle =
     facts && verhandlungskorridor ? computePreisStufentabelle(propertyInput, facts, verhandlungskorridor, parameterOverrides) : [];
   const moeblierungsAlternative = facts ? computeMoeblierungsAlternative(propertyInput, facts, parameterOverrides) : null;
+  const vermietungsstrategienVergleich = facts ? computeVermietungsstrategienVergleich(propertyInput, facts, parameterOverrides) : null;
   const effectiveParams = { ...defaultsOf(BESTANDSRENDITE_PARAMETERS), ...parameterOverrides };
 
   // Markt-Median-Kaufpreis als zusätzlicher Referenzpunkt im Verhandlungskorridor
@@ -153,7 +155,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
         nettoRenditeZielPercent: effectiveParams.nettoRenditeZielPercent,
         nachhaltigerCashflowChf: analysis.investmentCase.wasserfall.nachhaltigerCashflowChf,
         dueDiligenceOverallStatus: dueDiligence?.result?.overallStatus,
-        moeblierungFurnitureRoiPercent: analysis.furnitureRoi?.roiPercent,
+        moeblierungFurnitureRoiPercent: analysis.furnishingRoi?.roiPercent,
         regionMarkt: regionData ? { regionData, zimmerzahl: facts?.zimmerzahl, kaufpreisChfPerM2: analysis.schnellcheck.preisProM2Chf } : undefined,
       })
     : [];
@@ -273,6 +275,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
             verhandlungskorridor={verhandlungskorridor}
             preisStufentabelle={preisStufentabelle}
             moeblierungsAlternative={moeblierungsAlternative}
+            vermietungsstrategienVergleich={vermietungsstrategienVergleich}
             bruttoRenditeZielPercent={effectiveParams.bruttoRenditeZielPercent}
             nettoRenditeZielPercent={effectiveParams.nettoRenditeZielPercent}
             inseratpreisChf={property.asking_price_chf}

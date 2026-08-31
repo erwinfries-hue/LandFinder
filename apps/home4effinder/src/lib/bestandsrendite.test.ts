@@ -3,6 +3,7 @@ import {
   computeBestandsrenditeAnalysis,
   computeVerhandlungskorridor,
   computePreisStufentabelle,
+  computeVermietungsstrategienVergleich,
   strengsteZielgroesse,
   verhandlungskorridorRelation,
   parseBestandsrenditeFacts,
@@ -92,8 +93,14 @@ const fullFacts: BestandsrenditeFacts = {
     initialRenovationCostChf: 25_000,
     positionen: [{ betragChf: 25_000, kategorie: "WERTERHALTEND", jahr: 2026, steuerlicheAbzugsfaehigkeit: "UNKLAR" }],
   },
-  reparatur: { jaehrlichUnmoebliertChf: 0, jaehrlichMoebliertChf: 0 },
-  moeblierung: { initialCostChf: 10_000, mietPremiumChfPerMonth: 300 },
+  reparatur: { jaehrlichUnmoebliertChf: 0 },
+  moeblierung: {
+    initialCostChf: 10_000,
+    haushaltinventarInitialCostChf: 0,
+    mietPremiumLangzeitChfPerMonth: 300,
+    mietPremiumMittelzeitChfPerMonth: 300,
+    mietPremiumKurzzeitChfPerMonth: 300,
+  },
   miete: {
     wohnungsMieteChfPerMonth: 1_450,
     parkplatzMieteChfPerMonth: 150,
@@ -108,8 +115,23 @@ const fullFacts: BestandsrenditeFacts = {
     eigentuemerkostenChfPerYear: 300,
     vermietungskostenChfPerYear: 200,
     reinigungServiceUnmoebliertChfPerYear: 0,
-    reinigungServiceMoebliertChfPerYear: 0,
-    nebenkostenMoebliertChfPerYear: 0,
+  },
+  moebliertBetriebskosten: {
+    internetChfPerMonth: 0,
+    kabelTvChfPerMonth: 0,
+    streamingChfPerMonth: 0,
+    stromChfPerMonth: 0,
+    abfallChfPerMonth: 0,
+    mieterwechselProJahr: 0,
+    reinigungProWechselChf: 0,
+    waescheProWechselChf: 0,
+    inseratProWechselChf: 0,
+    verbrauchsmaterialChfPerMonth: 0,
+    kleinreparaturenChfPerMonth: 0,
+    hausratversicherungChfPerMonth: 0,
+    schadenreserveChfPerMonth: 0,
+    verwaltungsgebuehrPercent: 0,
+    plattformgebuehrPercent: 0,
   },
   reserven: {},
   hypothek: {
@@ -128,9 +150,13 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(result.allInInvestitionChf).toBeGreaterThan(900_000); // + Nebenkosten + Renovation + Möblierung
     expect(result.investmentCase.bruttoRenditeKaufpreisPercent).toBeGreaterThan(result.investmentCase.bruttoRenditeAllInPercent);
     expect(result.mehrjahresmodell.years).toHaveLength(15); // Default-Haltedauer
-    expect(result.furnitureRoi).toBeDefined();
-    expect(result.furnitureRoi!.roiPercent).toBeCloseTo(36, 5); // 300*12/10000
-    expect(result.moeblierungReserveChfPerJahr).toBeCloseTo(1_000, 5); // (10000*0.70)/7 (Default-Ersatzquote/-Nutzungsdauer)
+    expect(result.furnishingRoi).toBeDefined();
+    // NETTO-basiert (nicht der rohe Mietaufschlag): effektiver Jahresertrag möbliert
+    // (22'800 × 0.94 = 21'432, 6% Leerstand-Default möbliert) − Ersatzreserve (10'000/8 =
+    // 1'250) − [effektiver Jahresertrag unmöbliert (19'200 × 0.98 = 18'816)] = 1'366,
+    // ÷ 10'000 Möblierungsinvestition = 13.66%.
+    expect(result.furnishingRoi!.roiPercent).toBeCloseTo(13.66, 1);
+    expect(result.moeblierungReserveChfPerJahr).toBeCloseTo(1_250, 5); // 10'000 × 100% ÷ 8 (Default-Nutzungsdauer, kein Teil-Wiederverwendungsabzug mehr)
     expect(result.investmentTreiber.treiber).toHaveLength(5);
     expect(result.stweg).toEqual(fullFacts.stweg); // unveränderte Datenhaltung, siehe StwegFacts
   });
@@ -144,7 +170,7 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(unmoebliert.kostenInitialChf).toBe(0); // kein Möblierungskosten-Aufwand im unmöblierten Paket
     expect(moebliert.kostenInitialChf).toBe(10_000);
     expect(unmoebliert.reserveChfPerJahr).toBeUndefined();
-    expect(moebliert.reserveChfPerJahr).toBeCloseTo(1_000, 5);
+    expect(moebliert.reserveChfPerJahr).toBeCloseTo(1_250, 5); // 10'000 × 100% ÷ 8 (Default-Nutzungsdauer)
     // Beide Szenarien nutzen denselben Leerstand-Faktor (dasselbe Vermietungsmodell) — nur
     // der Möblierungsaufschlag unterscheidet den effektiven Jahresertrag zwischen ihnen.
     expect(moebliert.effektiverJahresertragChf).toBeGreaterThan(unmoebliert.effektiverJahresertragChf);
@@ -182,7 +208,7 @@ describe("computeBestandsrenditeAnalysis", () => {
         b.vermietungskostenChfPerYear +
         b.reinigungServiceChfPerYear +
         b.reparaturChfPerYear +
-        b.nebenkostenMoebliertChfPerYear,
+        b.moebliertOpexChfPerYear,
       6,
     );
     expect(b.effektiverJahresertragChf - b.betriebskostenTotalChf).toBeCloseTo(b.noiChf, 6);
@@ -254,10 +280,10 @@ describe("computeBestandsrenditeAnalysis", () => {
     const noExtras: BestandsrenditeFacts = {
       ...fullFacts,
       renovation: { initialRenovationCostChf: 0, positionen: [] },
-      moeblierung: { initialCostChf: 0, mietPremiumChfPerMonth: 0 },
+      moeblierung: { ...fullFacts.moeblierung, initialCostChf: 0, haushaltinventarInitialCostChf: 0, mietPremiumLangzeitChfPerMonth: 0, mietPremiumMittelzeitChfPerMonth: 0, mietPremiumKurzzeitChfPerMonth: 0 },
     };
     const result = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, noExtras);
-    expect(result.furnitureRoi).toBeUndefined();
+    expect(result.furnishingRoi).toBeUndefined();
     expect(result.moeblierungReserveChfPerJahr).toBeUndefined();
     expect(result.allInInvestitionChf).toBeLessThan(computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, fullFacts).allInInvestitionChf);
   });
@@ -362,15 +388,19 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(moebliert.allInInvestitionChf - unmoebliert.allInInvestitionChf).toBe(10_000);
   });
 
-  it("Reparatur/Reinigung/möblierte Nebenkosten sind je Vermietungsmodell (Paket 1/2) separat erfasst — nur der Betrag des gewählten Modells fliesst ein", () => {
+  it("Reparatur/Reinigung (Paket 1) und der granulare möblierte Betriebskosten-Block (Paket 2) sind je Vermietungsmodell separat erfasst — nur der Betrag des gewählten Modells fliesst ein", () => {
     const facts: BestandsrenditeFacts = {
       ...fullFacts,
-      reparatur: { jaehrlichUnmoebliertChf: 800, jaehrlichMoebliertChf: 300 },
+      reparatur: { jaehrlichUnmoebliertChf: 800 },
       betriebskosten: {
         ...fullFacts.betriebskosten,
         reinigungServiceUnmoebliertChfPerYear: 600,
-        reinigungServiceMoebliertChfPerYear: 2_400,
-        nebenkostenMoebliertChfPerYear: 1_500,
+      },
+      moebliertBetriebskosten: {
+        ...fullFacts.moebliertBetriebskosten,
+        mieterwechselProJahr: 4,
+        reinigungProWechselChf: 100, // 400 CHF/Jahr
+        kleinreparaturenChfPerMonth: 25, // 300 CHF/Jahr
       },
     };
     const moebliert = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, facts);
@@ -382,16 +412,15 @@ describe("computeBestandsrenditeAnalysis", () => {
     // Reparaturkosten sind jährlich wiederkehrend und fliessen daher NICHT in die
     // All-in-Investition ein — nur die Möblierungskosten (10'000) machen hier den Unterschied.
     expect(moebliert.allInInvestitionChf - unmoebliert.allInInvestitionChf).toBe(10_000);
-    // NOI (Investment Case) berücksichtigt je Paket nur dessen eigene Reinigungs-/
-    // Reparaturkosten — höhere laufende Kosten bei möbliert senken den NOI zusätzlich
-    // zur höheren Miete.
-    expect(moebliert.noiBreakdown.reinigungServiceChfPerYear).toBe(2_400);
+    // NOI (Investment Case) berücksichtigt je Paket nur dessen eigene Kosten — Paket 1
+    // (unmöbliert) Reinigung/Reparatur, Paket 2 (möbliert) den granularen Kostenblock (hier
+    // 400 Reinigung + 300 Kleinreparaturen = 700 CHF/Jahr).
+    expect(moebliert.noiBreakdown.reinigungServiceChfPerYear).toBe(0);
     expect(unmoebliert.noiBreakdown.reinigungServiceChfPerYear).toBe(600);
-    expect(moebliert.noiBreakdown.reparaturChfPerYear).toBe(300);
+    expect(moebliert.noiBreakdown.reparaturChfPerYear).toBe(0);
     expect(unmoebliert.noiBreakdown.reparaturChfPerYear).toBe(800);
-    // Möblierte Nebenkosten (WLAN/Kabel/Streaming/Abfall) nur bei möbliert relevant, 0 bei unmöbliert.
-    expect(moebliert.noiBreakdown.nebenkostenMoebliertChfPerYear).toBe(1_500);
-    expect(unmoebliert.noiBreakdown.nebenkostenMoebliertChfPerYear).toBe(0);
+    expect(moebliert.noiBreakdown.moebliertOpexChfPerYear).toBe(700);
+    expect(unmoebliert.noiBreakdown.moebliertOpexChfPerYear).toBe(0);
   });
 });
 
@@ -562,15 +591,15 @@ describe("computeBestandsrenditeAnalysis — incrementalFurnitureNoi", () => {
     miete: { ...fullFacts.miete, leerstandPercent: 0 },
   };
 
-  it("ist positiv, wenn der Mietaufschlag die möblierungsspezifischen Zusatzkosten (Reinigung + Ersatzreserve) übersteigt", () => {
+  it("ist positiv, wenn der Mietaufschlag die möblierungsspezifischen Zusatzkosten (granularer Kostenblock + Ersatzreserve) übersteigt", () => {
     const facts: BestandsrenditeFacts = {
       ...baseFacts,
-      moeblierung: { initialCostChf: 12_000, mietPremiumChfPerMonth: 300, jaehrlicherErsatzsatzPercent: 100, nutzungsdauerJahre: 10 },
-      betriebskosten: { ...baseFacts.betriebskosten, reinigungServiceUnmoebliertChfPerYear: 0, reinigungServiceMoebliertChfPerYear: 600 },
+      moeblierung: { ...baseFacts.moeblierung, initialCostChf: 12_000, nutzungsdauerJahre: 10, mietPremiumMittelzeitChfPerMonth: 300 },
+      moebliertBetriebskosten: { ...baseFacts.moebliertBetriebskosten, internetChfPerMonth: 50 }, // 600 CHF/Jahr
     };
     const result = computeBestandsrenditeAnalysis(property, facts);
     // Reserve = 12'000 × 100% ÷ 10 Jahre = 1'200/Jahr. Mehrertrag = 300×12 = 3'600.
-    // Inkrementeller NOI = 3'600 − 600 (Reinigung) − 1'200 (Reserve) = 1'800.
+    // Inkrementeller NOI = 3'600 − 600 (granularer Kostenblock) − 1'200 (Reserve) = 1'800.
     expect(result.incrementalFurnitureNoi).toBeDefined();
     expect(result.incrementalFurnitureNoi!.incrementalNoiChf).toBeCloseTo(1_800, 5);
     expect(result.incrementalFurnitureNoi!.furnishedNoiChf - result.incrementalFurnitureNoi!.unfurnishedNoiChf).toBeCloseTo(1_800, 5);
@@ -579,21 +608,24 @@ describe("computeBestandsrenditeAnalysis — incrementalFurnitureNoi", () => {
   it("ist NEGATIV trotz positivem Mehrertrag, wenn die Zusatzkosten den Mehrertrag übersteigen — Guardrail 'höherer Umsatz ≠ höherer Gewinn'", () => {
     const facts: BestandsrenditeFacts = {
       ...baseFacts,
-      moeblierung: { initialCostChf: 12_000, mietPremiumChfPerMonth: 100, jaehrlicherErsatzsatzPercent: 100, nutzungsdauerJahre: 10 },
-      betriebskosten: { ...baseFacts.betriebskosten, reinigungServiceUnmoebliertChfPerYear: 0, reinigungServiceMoebliertChfPerYear: 2_000 },
+      moeblierung: { ...baseFacts.moeblierung, initialCostChf: 12_000, nutzungsdauerJahre: 10, mietPremiumMittelzeitChfPerMonth: 100 },
+      moebliertBetriebskosten: { ...baseFacts.moebliertBetriebskosten, internetChfPerMonth: 166.667 }, // ≈2'000 CHF/Jahr
     };
     const result = computeBestandsrenditeAnalysis(property, facts);
-    // Mehrertrag = 100×12 = 1'200 (positiv!). Reserve = 1'200/Jahr, Reinigung = 2'000/Jahr.
+    // Mehrertrag = 100×12 = 1'200 (positiv!). Reserve = 1'200/Jahr, granularer Kostenblock ≈ 2'000/Jahr.
     // Inkrementeller NOI = 1'200 − 2'000 − 1'200 = −2'000 (negativ trotz positivem Mehrertrag).
     expect(result.incrementalFurnitureNoi).toBeDefined();
-    expect(result.incrementalFurnitureNoi!.incrementalNoiChf).toBeCloseTo(-2_000, 5);
+    expect(result.incrementalFurnitureNoi!.incrementalNoiChf).toBeCloseTo(-2_000, 1);
   });
 
-  it("ist undefined, wenn keine Möblierungskosten erfasst sind — dieselbe Gating-Bedingung wie furnitureRoi", () => {
-    const facts: BestandsrenditeFacts = { ...baseFacts, moeblierung: { initialCostChf: 0, mietPremiumChfPerMonth: 0 } };
+  it("ist undefined, wenn keine Möblierungskosten erfasst sind — dieselbe Gating-Bedingung wie furnishingRoi", () => {
+    const facts: BestandsrenditeFacts = {
+      ...baseFacts,
+      moeblierung: { ...baseFacts.moeblierung, initialCostChf: 0, mietPremiumLangzeitChfPerMonth: 0, mietPremiumMittelzeitChfPerMonth: 0, mietPremiumKurzzeitChfPerMonth: 0 },
+    };
     const result = computeBestandsrenditeAnalysis(property, facts);
     expect(result.incrementalFurnitureNoi).toBeUndefined();
-    expect(result.furnitureRoi).toBeUndefined();
+    expect(result.furnishingRoi).toBeUndefined();
   });
 });
 
@@ -677,5 +709,79 @@ describe("isAllowedUpdateField / applyFieldUpdate", () => {
     const facts = { zimmerzahl: 3, miete: { wohnungsMieteChfPerMonth: 1200 } };
     const updated = applyFieldUpdate(facts, "baujahr", 1998);
     expect(updated).toEqual({ zimmerzahl: 3, baujahr: 1998, miete: { wohnungsMieteChfPerMonth: 1200 } });
+  });
+});
+
+describe("computeVermietungsstrategienVergleich", () => {
+  const property = { kaufpreisChf: 870_000, wohnflaecheM2: 75 };
+
+  it("liefert alle vier Modelle mit korrekt hergeleitetem Investment Value und Value Creation relativ zu Unmöbliert", () => {
+    const facts: BestandsrenditeFacts = { ...fullFacts, miete: { ...fullFacts.miete, leerstandPercent: 5 } };
+    const result = computeVermietungsstrategienVergleich(property, facts, { nettoRenditeZielPercent: 3 });
+
+    expect(result.strategien).toHaveLength(4);
+    expect(result.strategien.map((s) => s.modell)).toEqual(["LANGFRISTIG_UNMOEBLIERT", "LANGFRISTIG_MOEBLIERT", "MITTELFRISTIG_MOEBLIERT", "SHORT_STAY"]);
+
+    const unmoebliert = result.strategien.find((s) => s.modell === "LANGFRISTIG_UNMOEBLIERT")!;
+    expect(unmoebliert.valueCreationChf).toBe(0);
+    for (const s of result.strategien) {
+      // investment_value = stabilized_NOI / (target_net_yield / 100), direkt nachgerechnet.
+      expect(s.investmentValueChf).toBeCloseTo(s.stabilisierterNoiChf / 0.03, 2);
+      expect(s.valueCreationChf).toBeCloseTo(s.investmentValueChf - unmoebliert.investmentValueChf, 2);
+    }
+  });
+
+  it("stuft eine möblierte Variante ohne erfassten Mietaufschlag als LOW-Confidence ein — keine Rateweite", () => {
+    const facts: BestandsrenditeFacts = {
+      ...fullFacts,
+      miete: { ...fullFacts.miete, leerstandPercent: 5 },
+      moeblierung: { ...fullFacts.moeblierung, mietPremiumLangzeitChfPerMonth: 0 },
+    };
+    const result = computeVermietungsstrategienVergleich(property, facts);
+    const langzeit = result.strategien.find((s) => s.modell === "LANGFRISTIG_MOEBLIERT")!;
+    expect(langzeit.confidence).toBe("LOW");
+    const mittelzeit = result.strategien.find((s) => s.modell === "MITTELFRISTIG_MOEBLIERT")!;
+    expect(mittelzeit.confidence).toBe("HIGH"); // Mietaufschlag UND Leerstand erfasst
+  });
+
+  it("Guardrail: die höchste Bruttomiete wird NICHT automatisch als beste Strategie empfohlen", () => {
+    // Kurzzeit hat den mit Abstand höchsten Mietaufschlag (1'000 CHF/Mt.), aber eine
+    // sehr niedrige Auslastung (40%) — der resultierende NOI liegt trotzdem unter dem
+    // von Mittelzeit (300 CHF/Mt. Aufschlag, 95% Auslastung-Äquivalent via Leerstand).
+    const facts: BestandsrenditeFacts = {
+      ...fullFacts,
+      miete: { ...fullFacts.miete, leerstandPercent: 5, auslastungPercent: 40 },
+      moeblierung: {
+        ...fullFacts.moeblierung,
+        mietPremiumLangzeitChfPerMonth: 100,
+        mietPremiumMittelzeitChfPerMonth: 300,
+        mietPremiumKurzzeitChfPerMonth: 1_000,
+      },
+    };
+    const result = computeVermietungsstrategienVergleich(property, facts);
+    const kurzzeit = result.strategien.find((s) => s.modell === "SHORT_STAY")!;
+    const mittelzeit = result.strategien.find((s) => s.modell === "MITTELFRISTIG_MOEBLIERT")!;
+
+    // Kurzzeit hätte den höchsten Bruttoertrag (1'000 CHF/Mt. Aufschlag), aber wegen der
+    // niedrigen Auslastung einen niedrigeren NOI als Mittelzeit.
+    expect(kurzzeit.stabilisierterNoiChf).toBeLessThan(mittelzeit.stabilisierterNoiChf);
+    expect(result.empfehlung).toBeDefined();
+    expect(result.empfehlung!.modell).not.toBe("SHORT_STAY");
+    expect(result.empfehlung!.modell).toBe("MITTELFRISTIG_MOEBLIERT");
+  });
+
+  it("empfiehlt Unmöbliert, wenn keine möblierte Variante einen erfassten Mietaufschlag hat (einzige verlässliche Option, LOW-Confidence-Varianten fallen aus der Auswahl)", () => {
+    const facts: BestandsrenditeFacts = {
+      ...fullFacts,
+      moeblierung: { ...fullFacts.moeblierung, mietPremiumLangzeitChfPerMonth: 0, mietPremiumMittelzeitChfPerMonth: 0, mietPremiumKurzzeitChfPerMonth: 0 },
+    };
+    const result = computeVermietungsstrategienVergleich(property, facts);
+    expect(result.strategien.filter((s) => s.confidence === "LOW").map((s) => s.modell)).toEqual([
+      "LANGFRISTIG_MOEBLIERT",
+      "MITTELFRISTIG_MOEBLIERT",
+      "SHORT_STAY",
+    ]);
+    expect(result.empfehlung).toBeDefined();
+    expect(result.empfehlung!.modell).toBe("LANGFRISTIG_UNMOEBLIERT");
   });
 });

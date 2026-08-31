@@ -131,7 +131,7 @@ function ManagementSummaryDocument({
     nettoRenditeZielPercent,
     nachhaltigerCashflowChf: investmentCase.wasserfall.nachhaltigerCashflowChf,
     dueDiligenceOverallStatus: dueDiligence?.overallStatus,
-    moeblierungFurnitureRoiPercent: analysis.furnitureRoi?.roiPercent,
+    moeblierungFurnitureRoiPercent: analysis.furnishingRoi?.roiPercent,
   });
 
   return (

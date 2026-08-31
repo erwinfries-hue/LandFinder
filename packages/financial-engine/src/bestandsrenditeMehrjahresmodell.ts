@@ -70,6 +70,8 @@ export interface MehrjahresmodellInput {
   /** Fliesst einmalig in den Immobilienwert ein (wertvermehrende Renovation erhöht den Wert, werterhaltende/energetische nicht) — siehe `bestandsrenditeValueAdd.ts::RenovationPositionenSummary`. */
   wertvermehrendeRenovationChf: number;
   moeblierung?: MoeblierungLebenszyklusInput;
+  /** Haushaltsinventar (separat von der Möblierung selbst, eigene Initialkosten/Nutzungsdauer) — eigenes Ersatzjahr, kann von `moeblierung` abweichen. */
+  haushaltinventar?: MoeblierungLebenszyklusInput;
   hypothek: HypothekInput;
   kalkulatorischerSteuersatzPercent: number;
   exit: ExitInput;
@@ -147,7 +149,7 @@ export function runMehrjahresmodell(input: MehrjahresmodellInput): Mehrjahresmod
       vermietungskostenChfPerYear: escalate(input.betriebskostenJahr1.vermietungskostenChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
       reinigungServiceChfPerYear: escalate(input.betriebskostenJahr1.reinigungServiceChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
       reparaturChfPerYear: escalate(input.betriebskostenJahr1.reparaturChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
-      nebenkostenMoebliertChfPerYear: escalate(input.betriebskostenJahr1.nebenkostenMoebliertChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
+      moebliertOpexChfPerYear: escalate(input.betriebskostenJahr1.moebliertOpexChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
     });
 
     // Zins auf die gemeinsame Restschuld zu Jahresbeginn (ein Zinssatz für beide
@@ -172,10 +174,13 @@ export function runMehrjahresmodell(input: MehrjahresmodellInput): Mehrjahresmod
       leerstandsreserveChf,
     });
 
-    // Möblierungsersatz als konkreter Cash-Abfluss im Ersatzjahr, nicht geglättet
-    // (Rückmeldung: "für die Mehrjahresrechnung würde ich tatsächlich den Cash-Abfluss
-    // im Ersatzjahr rechnen").
-    const moeblierungsErsatzChf = input.moeblierung ? moeblierungErsatzCashflowChf(input.moeblierung, jahr) : 0;
+    // Möblierungs-/Haushaltsinventarersatz als konkreter Cash-Abfluss im jeweiligen
+    // Ersatzjahr, nicht geglättet (Rückmeldung: "für die Mehrjahresrechnung würde ich
+    // tatsächlich den Cash-Abfluss im Ersatzjahr rechnen") — beide unabhängig
+    // voneinander fällig (unterschiedliche Nutzungsdauer), Summe beider in diesem Jahr.
+    const moeblierungsErsatzChf =
+      (input.moeblierung ? moeblierungErsatzCashflowChf(input.moeblierung, jahr) : 0) +
+      (input.haushaltinventar ? moeblierungErsatzCashflowChf(input.haushaltinventar, jahr) : 0);
     const nachhaltigerCashflowChf = wasserfall.nachhaltigerCashflowChf - moeblierungsErsatzChf;
 
     restschuld1Chf = restschuld1Chf - amortisation1Chf;
@@ -279,6 +284,7 @@ export function computeInvestmentTreiber(input: MehrjahresmodellInput): Investme
     ...input,
     ertragJahr1: { ...input.ertragJahr1, moeblierungsPremiumChfPerMonth: 0 },
     moeblierung: undefined,
+    haushaltinventar: undefined,
   });
   const withoutAppreciation = runMehrjahresmodell({ ...input, wertsteigerungPercentPerYear: 0 });
 

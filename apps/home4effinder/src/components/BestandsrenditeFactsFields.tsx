@@ -150,7 +150,8 @@ export function BestandsrenditeFactsFields({
   const cantonDefaults = getCantonDefaults(canton);
   const defaultHandaenderungssteuerPercent = cantonDefaults?.handaenderungssteuerPercent ?? P.handaenderungssteuerPercent;
   const defaultKalkulatorischerSteuersatzPercent = cantonDefaults?.kalkulatorischerSteuersatzPercent ?? P.kalkulatorischerSteuersatzPercent;
-  const defaultLeerstandPercent = vermietungsmodell === "MITTELFRISTIG_MOEBLIERT" ? P.leerstandMoebliertPercent : P.leerstandLangfristigPercent;
+  const defaultLeerstandPercent =
+    vermietungsmodell === "LANGFRISTIG_MOEBLIERT" || vermietungsmodell === "MITTELFRISTIG_MOEBLIERT" ? P.leerstandMoebliertPercent : P.leerstandLangfristigPercent;
 
   // Liefert für ein Feld aus ALLOWED_UPDATE_FIELDS den effektiven Vorschlagswert
   // (Dokument sticht Engine-/Kanton-Default) plus, ob er aus einem Dokument stammt.
@@ -324,9 +325,10 @@ export function BestandsrenditeFactsFields({
         <div className="field">
           <label htmlFor="vermietungsmodell">Vermietungsmodell</label>
           <select id="vermietungsmodell" name="vermietungsmodell" value={vermietungsmodell} onChange={(e) => onVermietungsmodellChange(e.target.value as Vermietungsmodell)}>
-            <option value="LANGFRISTIG_UNMOEBLIERT">Langfristig, unmöbliert</option>
-            <option value="MITTELFRISTIG_MOEBLIERT">Mittelfristig, möbliert</option>
-            <option value="SHORT_STAY">Short Stay (Auslastung statt Leerstand)</option>
+            <option value="LANGFRISTIG_UNMOEBLIERT">Unmöbliert</option>
+            <option value="LANGFRISTIG_MOEBLIERT">Möbliert Langzeit</option>
+            <option value="MITTELFRISTIG_MOEBLIERT">Möbliert Mittelzeit</option>
+            <option value="SHORT_STAY">Möbliert Kurzzeit (Auslastung statt Leerstand)</option>
           </select>
         </div>
         {vermietungsmodell === "SHORT_STAY" ? (
@@ -412,23 +414,49 @@ export function BestandsrenditeFactsFields({
         </div>
       </div>
       <div style={{ fontWeight: 600, fontSize: "1.07rem", margin: ".9rem 0 .4rem" }}>Paket 2 — möbliert vermieten</div>
+      <p style={{ fontSize: ".78rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".7rem" }}>
+        Möbliert Langzeit/Mittelzeit/Kurzzeit teilen sich EINEN Kostenblock (unten) — nur der Mietaufschlag
+        unterscheidet sich je Dauer-Variante, da Kurzzeit typischerweise einen höheren Aufschlag erzielt als
+        Langzeit. Für den vollen Vergleich aller vier Vermietungsmodelle siehe &quot;Vermietungsstrategie-Vergleich&quot;
+        weiter unten.
+      </p>
       <div className="fieldgrid">
         <div className="field">
-          <label htmlFor="moeblierteMieteChfPerMonth">Erwartete Miete möbliert (CHF/Monat)</label>
+          <label htmlFor="moeblierteMieteLangzeitChfPerMonth">Erwartete Miete möbliert Langzeit (CHF/Monat)</label>
           <input
-            id="moeblierteMieteChfPerMonth"
-            name="moeblierteMieteChfPerMonth"
+            id="moeblierteMieteLangzeitChfPerMonth"
+            name="moeblierteMieteLangzeitChfPerMonth"
             type="number"
             step="any"
-            defaultValue={existing ? existing.miete.wohnungsMieteChfPerMonth + existing.moeblierung.mietPremiumChfPerMonth : undefined}
+            defaultValue={existing ? existing.miete.wohnungsMieteChfPerMonth + existing.moeblierung.mietPremiumLangzeitChfPerMonth : undefined}
           />
         </div>
         <div className="field">
-          <label htmlFor="moeblierungInitialCostChf">Möblierung — Initialkosten (CHF)</label>
+          <label htmlFor="moeblierteMieteMittelzeitChfPerMonth">Erwartete Miete möbliert Mittelzeit (CHF/Monat)</label>
+          <input
+            id="moeblierteMieteMittelzeitChfPerMonth"
+            name="moeblierteMieteMittelzeitChfPerMonth"
+            type="number"
+            step="any"
+            defaultValue={existing ? existing.miete.wohnungsMieteChfPerMonth + existing.moeblierung.mietPremiumMittelzeitChfPerMonth : undefined}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="moeblierteMieteKurzzeitChfPerMonth">Erwartete Miete möbliert Kurzzeit (CHF/Monat)</label>
+          <input
+            id="moeblierteMieteKurzzeitChfPerMonth"
+            name="moeblierteMieteKurzzeitChfPerMonth"
+            type="number"
+            step="any"
+            defaultValue={existing ? existing.miete.wohnungsMieteChfPerMonth + existing.moeblierung.mietPremiumKurzzeitChfPerMonth : undefined}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="moeblierungInitialCostChf">Möbel — Initialkosten (CHF)</label>
           <input id="moeblierungInitialCostChf" name="moeblierungInitialCostChf" type="number" step="any" defaultValue={existing?.moeblierung.initialCostChf ?? 0} />
         </div>
         <div className="field">
-          <label htmlFor="moeblierungNutzungsdauerJahre">Nutzungsdauer (Jahre, Standard: {P.moeblierungNutzungsdauerJahre})</label>
+          <label htmlFor="moeblierungNutzungsdauerJahre">Möbel — Nutzungsdauer (Jahre, Standard: {P.moeblierungNutzungsdauerJahre})</label>
           <input
             id="moeblierungNutzungsdauerJahre"
             name="moeblierungNutzungsdauerJahre"
@@ -438,17 +466,27 @@ export function BestandsrenditeFactsFields({
           />
         </div>
         <div className="field">
-          <label htmlFor="jaehrlicherErsatzsatzPercent">Jährliche Ersatzquote (%, Standard: {P.moeblierungErsatzquotePercent})</label>
+          <label htmlFor="haushaltinventarInitialCostChf">Haushaltsinventar — Initialkosten (CHF)</label>
           <input
-            id="jaehrlicherErsatzsatzPercent"
-            name="jaehrlicherErsatzsatzPercent"
+            id="haushaltinventarInitialCostChf"
+            name="haushaltinventarInitialCostChf"
             type="number"
             step="any"
-            defaultValue={existing?.moeblierung.jaehrlicherErsatzsatzPercent ?? P.moeblierungErsatzquotePercent}
+            defaultValue={existing?.moeblierung.haushaltinventarInitialCostChf ?? 2_000}
           />
         </div>
         <div className="field">
-          <label htmlFor="moeblierungKostensteigerungPercentPerYear">Kosteninflation Möblierung (%/Jahr, leer = allgemeine Kosteninflation)</label>
+          <label htmlFor="haushaltinventarNutzungsdauerJahre">Haushaltsinventar — Nutzungsdauer (Jahre, Standard: {P.haushaltinventarNutzungsdauerJahre})</label>
+          <input
+            id="haushaltinventarNutzungsdauerJahre"
+            name="haushaltinventarNutzungsdauerJahre"
+            type="number"
+            step="any"
+            defaultValue={existing?.moeblierung.haushaltinventarNutzungsdauerJahre ?? P.haushaltinventarNutzungsdauerJahre}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="moeblierungKostensteigerungPercentPerYear">Kosteninflation Möbel/Inventar (%/Jahr, leer = allgemeine Kosteninflation)</label>
           <input
             id="moeblierungKostensteigerungPercentPerYear"
             name="moeblierungKostensteigerungPercentPerYear"
@@ -457,38 +495,99 @@ export function BestandsrenditeFactsFields({
             defaultValue={existing?.moeblierung.kostensteigerungPercentPerYear}
           />
         </div>
+      </div>
+
+      <div className="eyebrow" style={{ marginTop: "1rem", marginBottom: ".4rem" }}>
+        Paket 2 — granulare Betriebskosten (gemeinsam für alle drei Dauer-Varianten)
+      </div>
+      <p style={{ fontSize: ".78rem", color: "var(--ink-soft)", marginTop: 0, marginBottom: ".7rem" }}>
+        Alle Vorschlagswerte 1:1 aus der SIPIS-Fachspezifikation (v1.1) übernommen — kein verifizierter,
+        objektspezifischer Marktwert, frei überschreibbar (siehe DECISIONS.md für die Quelle).
+      </p>
+      <div className="fieldgrid">
         <div className="field">
-          <label htmlFor="reparaturJaehrlichMoebliertChf">Reparaturkosten (CHF/Jahr)</label>
+          <label htmlFor="internetChfPerMonth">High-Speed-Internet (CHF/Mt., Standard: 65)</label>
+          <input id="internetChfPerMonth" name="internetChfPerMonth" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.internetChfPerMonth ?? 65} />
+        </div>
+        <div className="field">
+          <label htmlFor="kabelTvChfPerMonth">Kabel-TV (CHF/Mt., Standard: 0)</label>
+          <input id="kabelTvChfPerMonth" name="kabelTvChfPerMonth" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.kabelTvChfPerMonth ?? 0} />
+        </div>
+        <div className="field">
+          <label htmlFor="streamingChfPerMonth">Streaming-Abo (CHF/Mt., Standard: 23)</label>
+          <input id="streamingChfPerMonth" name="streamingChfPerMonth" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.streamingChfPerMonth ?? 23} />
+        </div>
+        <div className="field">
+          <label htmlFor="stromChfPerMonth">Strom (im Mietpreis inbegriffen, CHF/Mt., Standard: 60)</label>
+          <input id="stromChfPerMonth" name="stromChfPerMonth" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.stromChfPerMonth ?? 60} />
+        </div>
+        <div className="field">
+          <label htmlFor="abfallChfPerMonth">Abfallgebühren (CHF/Mt., Standard: 15)</label>
+          <input id="abfallChfPerMonth" name="abfallChfPerMonth" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.abfallChfPerMonth ?? 15} />
+        </div>
+        <div className="field">
+          <label htmlFor="mieterwechselProJahr">Mieterwechsel pro Jahr (Standard: 3)</label>
+          <input id="mieterwechselProJahr" name="mieterwechselProJahr" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.mieterwechselProJahr ?? 3} />
+        </div>
+        <div className="field">
+          <label htmlFor="reinigungProWechselChf">Reinigung pro Mieterwechsel (CHF, Standard: 180)</label>
+          <input id="reinigungProWechselChf" name="reinigungProWechselChf" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.reinigungProWechselChf ?? 180} />
+        </div>
+        <div className="field">
+          <label htmlFor="waescheProWechselChf">Wäsche pro Mieterwechsel (CHF, Standard: 40)</label>
+          <input id="waescheProWechselChf" name="waescheProWechselChf" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.waescheProWechselChf ?? 40} />
+        </div>
+        <div className="field">
+          <label htmlFor="inseratProWechselChf">Inserat pro Mieterwechsel (CHF, Standard: 100)</label>
+          <input id="inseratProWechselChf" name="inseratProWechselChf" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.inseratProWechselChf ?? 100} />
+        </div>
+        <div className="field">
+          <label htmlFor="verbrauchsmaterialChfPerMonth">Verbrauchsmaterial (CHF/Mt., Standard: 15)</label>
           <input
-            id="reparaturJaehrlichMoebliertChf"
-            name="reparaturJaehrlichMoebliertChf"
+            id="verbrauchsmaterialChfPerMonth"
+            name="verbrauchsmaterialChfPerMonth"
             type="number"
             step="any"
-            defaultValue={existing?.reparatur.jaehrlichMoebliertChf ?? 0}
+            defaultValue={existing?.moebliertBetriebskosten.verbrauchsmaterialChfPerMonth ?? 15}
           />
         </div>
         <div className="field">
-          <label htmlFor="reinigungServiceMoebliertChfPerYear">Reinigung/Service (CHF/Jahr)</label>
+          <label htmlFor="kleinreparaturenChfPerMonth">Kleinreparaturen (CHF/Mt., Standard: 30)</label>
           <input
-            id="reinigungServiceMoebliertChfPerYear"
-            name="reinigungServiceMoebliertChfPerYear"
+            id="kleinreparaturenChfPerMonth"
+            name="kleinreparaturenChfPerMonth"
             type="number"
             step="any"
-            defaultValue={existing?.betriebskosten.reinigungServiceMoebliertChfPerYear ?? 0}
+            defaultValue={existing?.moebliertBetriebskosten.kleinreparaturenChfPerMonth ?? 30}
           />
         </div>
         <div className="field">
-          <label htmlFor="nebenkostenMoebliertChfPerYear">WLAN/Kabel/Streaming/Abfall (CHF/Jahr)</label>
+          <label htmlFor="hausratversicherungChfPerMonth">Hausratversicherung (CHF/Mt., Standard: 15)</label>
           <input
-            id="nebenkostenMoebliertChfPerYear"
-            name="nebenkostenMoebliertChfPerYear"
+            id="hausratversicherungChfPerMonth"
+            name="hausratversicherungChfPerMonth"
             type="number"
             step="any"
-            defaultValue={existing?.betriebskosten.nebenkostenMoebliertChfPerYear ?? 1_500}
+            defaultValue={existing?.moebliertBetriebskosten.hausratversicherungChfPerMonth ?? 15}
           />
-          <div style={{ color: "var(--ink-soft)", fontSize: ".74rem", marginTop: ".25rem" }}>
-            Vorschlagswert CHF 1&apos;500/Jahr (recherchierte Grobschätzung: High-Speed-Internet, Kabelanschluss, Streaming-Abo, Kehrichtsackgebühren) — kein verifizierter, objektspezifischer Marktwert, frei überschreibbar.
-          </div>
+        </div>
+        <div className="field">
+          <label htmlFor="schadenreserveChfPerMonth">Schadenreserve (CHF/Mt., Standard: 20)</label>
+          <input
+            id="schadenreserveChfPerMonth"
+            name="schadenreserveChfPerMonth"
+            type="number"
+            step="any"
+            defaultValue={existing?.moebliertBetriebskosten.schadenreserveChfPerMonth ?? 20}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="verwaltungsgebuehrPercent">Verwaltungsgebühr (%, Standard: 0)</label>
+          <input id="verwaltungsgebuehrPercent" name="verwaltungsgebuehrPercent" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.verwaltungsgebuehrPercent ?? 0} />
+        </div>
+        <div className="field">
+          <label htmlFor="plattformgebuehrPercent">Plattformgebühr (%, Standard: 0)</label>
+          <input id="plattformgebuehrPercent" name="plattformgebuehrPercent" type="number" step="any" defaultValue={existing?.moebliertBetriebskosten.plattformgebuehrPercent ?? 0} />
         </div>
       </div>
 

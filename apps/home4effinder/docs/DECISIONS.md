@@ -3292,6 +3292,111 @@ gültigen Wert ein. Die zwei nächstliegenden gültigen Werte sind 0 und 500." a
   jetzt NICHT mehr die All-in-Investition verändern (nur noch die Möblierungskosten tun
   das beim Vermietungsmodell-Wechsel), sondern korrekt paketgegatet in den NOI einfliessen.
 
+## Nachgezogen (2026-08-31): SIPIS Furnished-Rental-/Rental-Strategy-Modul (v1.1)
+
+Vollständige Fachspezifikation vom Auftraggeber geliefert ("SIPIS MODULE — FURNISHED
+RENTAL / RENTAL STRATEGY ENGINE, Version 1.1"): vier Vermietungsmodelle statt drei,
+granularer Möblierungs-Kostenmotor, ein 4-Wege-Investment-Value-Vergleich mit
+automatischer Strategie-Empfehlung. Löst den bisherigen, gerade erst eingeführten
+2-Pakete-Vergleich (Paket 1/2) NICHT ab, sondern erweitert ihn — der 2-Wege-Vergleich
+bleibt als kompaktere "was würde Möblieren für mich tun"-Ansicht bestehen, der neue
+4-Wege-Vergleich beantwortet zusätzlich "welche der drei möblierten Varianten lohnt sich
+am meisten".
+
+- **Vermietungsmodell auf 4 Werte erweitert**: `LANGFRISTIG_UNMOEBLIERT` /
+  `LANGFRISTIG_MOEBLIERT` (neu) / `MITTELFRISTIG_MOEBLIERT` / `SHORT_STAY`, UI-Labels
+  "Unmöbliert"/"Möbliert Langzeit"/"Möbliert Mittelzeit"/"Möbliert Kurzzeit".
+- **Gating-Bugfix**: Paket-2-Kosten/-Mietaufschlag flossen bisher NUR bei
+  `MITTELFRISTIG_MOEBLIERT` in Schnellcheck/Investment Case/15-Jahres-Modell ein —
+  `SHORT_STAY` rechnete fälschlich mit den unmöblierten Werten trotz offensichtlich
+  möblierter Vermietung. `moeblierungIstGewaehltesSzenario` prüft jetzt
+  `!== "LANGFRISTIG_UNMOEBLIERT"` statt `=== "MITTELFRISTIG_MOEBLIERT"` — alle drei
+  möblierten Varianten (inkl. der neuen Langzeit-Variante) nutzen konsistent Paket 2,
+  ebenso der höhere möblierte Leerstand-Default (vorher nur für Mittelzeit).
+- **Granularer möblierter Kostenblock** (`BestandsrenditeFacts.moebliertBetriebskosten`,
+  neues Modul `packages/financial-engine/src/bestandsrenditeFurnishedRental.ts`,
+  `calculateFurnishedOpex`) ersetzt vollständig die bisherigen drei Pauschalfelder
+  (`reinigungServiceMoebliertChfPerYear`/`nebenkostenMoebliertChfPerYear`/
+  `reparatur.jaehrlichMoebliertChf`, erst in den beiden vorigen PRs eingeführt) — EIN
+  Kostenblock für alle drei möblierten Dauer-Varianten (sie teilen sich dieselben
+  laufenden Kosten, nur der Mietaufschlag unterscheidet sich je Variante). Alle
+  Default-Werte 1:1 aus der Fachspezifikation übernommen: Internet CHF 65/Mt.,
+  Kabel-TV CHF 0/Mt., Streaming CHF 23/Mt., Strom CHF 60/Mt., Abfall CHF 15/Mt.,
+  3 Mieterwechsel/Jahr à CHF 180 Reinigung/CHF 40 Wäsche/CHF 100 Inserat,
+  Verbrauchsmaterial CHF 15/Mt., Kleinreparaturen CHF 30/Mt., Hausratversicherung
+  CHF 15/Mt., Schadenreserve CHF 20/Mt., Verwaltungs-/Plattformgebühr 0%/0% (vom
+  effektiven möblierten Jahresertrag) — keine eigene Recherche nötig, vom Auftraggeber
+  direkt vorgegeben.
+- **Drei separate Mietaufschläge statt einem**: `moeblierung.mietPremium{Langzeit,
+  Mittelzeit,Kurzzeit}ChfPerMonth` — nötig, damit der 4-Wege-Vergleich jeder Dauer-
+  Variante ihre eigene realistische Zielmiete zuordnen kann (Kurzzeit erzielt
+  typischerweise einen höheren Aufschlag als Langzeit).
+- **Haushaltsinventar** (`moeblierung.haushaltinventarInitialCostChf`/
+  `haushaltinventarNutzungsdauerJahre`, Default CHF 2'000 / 5 Jahre) als eigene,
+  von der Möblierung (Möbel) getrennte Position — eigene Initialkosten/Nutzungsdauer,
+  eigenes Ersatzjahr im 15-Jahres-Modell (kann von dem der Möbel abweichen), fliesst
+  aber wie die Möblierung selbst in die All-in-Investitionssumme ein.
+- **Möblierungs-Ersatzquote entfernt**: die bisherige `jaehrlicherErsatzsatzPercent`
+  (70%-Teil-Wiederverwendungsannahme) entfällt — die Spec kennt kein
+  Teil-Wiederverwendungskonzept, Möbel-/Inventarersatz wird zu 100% der (inflationierten)
+  Initialkosten angesetzt. `moeblierungNutzungsdauerJahre`-Default wechselt von 7 auf
+  8 Jahre (Spec-Vorgabe).
+- **`furnitureRoi` (bruttomietbasiert) durch `furnishingRoi` (NETTO-basiert) abgelöst**:
+  `furnishing_ROI = incremental_NOI / (Möbel- + Haushaltsinventar-Initialkosten)` statt
+  der bisherigen `Mietaufschlag×12 ÷ Möblierungsinvestition` — Guardrail der Spec
+  ("assume furnished rental is superior solely because gross rent is higher" darf nicht
+  passieren) macht das notwendig. `incrementalFurnitureNoi` gleichzeitig korrigiert:
+  beide Seiten (möbliert/unmöbliert) ziehen jetzt konsequent ihre EIGENEN vollständigen
+  Betriebskosten ab (Paket 1: Reinigung + Reparatur; Paket 2: granularer Kostenblock) —
+  vorher liess die Formel bei Paket 1 Reparaturkosten unberücksichtigt, ein latenter
+  Bug aus einem früheren PR.
+- **Neue Kennzahlen** (`FurnishedRentalDeltaResult`,
+  `bestandsrenditeFurnishedRental.ts::calculateFurnishedRentalDelta`): Break-even-
+  Möblierungszuschlag (deckt nur die Mehrkosten), Minimum wirtschaftlich sinnvoller
+  Zuschlag (zusätzlich die geforderte Mindestrendite, neuer Registry-Parameter
+  `minimumRequiredFurnitureRoiPercent`, Default 15%), Furnishing Efficiency Ratio
+  (inkrementeller NOI ÷ zusätzlicher Bruttoertrag) — alle im "Value-Add — Möblierung"-
+  Panel ergänzt.
+- **Neu: `computeVermietungsstrategienVergleich`** (4-Wege-Vergleich aller
+  Vermietungsmodelle) — für jedes Modell einmal `computeBestandsrenditeAnalysis`
+  komplett durchgerechnet, `investmentValueChf = stabilisierterNoiChf ÷
+  (Nettorendite-Ziel ÷ 100)` (direkte Spec-Formel, keine Bisektion), `valueCreationChf`
+  relativ zu "Unmöbliert". Neue UI-Sektion "Vermietungsstrategie-Vergleich" mit
+  4-Zeilen-Tabelle + Empfehlungs-Banner.
+  - **Confidence-Heuristik** (HIGH/MEDIUM/LOW, `ConfidenceLevel`-Skala wie in
+    `priceStrategy.ts`, hier lokal definiert um einen Zirkelimport zu vermeiden): LOW,
+    wenn für eine möblierte Variante gar kein Mietaufschlag erfasst ist (Zielmiete
+    komplett ungeprüft) — "Unmöbliert" ist nie LOW (braucht keinen Aufschlag).
+  - **Empfehlung**: unter den Strategien mit Confidence ≠ LOW die mit dem höchsten
+    stabilisierten NOI (bei Gleichstand höchster Investment Value) — fällt automatisch
+    auf "Unmöbliert" zurück, wenn keine möblierte Variante verlässlich genug ist, statt
+    ganz zu entfallen. Guardrail direkt umgesetzt und mit Regressionstest abgesichert:
+    die höchste Bruttomiete (typischerweise Kurzzeit) wird NICHT automatisch empfohlen,
+    wenn ihr NOI (z.B. wegen niedriger Auslastung) unter dem einer anderen Variante liegt.
+  - **Bewusst NICHT modelliert**: operativer Aufwand und Risiko (2 der 6 von der Spec
+    genannten Entscheidungskriterien) — HOME4efFINDER hat dafür keine Datenquelle, ein
+    erfundener Wert wäre keine Verbesserung (dieselbe Linie wie "Objektqualität" beim
+    SIPIS-Score, Phase 5). In den Panel-Texten offen ausgewiesen.
+  - `computeMoeblierungsAlternative` (bisherige 1-gegen-1-Schattenrechnung mit vollem
+    IRR/Verhandlungskorridor, in 6 Dateien verdrahtet) bleibt bestehen und wird NICHT
+    durch die neue Funktion ersetzt — unterschiedlicher Zweck (volle Neuberechnung des
+    EINEN Alternativszenarios inkl. Verhandlungskorridor vs. schneller Kennzahlen-
+    Vergleich aller vier Modelle gleichzeitig), lediglich für die neuen vier Modelle
+    erweitert (Alternative zu einer möblierten Variante ist jetzt immer "Unmöbliert",
+    Alternative zu "Unmöbliert" die Default-Strategie "Möbliert Mittelzeit").
+- Neues Modul `bestandsrenditeFurnishedRental.ts` (`calculateFurnishedOpex`,
+  `calculateFurnishingRoi`, `calculateFurnishedRentalDelta`) mit eigenen Tests
+  (`bestandsrenditeFurnishedRental.test.ts`) — jede Formel mindestens einmal mit den
+  Spec-Default-Werten von Hand nachgerechnet.
+- Aktualisierte/neue Tests in `packages/financial-engine` und `apps/home4effinder` für
+  die umbenannten/neuen Felder, den Gating-Bugfix (SHORT_STAY/Langzeit nutzen jetzt
+  korrekt Paket 2) und `computeVermietungsstrategienVergleich` (Investment Value je
+  Modell, Value Creation relativ zu Unmöbliert, Confidence-Abstufung, Guardrail-
+  Regressionstest gegen "höchste Bruttomiete gewinnt automatisch").
+- Kein Live-Browser-Test in dieser Remote-Session möglich — Nutzer verifiziert nach dem
+  Merge live (alle vier Vermietungsmodelle durchspielen, granularen Kostenblock prüfen,
+  Vergleichstabelle und Empfehlung ansehen).
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

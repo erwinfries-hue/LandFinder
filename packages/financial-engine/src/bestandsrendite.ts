@@ -124,7 +124,7 @@ export function calculateAllInInvestition(input: AllInInvestitionInput): number 
  * konzeptionell dieselbe Grösse (Anteil vermieteter Zeit), aber mit unterschiedlichen
  * typischen Grössenordnungen und Nutzererwartungen (siehe Parameter-Platzhalter).
  */
-export type Vermietungsmodell = "LANGFRISTIG_UNMOEBLIERT" | "MITTELFRISTIG_MOEBLIERT" | "SHORT_STAY";
+export type Vermietungsmodell = "LANGFRISTIG_UNMOEBLIERT" | "LANGFRISTIG_MOEBLIERT" | "MITTELFRISTIG_MOEBLIERT" | "SHORT_STAY";
 
 export interface JahresertragInput {
   wohnungsMieteChfPerMonth: number;
@@ -160,10 +160,19 @@ export interface BetriebskostenInput {
   eigentuemerkostenChfPerYear: number;
   vermietungskostenChfPerYear: number;
   reinigungServiceChfPerYear: number;
-  /** Jährlich wiederkehrende Reparaturkosten (nicht zu verwechseln mit der separaten, nach Steuer abgezogenen Reparaturreserve/-Sicherheitspuffer im Cashflow-Wasserfall). */
+  /** Jährlich wiederkehrende Reparaturkosten NUR bei unmöblierter Vermietung — bei möbliert bereits Teil von `moebliertOpexChfPerYear` (dessen granulare Aufschlüsselung eigene Kleinreparaturen enthält). 0 bei möblierter Vermietung. */
   reparaturChfPerYear: number;
-  /** Nur bei möblierter/mittelfristiger Vermietung relevant: High-Speed-WLAN, Kabelgebühren, Streaming-Abo, Abfallgebühren — bei unmöblierter Langfristvermietung trägt dies üblicherweise der Mieter selbst, daher 0. */
-  nebenkostenMoebliertChfPerYear: number;
+  /**
+   * Nur bei möblierter Vermietung (alle drei Dauer-Varianten) relevant — die vollständige
+   * granulare Aufschlüsselung (Internet/Kabel/Streaming/Strom/Abfall, Mieterwechselkosten,
+   * Verbrauchsmaterial/Kleinreparaturen/Versicherung/Schadenreserve, Verwaltungs-/
+   * Plattformgebühr) lebt in `bestandsrenditeFurnishedRental.ts::calculateFurnishedOpex`
+   * — hier fliesst nur deren Summe (`FurnishedOpexBreakdown.totalChfPerYear`) ein, analog
+   * zu den übrigen bereits vor-aggregierten Kostenpositionen dieses Inputs. 0 bei
+   * unmöblierter Vermietung (dort trägt der Mieter diese Kosten üblicherweise selbst über
+   * eigene Verträge).
+   */
+  moebliertOpexChfPerYear: number;
 }
 
 export function calculateBetriebskosten(input: BetriebskostenInput): number {
@@ -173,7 +182,7 @@ export function calculateBetriebskosten(input: BetriebskostenInput): number {
     input.vermietungskostenChfPerYear +
     input.reinigungServiceChfPerYear +
     input.reparaturChfPerYear +
-    input.nebenkostenMoebliertChfPerYear
+    input.moebliertOpexChfPerYear
   );
 }
 
