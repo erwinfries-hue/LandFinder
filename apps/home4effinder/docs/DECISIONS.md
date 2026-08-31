@@ -3397,6 +3397,52 @@ am meisten".
   Merge live (alle vier Vermietungsmodelle durchspielen, granularen Kostenblock prüfen,
   Vergleichstabelle und Empfehlung ansehen).
 
+## Nachgezogen (2026-08-31): Konsistenzprüfung nach dem Furnished-Rental-Modul
+
+Auf expliziten Wunsch ("mache jetzt einen vollen tiefen Testlauf und prüfe die
+Applikation auf Funktion und Stringenz im speziellen") wurde nach dem Merge des SIPIS
+Furnished-Rental-Moduls (v1.1) ein gezielter Konsistenz-Audit durchgeführt — nicht nur
+`tsc`/Lint/Vitest/Build (waren bereits grün), sondern eine gezielte Suche nach Stellen,
+an denen das Typsystem eine Inkonsistenz NICHT fangen konnte, weil ein Feld/eine
+Kennzahl weiterhin existiert und weiterhin eine `number`/`string` ist, sich aber ihre
+Bedeutung oder ihr Wertebereich durch das neue Modul verschoben hat, ohne dass alle
+Konsumenten mitgezogen wurden. Vier Befunde, alle behoben und verifiziert (`tsc`
+sauber, Lint sauber, 617/617 Tests grün, Produktions-Build erfolgreich):
+
+- **Ampel-Schwellen nicht auf die neue, netto-basierte Kennzahl umgestellt**
+  (`bewertungsAmpel.ts`): Die "Möblierungs-Upside"-Ampel nutzte weiterhin die alten
+  festen Schwellen (`>= 50` grün / `>= 20` gelb), die auf der früheren, deutlich
+  höheren bruttomietbasierten `furnitureRoi` kalibriert waren. Nach der Ablösung durch
+  die netto-NOI-basierte `furnishingRoi` (strukturell viel niedrigere Werte) hätte
+  praktisch jedes reale Objekt eine irreführend rote Ampel gezeigt, obwohl sich an der
+  eigentlichen Wirtschaftlichkeit nichts geändert hat. Fix: Schwellen relativ zum
+  bereits vorhandenen Annahmen-Parameter `minimumRequiredFurnitureRoiPercent`
+  eingestuft (grün ab dem Doppelten, gelb ab dem Einfachen, sonst rot) statt fixer
+  Prozentsätze — der neue Parameter musste dafür zusätzlich durch
+  `computeBewertungsAmpeln`, `managementSummaryPdf.tsx` und die
+  `/api/properties/[id]/management-summary`-Route durchgereicht werden (vorher dort
+  fehlend).
+- **`MoeblierungsAlternative.label` zu grob**: strikt auf `"möbliert" | "unmöbliert"`
+  typisiert, obwohl es jetzt drei möblierte Dauer-Varianten gibt — das Label nannte nie,
+  ob die Alternative "Möbliert Langzeit", "-Mittelzeit" oder "-Kurzzeit" war. Typ auf
+  `string` geweitet und mit dem bereits vorhandenen `VERMIETUNGSMODELL_LABELS`-Mapping
+  befüllt (jetzt exportiert, z.B. für die UI wiederverwendbar).
+- **"Value-Add — Möblierung"-Panel mit generischem "Paket 2 — möbliert"-Titel**: dieselbe
+  Ambiguität wie oben, diesmal in der UI — die Vergleichsspalte zeigt je nach gewähltem
+  Vermietungsmodell mal Langzeit-, mal Mittelzeit-, mal Kurzzeit-Zahlen
+  (`resolveMoeblierungsVergleichVariante`), der Titel machte aber nie ersichtlich,
+  welche der drei Varianten gerade angezeigt wird. Neues Ergebnisfeld
+  `BestandsrenditeAnalysisResult.moeblierungsVergleichVariante` ergänzt und in
+  Panel-Einleitung sowie Tabellenkopf verwendet (z.B. "Paket 2 — Möbliert Mittelzeit").
+- Kleinere Test-Politur: ein `parseBestandsrenditeFacts`-Test in `bestandsrendite.test.ts`
+  übergab noch das alte, inzwischen wirkungslose Feld `mietPremiumChfPerMonth` statt
+  eines der drei neuen Varianten-Felder — auf `mietPremiumMittelzeitChfPerMonth`
+  umgestellt und die Übernahme jetzt tatsächlich per Assertion geprüft (vorher wurde
+  stillschweigend nichts getestet).
+
+Kein Live-Browser-Test in dieser Remote-Session möglich (wie bereits beim
+Furnished-Rental-Modul selbst) — Nutzer verifiziert nach dem Merge live.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

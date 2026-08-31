@@ -8,6 +8,7 @@ const baseParams = {
   nachhaltigerCashflowChf: 1_000,
   dueDiligenceOverallStatus: undefined,
   moeblierungFurnitureRoiPercent: undefined,
+  minimumRequiredFurnitureRoiPercent: 15,
 };
 
 const regionData: RegionExtractionResult = {
@@ -55,11 +56,12 @@ describe("computeBewertungsAmpeln", () => {
     expect(teuer.find((a) => a.key === "kaufpreisMarkt")?.status).toBe("bad");
   });
 
-  it("Möblierungs-Upside fehlt ohne erfassten ROI, sonst gestuft nach Höhe", () => {
+  it("Möblierungs-Upside fehlt ohne erfassten ROI, sonst relativ zur Mindestrendite (minimumRequiredFurnitureRoiPercent) gestuft — grün ab dem Doppelten, gelb ab dem Einfachen, sonst rot", () => {
     expect(computeBewertungsAmpeln(baseParams).find((a) => a.key === "moeblierung")).toBeUndefined();
-    expect(computeBewertungsAmpeln({ ...baseParams, moeblierungFurnitureRoiPercent: 70 }).find((a) => a.key === "moeblierung")?.status).toBe("good");
-    expect(computeBewertungsAmpeln({ ...baseParams, moeblierungFurnitureRoiPercent: 30 }).find((a) => a.key === "moeblierung")?.status).toBe("warn");
-    expect(computeBewertungsAmpeln({ ...baseParams, moeblierungFurnitureRoiPercent: 5 }).find((a) => a.key === "moeblierung")?.status).toBe("bad");
+    // minimumRequiredFurnitureRoiPercent = 15 in baseParams.
+    expect(computeBewertungsAmpeln({ ...baseParams, moeblierungFurnitureRoiPercent: 30 }).find((a) => a.key === "moeblierung")?.status).toBe("good"); // >= 2×15
+    expect(computeBewertungsAmpeln({ ...baseParams, moeblierungFurnitureRoiPercent: 20 }).find((a) => a.key === "moeblierung")?.status).toBe("warn"); // >= 15, < 30
+    expect(computeBewertungsAmpeln({ ...baseParams, moeblierungFurnitureRoiPercent: 5 }).find((a) => a.key === "moeblierung")?.status).toBe("bad"); // < 15
   });
 
   it("Due Diligence: fehlt ohne Synthese, sonst direkt aus overallStatus übernommen (OK/KLAERUNGSBEDARF/RISIKO -> good/warn/bad)", () => {

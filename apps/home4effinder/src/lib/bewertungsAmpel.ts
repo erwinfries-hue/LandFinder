@@ -33,8 +33,17 @@ export function computeBewertungsAmpeln(params: {
   nettoRenditeZielPercent: number;
   nachhaltigerCashflowChf: number;
   dueDiligenceOverallStatus: DueDiligenceSeverity | undefined;
-  /** = `furnitureRoi.roiPercent` — `undefined`, wenn keine Möblierungskosten erfasst sind (keine sinnvolle Aussage möglich). */
+  /** = `furnishingRoi.roiPercent` (NETTO-basiert, siehe bestandsrendite.ts) — `undefined`, wenn keine Möblierungskosten erfasst sind (keine sinnvolle Aussage möglich). */
   moeblierungFurnitureRoiPercent: number | undefined;
+  /**
+   * Referenzwert aus dem "Annahmen"-Reiter (`BESTANDSRENDITE_PARAMETERS.minimumRequiredFurnitureRoiPercent`)
+   * — Grundlage für die Möblierungs-Upside-Ampel-Schwellen (siehe dort). Seit dem SIPIS
+   * Furnished-Rental-Modul (v1.1) ist `moeblierungFurnitureRoiPercent` NETTO-basiert
+   * (Mehrertrag bereits um alle möblierungsspezifischen Zusatzkosten bereinigt) statt wie
+   * zuvor bruttomietbasiert — strukturell deutlich niedrigere Werte als vorher, daher
+   * relativ zu diesem Referenzwert statt fixer Prozentsätze eingestuft.
+   */
+  minimumRequiredFurnitureRoiPercent: number;
   /**
    * Für die Kaufpreis-vs-Markt-Ampel — dieselben Rohdaten wie `MarktEinordnungView`
    * (Regionsreport der Gemeinde). `undefined`, wenn kein Regionsreport für die Gemeinde
@@ -49,6 +58,7 @@ export function computeBewertungsAmpeln(params: {
     nachhaltigerCashflowChf,
     dueDiligenceOverallStatus,
     moeblierungFurnitureRoiPercent,
+    minimumRequiredFurnitureRoiPercent,
     regionMarkt,
   } = params;
 
@@ -88,9 +98,16 @@ export function computeBewertungsAmpeln(params: {
   }
 
   // Möblierungs-Upside — nur wenn tatsächlich Möblierungskosten erfasst sind (sonst keine
-  // sinnvolle ROI-Aussage möglich, siehe furnitureRoi in bestandsrendite.ts).
+  // sinnvolle ROI-Aussage möglich, siehe furnishingRoi in bestandsrendite.ts). Relativ zur
+  // geforderten Mindestrendite eingestuft (nicht mehr fixe Prozentsätze) — grün ab dem
+  // Doppelten der Mindestrendite, gelb ab der Mindestrendite selbst, sonst rot.
   if (moeblierungFurnitureRoiPercent !== undefined) {
-    const status: AmpelStatus = moeblierungFurnitureRoiPercent >= 50 ? "good" : moeblierungFurnitureRoiPercent >= 20 ? "warn" : "bad";
+    const status: AmpelStatus =
+      moeblierungFurnitureRoiPercent >= minimumRequiredFurnitureRoiPercent * 2
+        ? "good"
+        : moeblierungFurnitureRoiPercent >= minimumRequiredFurnitureRoiPercent
+          ? "warn"
+          : "bad";
     dimensionen.push({ key: "moeblierung", label: "Möblierungs-Upside", status, detail: `ROI ${moeblierungFurnitureRoiPercent.toFixed(0)}%` });
   }
 

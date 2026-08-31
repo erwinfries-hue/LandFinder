@@ -57,6 +57,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     moeblierungsAlternative,
     bruttoRenditeZielPercent: effectiveParams.bruttoRenditeZielPercent,
     nettoRenditeZielPercent: effectiveParams.nettoRenditeZielPercent,
+    minimumRequiredFurnitureRoiPercent: effectiveParams.minimumRequiredFurnitureRoiPercent,
     ubsWohnattraktivitaetHinweis: ubsWohnattraktivitaet ? formatUbsWohnattraktivitaetHinweis(ubsWohnattraktivitaet) : undefined,
     inseratpreisChf: property.asking_price_chf,
   });

@@ -156,6 +156,7 @@ export default async function ObjektDetailPage({ params }: { params: Promise<{ i
         nachhaltigerCashflowChf: analysis.investmentCase.wasserfall.nachhaltigerCashflowChf,
         dueDiligenceOverallStatus: dueDiligence?.result?.overallStatus,
         moeblierungFurnitureRoiPercent: analysis.furnishingRoi?.roiPercent,
+        minimumRequiredFurnitureRoiPercent: effectiveParams.minimumRequiredFurnitureRoiPercent,
         regionMarkt: regionData ? { regionData, zimmerzahl: facts?.zimmerzahl, kaufpreisChfPerM2: analysis.schnellcheck.preisProM2Chf } : undefined,
       })
     : [];
