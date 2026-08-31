@@ -744,6 +744,18 @@ export function BestandsrenditeAnalysisView({
                         <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.reinigungServiceChfPerYear))}</td>
                       </tr>
                       <tr>
+                        <td>
+                          − Reparaturkosten (jährlich) <InfoHint text="Jährlich wiederkehrende Reparaturkosten — nicht zu verwechseln mit der Reparaturreserve, die als Sicherheitspuffer erst am Ende des Cashflow-Wasserfalls nach Steuer abgezogen wird." />
+                        </td>
+                        <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.reparaturChfPerYear))}</td>
+                      </tr>
+                      {noiBreakdown.nebenkostenMoebliertChfPerYear > 0 ? (
+                        <tr>
+                          <td>− WLAN/Kabel/Streaming/Abfall (möbliert)</td>
+                          <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.nebenkostenMoebliertChfPerYear))}</td>
+                        </tr>
+                      ) : null}
+                      <tr>
                         <td>= Betriebskosten total</td>
                         <td className="num mono">CHF {formatChf(Math.round(noiBreakdown.betriebskostenTotalChf))}</td>
                       </tr>

@@ -146,6 +146,8 @@ export function runMehrjahresmodell(input: MehrjahresmodellInput): Mehrjahresmod
       eigentuemerkostenChfPerYear: escalate(input.betriebskostenJahr1.eigentuemerkostenChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
       vermietungskostenChfPerYear: escalate(input.betriebskostenJahr1.vermietungskostenChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
       reinigungServiceChfPerYear: escalate(input.betriebskostenJahr1.reinigungServiceChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
+      reparaturChfPerYear: escalate(input.betriebskostenJahr1.reparaturChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
+      nebenkostenMoebliertChfPerYear: escalate(input.betriebskostenJahr1.nebenkostenMoebliertChfPerYear, input.kosteninflationPercentPerYear, wachstumsjahre),
     });
 
     // Zins auf die gemeinsame Restschuld zu Jahresbeginn (ein Zinssatz für beide

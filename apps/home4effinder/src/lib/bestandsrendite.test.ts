@@ -92,7 +92,7 @@ const fullFacts: BestandsrenditeFacts = {
     initialRenovationCostChf: 25_000,
     positionen: [{ betragChf: 25_000, kategorie: "WERTERHALTEND", jahr: 2026, steuerlicheAbzugsfaehigkeit: "UNKLAR" }],
   },
-  reparatur: { initialUnmoebliertChf: 0, initialMoebliertChf: 0 },
+  reparatur: { jaehrlichUnmoebliertChf: 0, jaehrlichMoebliertChf: 0 },
   moeblierung: { initialCostChf: 10_000, mietPremiumChfPerMonth: 300 },
   miete: {
     wohnungsMieteChfPerMonth: 1_450,
@@ -109,6 +109,7 @@ const fullFacts: BestandsrenditeFacts = {
     vermietungskostenChfPerYear: 200,
     reinigungServiceUnmoebliertChfPerYear: 0,
     reinigungServiceMoebliertChfPerYear: 0,
+    nebenkostenMoebliertChfPerYear: 0,
   },
   reserven: {},
   hypothek: {
@@ -176,7 +177,12 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(b.noiChf).toBe(result.investmentCase.wasserfall.noiChf);
     expect(b.potenziellerJahresertragChf - b.leerstandAbzugChf).toBeCloseTo(b.effektiverJahresertragChf, 6);
     expect(b.betriebskostenTotalChf).toBeCloseTo(
-      b.stwegAkontobeitragChfPerYear + b.eigentuemerkostenChfPerYear + b.vermietungskostenChfPerYear + b.reinigungServiceChfPerYear,
+      b.stwegAkontobeitragChfPerYear +
+        b.eigentuemerkostenChfPerYear +
+        b.vermietungskostenChfPerYear +
+        b.reinigungServiceChfPerYear +
+        b.reparaturChfPerYear +
+        b.nebenkostenMoebliertChfPerYear,
       6,
     );
     expect(b.effektiverJahresertragChf - b.betriebskostenTotalChf).toBeCloseTo(b.noiChf, 6);
@@ -356,11 +362,16 @@ describe("computeBestandsrenditeAnalysis", () => {
     expect(moebliert.allInInvestitionChf - unmoebliert.allInInvestitionChf).toBe(10_000);
   });
 
-  it("Reparatur/Reinigung sind je Vermietungsmodell (Paket 1/2) separat erfasst — nur der Betrag des gewählten Modells fliesst ein", () => {
+  it("Reparatur/Reinigung/möblierte Nebenkosten sind je Vermietungsmodell (Paket 1/2) separat erfasst — nur der Betrag des gewählten Modells fliesst ein", () => {
     const facts: BestandsrenditeFacts = {
       ...fullFacts,
-      reparatur: { initialUnmoebliertChf: 8_000, initialMoebliertChf: 3_000 },
-      betriebskosten: { ...fullFacts.betriebskosten, reinigungServiceUnmoebliertChfPerYear: 600, reinigungServiceMoebliertChfPerYear: 2_400 },
+      reparatur: { jaehrlichUnmoebliertChf: 800, jaehrlichMoebliertChf: 300 },
+      betriebskosten: {
+        ...fullFacts.betriebskosten,
+        reinigungServiceUnmoebliertChfPerYear: 600,
+        reinigungServiceMoebliertChfPerYear: 2_400,
+        nebenkostenMoebliertChfPerYear: 1_500,
+      },
     };
     const moebliert = computeBestandsrenditeAnalysis({ kaufpreisChf: 870_000, wohnflaecheM2: 75 }, facts);
     const unmoebliert = computeBestandsrenditeAnalysis(
@@ -368,12 +379,19 @@ describe("computeBestandsrenditeAnalysis", () => {
       { ...facts, miete: { ...facts.miete, vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT" } },
     );
 
-    // All-in-Investition enthält je Paket nur dessen eigene Reparaturkosten (zusätzlich zu den unveränderten Möblierungskosten).
-    expect(moebliert.allInInvestitionChf - unmoebliert.allInInvestitionChf).toBeCloseTo(10_000 + (3_000 - 8_000), 5); // Möblierung + Reparaturdifferenz
-    // NOI (Investment Case) berücksichtigt je Paket nur dessen eigene Reinigungskosten —
-    // höhere Reinigungskosten bei möbliert senken den NOI zusätzlich zur höheren Miete.
+    // Reparaturkosten sind jährlich wiederkehrend und fliessen daher NICHT in die
+    // All-in-Investition ein — nur die Möblierungskosten (10'000) machen hier den Unterschied.
+    expect(moebliert.allInInvestitionChf - unmoebliert.allInInvestitionChf).toBe(10_000);
+    // NOI (Investment Case) berücksichtigt je Paket nur dessen eigene Reinigungs-/
+    // Reparaturkosten — höhere laufende Kosten bei möbliert senken den NOI zusätzlich
+    // zur höheren Miete.
     expect(moebliert.noiBreakdown.reinigungServiceChfPerYear).toBe(2_400);
     expect(unmoebliert.noiBreakdown.reinigungServiceChfPerYear).toBe(600);
+    expect(moebliert.noiBreakdown.reparaturChfPerYear).toBe(300);
+    expect(unmoebliert.noiBreakdown.reparaturChfPerYear).toBe(800);
+    // Möblierte Nebenkosten (WLAN/Kabel/Streaming/Abfall) nur bei möbliert relevant, 0 bei unmöbliert.
+    expect(moebliert.noiBreakdown.nebenkostenMoebliertChfPerYear).toBe(1_500);
+    expect(unmoebliert.noiBreakdown.nebenkostenMoebliertChfPerYear).toBe(0);
   });
 });
 

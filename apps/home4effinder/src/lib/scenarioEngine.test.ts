@@ -22,7 +22,7 @@ const facts: BestandsrenditeFacts = {
   stweg: {},
   nebenkosten: {},
   renovation: { initialRenovationCostChf: 0, positionen: [] },
-  reparatur: { initialUnmoebliertChf: 0, initialMoebliertChf: 0 },
+  reparatur: { jaehrlichUnmoebliertChf: 0, jaehrlichMoebliertChf: 0 },
   moeblierung: { initialCostChf: 10_000, mietPremiumChfPerMonth: 300 },
   miete: {
     wohnungsMieteChfPerMonth: 1_450,
@@ -40,6 +40,7 @@ const facts: BestandsrenditeFacts = {
     vermietungskostenChfPerYear: 200,
     reinigungServiceUnmoebliertChfPerYear: 0,
     reinigungServiceMoebliertChfPerYear: 0,
+    nebenkostenMoebliertChfPerYear: 0,
   },
   reserven: { reparaturChfPerYear: 1_500 },
   hypothek: {

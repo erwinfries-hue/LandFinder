@@ -74,11 +74,11 @@ export function PropertyEditForm({
           </div>
           <div className="field">
             <label htmlFor="edit-askingPriceChf">Kaufpreis (CHF, Wohnung — ggf. inkl. Parkplatz/Garage, falls im Preis enthalten)</label>
-            <input id="edit-askingPriceChf" name="askingPriceChf" type="number" step="1000" min="0" required defaultValue={property.asking_price_chf} />
+            <input id="edit-askingPriceChf" name="askingPriceChf" type="number" step="any" min="0" required defaultValue={property.asking_price_chf} />
           </div>
           <div className="field">
             <label htmlFor="edit-wohnflaecheM2">Wohnfläche (m²)</label>
-            <input id="edit-wohnflaecheM2" name="wohnflaecheM2" type="number" step="0.5" min="1" required defaultValue={property.wohnflaeche_m2} />
+            <input id="edit-wohnflaecheM2" name="wohnflaecheM2" type="number" step="any" min="1" required defaultValue={property.wohnflaeche_m2} />
           </div>
           <div className="field" style={{ gridColumn: "1 / -1" }}>
             <label htmlFor="edit-listingUrl">Inserat-Link (optional)</label>

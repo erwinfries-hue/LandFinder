@@ -225,7 +225,7 @@ export function BestandsrenditeFactsFields({
             id="zimmerzahl"
             name="zimmerzahl"
             type="number"
-            step="0.5"
+            step="any"
             list="dl-zimmerzahl"
             ref={zimmerzahlInputRef}
             defaultValue={existing?.zimmerzahl ?? zimmerzahl.value}
@@ -234,7 +234,7 @@ export function BestandsrenditeFactsFields({
         </div>
         <div className="field">
           <label htmlFor="baujahr">Baujahr{baujahr.fromDoc ? ` (aus Dokument: ${baujahr.value})` : ""}</label>
-          <input id="baujahr" name="baujahr" type="number" step="1" defaultValue={existing?.baujahr ?? baujahr.value} />
+          <input id="baujahr" name="baujahr" type="number" step="any" defaultValue={existing?.baujahr ?? baujahr.value} />
         </div>
       </div>
 
@@ -251,7 +251,7 @@ export function BestandsrenditeFactsFields({
             id="handaenderungssteuerPercent"
             name="handaenderungssteuerPercent"
             type="number"
-            step="0.1"
+            step="any"
             defaultValue={existing?.nebenkosten.handaenderungssteuerPercent ?? defaultHandaenderungssteuerPercent}
           />
         </div>
@@ -261,7 +261,7 @@ export function BestandsrenditeFactsFields({
             id="notariatGrundbuchPercent"
             name="notariatGrundbuchPercent"
             type="number"
-            step="0.1"
+            step="any"
             defaultValue={existing?.nebenkosten.notariatGrundbuchPercent ?? P.notariatGrundbuchPercent}
           />
         </div>
@@ -271,7 +271,7 @@ export function BestandsrenditeFactsFields({
             id="maklerprovisionPercent"
             name="maklerprovisionPercent"
             type="number"
-            step="0.1"
+            step="any"
             defaultValue={existing?.nebenkosten.maklerprovisionPercent ?? P.maklerprovisionPercent}
           />
         </div>
@@ -287,7 +287,7 @@ export function BestandsrenditeFactsFields({
             id="parkplatzMieteChfPerMonth"
             name="parkplatzMieteChfPerMonth"
             type="number"
-            step="10"
+            step="any"
             defaultValue={existing?.miete.parkplatzMieteChfPerMonth ?? parkplatzMiete.value}
           />
         </div>
@@ -297,7 +297,7 @@ export function BestandsrenditeFactsFields({
             id="garagenplatzMieteChfPerMonth"
             name="garagenplatzMieteChfPerMonth"
             type="number"
-            step="10"
+            step="any"
             defaultValue={existing?.miete.garagenplatzMieteChfPerMonth ?? garagenplatzMiete.value}
           />
         </div>
@@ -307,7 +307,7 @@ export function BestandsrenditeFactsFields({
             id="hobbyraumMieteChfPerMonth"
             name="hobbyraumMieteChfPerMonth"
             type="number"
-            step="10"
+            step="any"
             defaultValue={existing?.miete.hobbyraumMieteChfPerMonth ?? hobbyraumMiete.value}
           />
         </div>
@@ -317,7 +317,7 @@ export function BestandsrenditeFactsFields({
             id="sonstigeEinnahmenChfPerYear"
             name="sonstigeEinnahmenChfPerYear"
             type="number"
-            step="100"
+            step="any"
             defaultValue={existing?.miete.sonstigeEinnahmenChfPerYear ?? sonstigeEinnahmen.value}
           />
         </div>
@@ -332,12 +332,12 @@ export function BestandsrenditeFactsFields({
         {vermietungsmodell === "SHORT_STAY" ? (
           <div className="field">
             <label htmlFor="auslastungPercent">Auslastung (%, leer = Default)</label>
-            <input id="auslastungPercent" name="auslastungPercent" type="number" step="1" list="dl-auslastung" defaultValue={existing?.miete.auslastungPercent} />
+            <input id="auslastungPercent" name="auslastungPercent" type="number" step="any" list="dl-auslastung" defaultValue={existing?.miete.auslastungPercent} />
           </div>
         ) : (
           <div className="field">
             <label htmlFor="leerstandPercent">Leerstand (%, {standardLabel("miete.leerstandPercent", defaultLeerstandPercent)})</label>
-            <input id="leerstandPercent" name="leerstandPercent" type="number" step="0.5" list="dl-leerstand" defaultValue={existing?.miete.leerstandPercent ?? leerstand.value} />
+            <input id="leerstandPercent" name="leerstandPercent" type="number" step="any" list="dl-leerstand" defaultValue={existing?.miete.leerstandPercent ?? leerstand.value} />
           </div>
         )}
       </div>
@@ -361,7 +361,7 @@ export function BestandsrenditeFactsFields({
             id="wohnungsMieteChfPerMonth"
             name="wohnungsMieteChfPerMonth"
             type="number"
-            step="10"
+            step="any"
             required
             ref={wohnungsMieteInputRef}
             defaultValue={existing?.miete.wohnungsMieteChfPerMonth ?? wohnungsMiete.value}
@@ -391,13 +391,13 @@ export function BestandsrenditeFactsFields({
           ) : null}
         </div>
         <div className="field">
-          <label htmlFor="reparaturInitialUnmoebliertChf">Reparaturkosten (CHF, einmalig)</label>
+          <label htmlFor="reparaturJaehrlichUnmoebliertChf">Reparaturkosten (CHF/Jahr)</label>
           <input
-            id="reparaturInitialUnmoebliertChf"
-            name="reparaturInitialUnmoebliertChf"
+            id="reparaturJaehrlichUnmoebliertChf"
+            name="reparaturJaehrlichUnmoebliertChf"
             type="number"
-            step="500"
-            defaultValue={existing?.reparatur.initialUnmoebliertChf ?? 0}
+            step="any"
+            defaultValue={existing?.reparatur.jaehrlichUnmoebliertChf ?? 0}
           />
         </div>
         <div className="field">
@@ -406,7 +406,7 @@ export function BestandsrenditeFactsFields({
             id="reinigungServiceUnmoebliertChfPerYear"
             name="reinigungServiceUnmoebliertChfPerYear"
             type="number"
-            step="50"
+            step="any"
             defaultValue={existing?.betriebskosten.reinigungServiceUnmoebliertChfPerYear ?? 0}
           />
         </div>
@@ -419,13 +419,13 @@ export function BestandsrenditeFactsFields({
             id="moeblierteMieteChfPerMonth"
             name="moeblierteMieteChfPerMonth"
             type="number"
-            step="10"
+            step="any"
             defaultValue={existing ? existing.miete.wohnungsMieteChfPerMonth + existing.moeblierung.mietPremiumChfPerMonth : undefined}
           />
         </div>
         <div className="field">
           <label htmlFor="moeblierungInitialCostChf">Möblierung — Initialkosten (CHF)</label>
-          <input id="moeblierungInitialCostChf" name="moeblierungInitialCostChf" type="number" step="500" defaultValue={existing?.moeblierung.initialCostChf ?? 0} />
+          <input id="moeblierungInitialCostChf" name="moeblierungInitialCostChf" type="number" step="any" defaultValue={existing?.moeblierung.initialCostChf ?? 0} />
         </div>
         <div className="field">
           <label htmlFor="moeblierungNutzungsdauerJahre">Nutzungsdauer (Jahre, Standard: {P.moeblierungNutzungsdauerJahre})</label>
@@ -433,7 +433,7 @@ export function BestandsrenditeFactsFields({
             id="moeblierungNutzungsdauerJahre"
             name="moeblierungNutzungsdauerJahre"
             type="number"
-            step="1"
+            step="any"
             defaultValue={existing?.moeblierung.nutzungsdauerJahre ?? P.moeblierungNutzungsdauerJahre}
           />
         </div>
@@ -443,7 +443,7 @@ export function BestandsrenditeFactsFields({
             id="jaehrlicherErsatzsatzPercent"
             name="jaehrlicherErsatzsatzPercent"
             type="number"
-            step="1"
+            step="any"
             defaultValue={existing?.moeblierung.jaehrlicherErsatzsatzPercent ?? P.moeblierungErsatzquotePercent}
           />
         </div>
@@ -453,18 +453,18 @@ export function BestandsrenditeFactsFields({
             id="moeblierungKostensteigerungPercentPerYear"
             name="moeblierungKostensteigerungPercentPerYear"
             type="number"
-            step="0.1"
+            step="any"
             defaultValue={existing?.moeblierung.kostensteigerungPercentPerYear}
           />
         </div>
         <div className="field">
-          <label htmlFor="reparaturInitialMoebliertChf">Reparaturkosten (CHF, einmalig)</label>
+          <label htmlFor="reparaturJaehrlichMoebliertChf">Reparaturkosten (CHF/Jahr)</label>
           <input
-            id="reparaturInitialMoebliertChf"
-            name="reparaturInitialMoebliertChf"
+            id="reparaturJaehrlichMoebliertChf"
+            name="reparaturJaehrlichMoebliertChf"
             type="number"
-            step="500"
-            defaultValue={existing?.reparatur.initialMoebliertChf ?? 0}
+            step="any"
+            defaultValue={existing?.reparatur.jaehrlichMoebliertChf ?? 0}
           />
         </div>
         <div className="field">
@@ -473,9 +473,22 @@ export function BestandsrenditeFactsFields({
             id="reinigungServiceMoebliertChfPerYear"
             name="reinigungServiceMoebliertChfPerYear"
             type="number"
-            step="50"
+            step="any"
             defaultValue={existing?.betriebskosten.reinigungServiceMoebliertChfPerYear ?? 0}
           />
+        </div>
+        <div className="field">
+          <label htmlFor="nebenkostenMoebliertChfPerYear">WLAN/Kabel/Streaming/Abfall (CHF/Jahr)</label>
+          <input
+            id="nebenkostenMoebliertChfPerYear"
+            name="nebenkostenMoebliertChfPerYear"
+            type="number"
+            step="any"
+            defaultValue={existing?.betriebskosten.nebenkostenMoebliertChfPerYear ?? 1_500}
+          />
+          <div style={{ color: "var(--ink-soft)", fontSize: ".74rem", marginTop: ".25rem" }}>
+            Vorschlagswert CHF 1&apos;500/Jahr (recherchierte Grobschätzung: High-Speed-Internet, Kabelanschluss, Streaming-Abo, Kehrichtsackgebühren) — kein verifizierter, objektspezifischer Marktwert, frei überschreibbar.
+          </div>
         </div>
       </div>
 
@@ -485,7 +498,7 @@ export function BestandsrenditeFactsFields({
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="initialRenovationCostChf">Initial-Renovationskosten gesamt (CHF, 0 falls bereits saniert)</label>
-          <input id="initialRenovationCostChf" name="initialRenovationCostChf" type="number" step="500" defaultValue={existing?.renovation.initialRenovationCostChf ?? 0} />
+          <input id="initialRenovationCostChf" name="initialRenovationCostChf" type="number" step="any" defaultValue={existing?.renovation.initialRenovationCostChf ?? 0} />
         </div>
         <div className="field">
           <label htmlFor="mieteVorRenovationChfPerMonth">
@@ -495,7 +508,7 @@ export function BestandsrenditeFactsFields({
             id="mieteVorRenovationChfPerMonth"
             name="mieteVorRenovationChfPerMonth"
             type="number"
-            step="10"
+            step="any"
             placeholder={String(existing?.miete.wohnungsMieteChfPerMonth ?? wohnungsMiete.value ?? "")}
             defaultValue={existing?.renovation.mieteVorRenovationChfPerMonth}
           />
@@ -506,7 +519,7 @@ export function BestandsrenditeFactsFields({
             id="mieteNachRenovationChfPerMonth"
             name="mieteNachRenovationChfPerMonth"
             type="number"
-            step="10"
+            step="any"
             defaultValue={existing?.renovation.mieteNachRenovationChfPerMonth}
           />
         </div>
@@ -524,7 +537,7 @@ export function BestandsrenditeFactsFields({
                 <input
                   id={`renovation-betrag-${i}`}
                   type="number"
-                  step="100"
+                  step="any"
                   value={p.betragChf}
                   onChange={(e) => onUpdateRenovationPosition(i, { betragChf: Number(e.target.value) || 0 })}
                 />
@@ -548,7 +561,7 @@ export function BestandsrenditeFactsFields({
                 <input
                   id={`renovation-jahr-${i}`}
                   type="number"
-                  step="1"
+                  step="any"
                   value={p.jahr}
                   onChange={(e) => onUpdateRenovationPosition(i, { jahr: Number(e.target.value) || new Date().getFullYear() })}
                 />
@@ -603,7 +616,7 @@ export function BestandsrenditeFactsFields({
             id="stwegAkontobeitragChfPerYear"
             name="stwegAkontobeitragChfPerYear"
             type="number"
-            step="100"
+            step="any"
             defaultValue={existing?.betriebskosten.stwegAkontobeitragChfPerYear ?? stwegAkonto.value}
           />
         </div>
@@ -616,17 +629,17 @@ export function BestandsrenditeFactsFields({
             id="stwegAkontobeitragUeberwaelzbarChfPerYear"
             name="stwegAkontobeitragUeberwaelzbarChfPerYear"
             type="number"
-            step="100"
+            step="any"
             defaultValue={existing?.betriebskosten.stwegAkontobeitragUeberwaelzbarChfPerYear ?? stwegAkontoUeberwaelzbar.value}
           />
         </div>
         <div className="field">
           <label htmlFor="eigentuemerkostenChfPerYear">Sonstige Eigentümerkosten</label>
-          <input id="eigentuemerkostenChfPerYear" name="eigentuemerkostenChfPerYear" type="number" step="50" defaultValue={existing?.betriebskosten.eigentuemerkostenChfPerYear ?? 0} />
+          <input id="eigentuemerkostenChfPerYear" name="eigentuemerkostenChfPerYear" type="number" step="any" defaultValue={existing?.betriebskosten.eigentuemerkostenChfPerYear ?? 0} />
         </div>
         <div className="field">
           <label htmlFor="vermietungskostenChfPerYear">Vermietungs-/Inseratskosten</label>
-          <input id="vermietungskostenChfPerYear" name="vermietungskostenChfPerYear" type="number" step="50" defaultValue={existing?.betriebskosten.vermietungskostenChfPerYear ?? 0} />
+          <input id="vermietungskostenChfPerYear" name="vermietungskostenChfPerYear" type="number" step="any" defaultValue={existing?.betriebskosten.vermietungskostenChfPerYear ?? 0} />
         </div>
       </div>
 
@@ -636,7 +649,7 @@ export function BestandsrenditeFactsFields({
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="reparaturChfPerYear">Reparaturreserve (CHF/Jahr)</label>
-          <input id="reparaturChfPerYear" name="reparaturChfPerYear" type="number" step="100" defaultValue={existing?.reserven.reparaturChfPerYear} />
+          <input id="reparaturChfPerYear" name="reparaturChfPerYear" type="number" step="any" defaultValue={existing?.reserven.reparaturChfPerYear} />
         </div>
         <div className="field">
           <label htmlFor="reparaturPercentOfKaufpreis">Reparaturreserve (% Kaufpreis, Standard: {P.reparaturreservePercentOfKaufpreis})</label>
@@ -644,13 +657,13 @@ export function BestandsrenditeFactsFields({
             id="reparaturPercentOfKaufpreis"
             name="reparaturPercentOfKaufpreis"
             type="number"
-            step="0.05"
+            step="any"
             defaultValue={existing?.reserven.reparaturPercentOfKaufpreis ?? (existing?.reserven.reparaturChfPerYear ? undefined : P.reparaturreservePercentOfKaufpreis)}
           />
         </div>
         <div className="field">
           <label htmlFor="leerstandReserveChfPerYear">Leerstandsreserve (CHF/Jahr)</label>
-          <input id="leerstandReserveChfPerYear" name="leerstandReserveChfPerYear" type="number" step="100" defaultValue={existing?.reserven.leerstandChfPerYear} />
+          <input id="leerstandReserveChfPerYear" name="leerstandReserveChfPerYear" type="number" step="any" defaultValue={existing?.reserven.leerstandChfPerYear} />
         </div>
         <div className="field">
           <label htmlFor="leerstandReservePercentOfKaufpreis">Leerstandsreserve (% Kaufpreis, Standard: {P.leerstandsreservePercentOfKaufpreis})</label>
@@ -658,7 +671,7 @@ export function BestandsrenditeFactsFields({
             id="leerstandReservePercentOfKaufpreis"
             name="leerstandReservePercentOfKaufpreis"
             type="number"
-            step="0.05"
+            step="any"
             defaultValue={existing?.reserven.leerstandPercentOfKaufpreis ?? (existing?.reserven.leerstandChfPerYear ? undefined : P.leerstandsreservePercentOfKaufpreis)}
           />
         </div>
@@ -680,7 +693,7 @@ export function BestandsrenditeFactsFields({
             id="ersteHypothekBelehnungPercent"
             name="ersteHypothekBelehnungPercent"
             type="number"
-            step="1"
+            step="any"
             list="dl-erste-belehnung"
             required
             defaultValue={existing?.hypothek.ersteHypothek.belehnungPercent ?? P.ersteHypothekBelehnungPercentDefault}
@@ -705,7 +718,7 @@ export function BestandsrenditeFactsFields({
               id="ersteHypothekAmortisationProzentProJahr"
               name="ersteHypothekAmortisationProzentProJahr"
               type="number"
-              step="0.1"
+              step="any"
               defaultValue={existing?.hypothek.ersteHypothek.amortisation.prozentProJahr ?? 0}
             />
           </div>
@@ -716,7 +729,7 @@ export function BestandsrenditeFactsFields({
               id="ersteHypothekAmortisationDauerJahre"
               name="ersteHypothekAmortisationDauerJahre"
               type="number"
-              step="1"
+              step="any"
               defaultValue={existing?.hypothek.ersteHypothek.amortisation.dauerJahre ?? 0}
             />
           </div>
@@ -727,7 +740,7 @@ export function BestandsrenditeFactsFields({
             id="zweiteHypothekBelehnungPercent"
             name="zweiteHypothekBelehnungPercent"
             type="number"
-            step="1"
+            step="any"
             list="dl-zweite-belehnung"
             required
             defaultValue={existing?.hypothek.zweiteHypothek.belehnungPercent ?? P.zweiteHypothekBelehnungPercentDefault}
@@ -752,7 +765,7 @@ export function BestandsrenditeFactsFields({
               id="zweiteHypothekAmortisationProzentProJahr"
               name="zweiteHypothekAmortisationProzentProJahr"
               type="number"
-              step="0.1"
+              step="any"
               defaultValue={existing?.hypothek.zweiteHypothek.amortisation.prozentProJahr ?? 0}
             />
           </div>
@@ -763,7 +776,7 @@ export function BestandsrenditeFactsFields({
               id="zweiteHypothekAmortisationDauerJahre"
               name="zweiteHypothekAmortisationDauerJahre"
               type="number"
-              step="1"
+              step="any"
               list="dl-amortisationsdauer"
               defaultValue={existing?.hypothek.zweiteHypothek.amortisation.dauerJahre ?? 15}
             />
@@ -775,7 +788,7 @@ export function BestandsrenditeFactsFields({
             id="interestRatePercent"
             name="interestRatePercent"
             type="number"
-            step="0.1"
+            step="any"
             list="dl-zinssatz"
             required
             defaultValue={existing?.hypothek.interestRatePercent ?? P.zinsPercentDefault}
@@ -790,7 +803,7 @@ export function BestandsrenditeFactsFields({
             id="kalkulatorischerSteuersatzPercent"
             name="kalkulatorischerSteuersatzPercent"
             type="number"
-            step="1"
+            step="any"
             defaultValue={existing?.kalkulatorischerSteuersatzPercent ?? defaultKalkulatorischerSteuersatzPercent}
           />
         </div>
@@ -806,7 +819,7 @@ export function BestandsrenditeFactsFields({
             id="holdingPeriodYears"
             name="holdingPeriodYears"
             type="number"
-            step="1"
+            step="any"
             min="5"
             max="30"
             list="dl-holding-period"
@@ -819,7 +832,7 @@ export function BestandsrenditeFactsFields({
             id="mietsteigerungPercentPerYear"
             name="mietsteigerungPercentPerYear"
             type="number"
-            step="0.1"
+            step="any"
             defaultValue={existing?.mehrjahresmodell.mietsteigerungPercentPerYear ?? P.mietsteigerungPercentPerYear}
           />
         </div>
@@ -829,7 +842,7 @@ export function BestandsrenditeFactsFields({
             id="kosteninflationPercentPerYear"
             name="kosteninflationPercentPerYear"
             type="number"
-            step="0.1"
+            step="any"
             defaultValue={existing?.mehrjahresmodell.kosteninflationPercentPerYear ?? P.kosteninflationPercentPerYear}
           />
         </div>
@@ -839,7 +852,7 @@ export function BestandsrenditeFactsFields({
             id="wertsteigerungPercentPerYear"
             name="wertsteigerungPercentPerYear"
             type="number"
-            step="0.1"
+            step="any"
             defaultValue={existing?.mehrjahresmodell.wertsteigerungPercentPerYear ?? P.wertsteigerungPercentPerYear}
           />
         </div>
@@ -849,13 +862,13 @@ export function BestandsrenditeFactsFields({
             id="sellingCostPercent"
             name="sellingCostPercent"
             type="number"
-            step="0.1"
+            step="any"
             defaultValue={existing?.mehrjahresmodell.sellingCostPercent ?? P.sellingCostPercent}
           />
         </div>
         <div className="field">
           <label htmlFor="grundstueckgewinnsteuerPercent">Grundstückgewinnsteuer (%, optional, grobe Näherung)</label>
-          <input id="grundstueckgewinnsteuerPercent" name="grundstueckgewinnsteuerPercent" type="number" step="1" defaultValue={existing?.mehrjahresmodell.grundstueckgewinnsteuerPercent} />
+          <input id="grundstueckgewinnsteuerPercent" name="grundstueckgewinnsteuerPercent" type="number" step="any" defaultValue={existing?.mehrjahresmodell.grundstueckgewinnsteuerPercent} />
         </div>
       </div>
 
@@ -865,7 +878,7 @@ export function BestandsrenditeFactsFields({
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="wertquotePromille">Wertquote (‰){wertquote.fromDoc ? ` (aus Dokument: ${wertquote.value})` : ""}</label>
-          <input id="wertquotePromille" name="wertquotePromille" type="number" step="1" defaultValue={existing?.stweg.wertquotePromille ?? wertquote.value} />
+          <input id="wertquotePromille" name="wertquotePromille" type="number" step="any" defaultValue={existing?.stweg.wertquotePromille ?? wertquote.value} />
         </div>
         <div className="field">
           <label htmlFor="erneuerungsfondsSaldoChf">
@@ -875,7 +888,7 @@ export function BestandsrenditeFactsFields({
             id="erneuerungsfondsSaldoChf"
             name="erneuerungsfondsSaldoChf"
             type="number"
-            step="1000"
+            step="any"
             defaultValue={existing?.stweg.erneuerungsfondsSaldoChf ?? erneuerungsfondsSaldo.value}
           />
         </div>
@@ -887,7 +900,7 @@ export function BestandsrenditeFactsFields({
             id="erneuerungsfondsWohnungsanteilChf"
             name="erneuerungsfondsWohnungsanteilChf"
             type="number"
-            step="100"
+            step="any"
             defaultValue={existing?.stweg.erneuerungsfondsWohnungsanteilChf ?? erneuerungsfondsWohnungsanteil.value}
           />
         </div>
@@ -899,7 +912,7 @@ export function BestandsrenditeFactsFields({
             id="erneuerungsfondsZielwertChf"
             name="erneuerungsfondsZielwertChf"
             type="number"
-            step="1000"
+            step="any"
             defaultValue={existing?.stweg.erneuerungsfondsZielwertChf ?? erneuerungsfondsZielwert.value}
           />
         </div>
@@ -923,7 +936,7 @@ export function BestandsrenditeFactsFields({
       <div className="fieldgrid" style={{ marginTop: ".45rem" }}>
         <div className="field">
           <label htmlFor="offeneBeschluesseCount">Offene/strittige Beschlüsse (Anzahl, falls bekannt)</label>
-          <input id="offeneBeschluesseCount" name="offeneBeschluesseCount" type="number" step="1" min="0" defaultValue={existing?.stweg.offeneBeschluesseCount} />
+          <input id="offeneBeschluesseCount" name="offeneBeschluesseCount" type="number" step="any" min="0" defaultValue={existing?.stweg.offeneBeschluesseCount} />
         </div>
         <div className="field">
           <label htmlFor="quelle">Quelle (z.B. &quot;Protokoll ordentliche Versammlung 2026-03-12&quot;)</label>
@@ -947,7 +960,7 @@ export function BestandsrenditeFactsFields({
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="eroeffnungsangebotChf">Eröffnungsangebot — eigene Markteinschätzung (CHF, optional)</label>
-          <input id="eroeffnungsangebotChf" name="eroeffnungsangebotChf" type="number" step="1000" defaultValue={existing?.eroeffnungsangebotChf} />
+          <input id="eroeffnungsangebotChf" name="eroeffnungsangebotChf" type="number" step="any" defaultValue={existing?.eroeffnungsangebotChf} />
         </div>
       </div>
 
@@ -958,11 +971,11 @@ export function BestandsrenditeFactsFields({
       <div className="fieldgrid">
         <div className="field">
           <label htmlFor="tageAmMarkt">Tage am Markt</label>
-          <input id="tageAmMarkt" name="tageAmMarkt" type="number" step="1" min="0" defaultValue={existing?.openingBidFaktoren?.tageAmMarkt} />
+          <input id="tageAmMarkt" name="tageAmMarkt" type="number" step="any" min="0" defaultValue={existing?.openingBidFaktoren?.tageAmMarkt} />
         </div>
         <div className="field">
           <label htmlFor="preisreduktionenAnzahl">Anzahl Preisreduktionen</label>
-          <input id="preisreduktionenAnzahl" name="preisreduktionenAnzahl" type="number" step="1" min="0" defaultValue={existing?.openingBidFaktoren?.preisreduktionenAnzahl} />
+          <input id="preisreduktionenAnzahl" name="preisreduktionenAnzahl" type="number" step="any" min="0" defaultValue={existing?.openingBidFaktoren?.preisreduktionenAnzahl} />
         </div>
         <div className="field">
           <label htmlFor="verkaeufermotivation">Erkennbare Verkäufermotivation</label>

@@ -160,10 +160,21 @@ export interface BetriebskostenInput {
   eigentuemerkostenChfPerYear: number;
   vermietungskostenChfPerYear: number;
   reinigungServiceChfPerYear: number;
+  /** Jährlich wiederkehrende Reparaturkosten (nicht zu verwechseln mit der separaten, nach Steuer abgezogenen Reparaturreserve/-Sicherheitspuffer im Cashflow-Wasserfall). */
+  reparaturChfPerYear: number;
+  /** Nur bei möblierter/mittelfristiger Vermietung relevant: High-Speed-WLAN, Kabelgebühren, Streaming-Abo, Abfallgebühren — bei unmöblierter Langfristvermietung trägt dies üblicherweise der Mieter selbst, daher 0. */
+  nebenkostenMoebliertChfPerYear: number;
 }
 
 export function calculateBetriebskosten(input: BetriebskostenInput): number {
-  return input.stwegAkontobeitragChfPerYear + input.eigentuemerkostenChfPerYear + input.vermietungskostenChfPerYear + input.reinigungServiceChfPerYear;
+  return (
+    input.stwegAkontobeitragChfPerYear +
+    input.eigentuemerkostenChfPerYear +
+    input.vermietungskostenChfPerYear +
+    input.reinigungServiceChfPerYear +
+    input.reparaturChfPerYear +
+    input.nebenkostenMoebliertChfPerYear
+  );
 }
 
 /**

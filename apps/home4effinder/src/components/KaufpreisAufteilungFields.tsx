@@ -45,7 +45,7 @@ export function KaufpreisAufteilungFields({
           id="garagenplatzKaufpreisChf"
           name="garagenplatzKaufpreisChf"
           type="number"
-          step="1000"
+          step="any"
           defaultValue={existing?.garagenplatzKaufpreisChf ?? garagenplatzKaufpreisChf.value}
         />
       </div>
@@ -53,13 +53,13 @@ export function KaufpreisAufteilungFields({
         <label htmlFor="parkplatzKaufpreisChf">
           Kaufpreis Aussenparkplatz (CHF, {parkplatzKaufpreisChf.fromDoc ? `aus Dokument: ${parkplatzKaufpreisChf.value}` : "0 falls keiner"})
         </label>
-        <input id="parkplatzKaufpreisChf" name="parkplatzKaufpreisChf" type="number" step="1000" defaultValue={existing?.parkplatzKaufpreisChf ?? parkplatzKaufpreisChf.value} />
+        <input id="parkplatzKaufpreisChf" name="parkplatzKaufpreisChf" type="number" step="any" defaultValue={existing?.parkplatzKaufpreisChf ?? parkplatzKaufpreisChf.value} />
       </div>
       <div className="field">
         <label htmlFor="hobbyraumKaufpreisChf">
           Kaufpreis Hobbyraum (CHF, {hobbyraumKaufpreisChf.fromDoc ? `aus Dokument: ${hobbyraumKaufpreisChf.value}` : "0 falls keiner"})
         </label>
-        <input id="hobbyraumKaufpreisChf" name="hobbyraumKaufpreisChf" type="number" step="1000" defaultValue={existing?.hobbyraumKaufpreisChf ?? hobbyraumKaufpreisChf.value} />
+        <input id="hobbyraumKaufpreisChf" name="hobbyraumKaufpreisChf" type="number" step="any" defaultValue={existing?.hobbyraumKaufpreisChf ?? hobbyraumKaufpreisChf.value} />
       </div>
       <div className="field" style={{ gridColumn: "1 / -1", marginTop: existing || docProposals ? 0 : ".2rem" }}>
         <div className="checkbox-row">

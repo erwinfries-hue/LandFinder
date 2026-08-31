@@ -15,7 +15,7 @@ const baseInput: MehrjahresmodellInput = {
     vermietungsmodell: "LANGFRISTIG_UNMOEBLIERT",
     leerstandPercent: 2,
   },
-  betriebskostenJahr1: { stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0 },
+  betriebskostenJahr1: { stwegAkontobeitragChfPerYear: 4_800, eigentuemerkostenChfPerYear: 300, vermietungskostenChfPerYear: 200, reinigungServiceChfPerYear: 0, reparaturChfPerYear: 0, nebenkostenMoebliertChfPerYear: 0 },
   reparaturreserveJahr1Chf: 2_700,
   leerstandsreserveJahr1Chf: 1_500,
   mietsteigerungPercentPerYear: 1,
