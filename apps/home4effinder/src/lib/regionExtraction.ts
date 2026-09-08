@@ -53,6 +53,23 @@ export interface RegionKennzahlen {
   /** "Wohnungsleerstände im Verhältnis zum Bestand" für Mehrfamilienhäuser. */
   leerstandMehrfamilienhaeuserPercent?: number;
   angebotsquoteMietwohnungenPercent?: number;
+  /** Durchschnittlich mit öffentlichen Verkehrsmitteln erreichbare Einwohner/Beschäftigte innert 30 Minuten (Abschnitt "Mobilität"). */
+  erreichbareEinwohnerOev30Min?: number;
+  erreichbareBeschaeftigteOev30Min?: number;
+  /** Dieselben Erreichbarkeitswerte mit motorisiertem Individualverkehr (Auto) statt ÖV. */
+  erreichbareEinwohnerMiv30Min?: number;
+  erreichbareBeschaeftigteMiv30Min?: number;
+  /**
+   * Wüest-Partner-"Standort- und Marktrating" (Abschnitt "Ratings"), Gesamtrating auf
+   * einer Skala von 1 (extrem schlechte Standortqualität) bis 5 (exzellente
+   * Standortqualität) — eine unabhängige, quellenbasierte Lagequalitäts-Einschätzung,
+   * wie sie der SIPIS-Score bislang mangels Datenquelle bewusst nicht selbst berechnet
+   * (siehe DECISIONS.md, SIPIS-Score Phase 5: "Objektqualität" wurde dort explizit NICHT
+   * erfunden). Nur auf Gemeinde-Ebene vorhanden — der Report enthält kein Kanton-Rating,
+   * daher bleibt dieses Feld in `kantonKennzahlen` immer leer.
+   */
+  standortMarktratingMietwohnungenGesamt?: number;
+  standortMarktratingEigentumswohnungenGesamt?: number;
 }
 
 export interface RegionExtractionResult {
@@ -91,7 +108,9 @@ function buildSystemPrompt(): string {
 
 Solche Reports vergleichen typischerweise mehrere Regionsebenen nebeneinander (Gemeinde, MS-Region, Kanton, Schweiz) in denselben Tabellen. Extrahiere für \`kennzahlen\` AUSSCHLIESSLICH die Spalte/Werte der GEMEINDE (die kleinste, spezifischste gewählte Region — meist die erste Spalte oder explizit als "Gemeinde XY" bezeichnet). Zusätzlich, aus DERSELBEN Tabelle, für \`kantonKennzahlen\` die Spalte/Werte des KANTONS (derselben Feldstruktur wie \`kennzahlen\`) — NICHT die MS-Region- oder Schweiz-Vergleichsspalten, die solche Reports zusätzlich enthalten.
 
-Für \`kennzahlen\`/\`kantonKennzahlen\`: nimm die Werte aus der Zusammenfassungs-/Kennziffern-Tabelle (meist am Anfang des Reports betitelt "Zusammenfassung" oder "Kennziffern Wohnen").
+Für \`kennzahlen\`/\`kantonKennzahlen\`: nimm die Werte aus der Zusammenfassungs-/Kennziffern-Tabelle (meist am Anfang des Reports betitelt "Zusammenfassung" oder "Kennziffern Wohnen") — darin auch der Block "Mobilität" mit den Erreichbarkeitswerten (\`erreichbareEinwohnerOev30Min\` etc.).
+
+Zusätzlich für \`kennzahlen\` (NICHT für \`kantonKennzahlen\` — dort gibt es kein Kanton-Rating): aus einem separaten Abschnitt "Ratings" bzw. "Standort- und Marktrating" die Zeile "Gesamtrating" der Tabellen "Mietwohnungen: Standort- und Marktrating, <Gemeinde>" und "Eigentumswohnungen: Standort- und Marktrating, <Gemeinde>" (Skala 1-5) — NICHT die einzelnen Standortfaktoren/Immobilienmarktfaktoren-Unterzeilen dieser Tabellen, nur den Gesamtrating-Wert selbst.
 
 Für \`preise\`: extrahiere die VOLLSTÄNDIGEN Quantil-Tabellen (10/30/50/70/90%-Quantil) je Zimmerzahl aus dem Abschnitt "Preise" — getrennt für Mietwohnungen (Nettomiete CHF/m²/Jahr), Eigentumswohnungen (Kaufpreis CHF/m²) und Einfamilienhäuser (Kaufpreis CHF/m²), jeweils für ALLE im Report vorkommenden Zimmerzahlen dieser Gemeinde (nicht nur eine).
 
@@ -119,6 +138,18 @@ function kennzahlenSchema(scopeDescription: string) {
       neuErstellteWohnungenProJahr: { type: "number" },
       leerstandMehrfamilienhaeuserPercent: { type: "number", description: "Wohnungsleerstände im Verhältnis zum Bestand, Mehrfamilienhäuser." },
       angebotsquoteMietwohnungenPercent: { type: "number" },
+      erreichbareEinwohnerOev30Min: { type: "number", description: "Durchschnittlich erreichbare Einwohner mit öffentlichen Verkehrsmitteln innert 30 Minuten." },
+      erreichbareBeschaeftigteOev30Min: { type: "number", description: "Durchschnittlich erreichbare Beschäftigte mit öffentlichen Verkehrsmitteln innert 30 Minuten." },
+      erreichbareEinwohnerMiv30Min: { type: "number", description: "Durchschnittlich erreichbare Einwohner mit motorisiertem Individualverkehr innert 30 Minuten." },
+      erreichbareBeschaeftigteMiv30Min: { type: "number", description: "Durchschnittlich erreichbare Beschäftigte mit motorisiertem Individualverkehr innert 30 Minuten." },
+      standortMarktratingMietwohnungenGesamt: {
+        type: "number",
+        description: "Wüest-Partner-Gesamtrating (Standort- und Marktrating) für Mietwohnungen, Skala 1-5, aus dem Abschnitt 'Ratings'. Nur für die Gemeinde vorhanden, NICHT für kantonKennzahlen befüllen.",
+      },
+      standortMarktratingEigentumswohnungenGesamt: {
+        type: "number",
+        description: "Wüest-Partner-Gesamtrating (Standort- und Marktrating) für Eigentumswohnungen, Skala 1-5, aus dem Abschnitt 'Ratings'. Nur für die Gemeinde vorhanden, NICHT für kantonKennzahlen befüllen.",
+      },
     },
   };
 }
@@ -184,6 +215,12 @@ const KENNZAHLEN_NUMERIC_KEYS: (keyof RegionKennzahlen)[] = [
   "neuErstellteWohnungenProJahr",
   "leerstandMehrfamilienhaeuserPercent",
   "angebotsquoteMietwohnungenPercent",
+  "erreichbareEinwohnerOev30Min",
+  "erreichbareBeschaeftigteOev30Min",
+  "erreichbareEinwohnerMiv30Min",
+  "erreichbareBeschaeftigteMiv30Min",
+  "standortMarktratingMietwohnungenGesamt",
+  "standortMarktratingEigentumswohnungenGesamt",
 ];
 
 function parseKennzahlen(raw: unknown): RegionKennzahlen {
