@@ -3443,6 +3443,48 @@ sauber, Lint sauber, 617/617 Tests grün, Produktions-Build erfolgreich):
 Kein Live-Browser-Test in dieser Remote-Session möglich (wie bereits beim
 Furnished-Rental-Modul selbst) — Nutzer verifiziert nach dem Merge live.
 
+## Nachgezogen (2026-09-01): Standort-/Marktrating und Mobilitäts-Kennzahlen aus Wüest-Partner-Reports
+
+Anlass: ein vom Auftraggeber gelieferter Wüest-Partner-"Standortinformation"-Report für
+Baden (90 Seiten) — genau der Dokumenttyp, für den `regionExtraction.ts` bereits gebaut
+ist. Beim Durchsehen des vollständigen Reports fiel auf, dass die bestehende Extraktion
+nur einen Teil der "Zusammenfassung"-Kennziffern-Tabelle abdeckt und einen separaten
+Abschnitt "Ratings" komplett ignoriert, der eine bislang bewusst NICHT selbst berechnete
+Kennzahl liefert:
+
+- **Standort- und Marktrating** (`standortMarktratingMietwohnungenGesamt`/
+  `standortMarktratingEigentumswohnungenGesamt`, Skala 1-5): Wüest Partners eigenes,
+  auf rund 300 Faktoren gestütztes Gesamtrating der Standortqualität je Gemeinde, aus dem
+  Report-Abschnitt "Ratings". Bewusst nachgezogen, weil dieselbe Session beim SIPIS-Score
+  (Phase 5) eine "Objektqualität"/Lagequalitäts-Dimension aus Prinzip NICHT eingebaut hat
+  ("nichts wird erfunden" — keine eigene Datenquelle dafür vorhanden). Dieser externe,
+  quellenbasierte Rating-Wert schliesst genau diese Lücke, ohne selbst etwas zu erfinden.
+  Nur auf Gemeinde-Ebene erfasst (`kennzahlen`) — der Report enthält kein Kanton-Rating,
+  daher bleibt das Feld in `kantonKennzahlen` immer leer.
+- **Mobilitäts-Erreichbarkeit** (`erreichbareEinwohnerOev30Min`/
+  `erreichbareBeschaeftigteOev30Min`/`erreichbareEinwohnerMiv30Min`/
+  `erreichbareBeschaeftigteMiv30Min`): stehen bereits in derselben
+  Zusammenfassungs-Kennziffern-Tabelle, die die Extraktion ohnehin schon ausliest (Block
+  "Mobilität") — bislang schlicht nicht ins Extraktionsschema aufgenommen.
+
+Bewusst NICHT nachgezogen (Scope-Entscheidung, Aufwand/Nutzen): die vollen
+Sub-Faktor-Aufschlüsselungen der Ratings-Tabellen (Standortfaktoren/
+Immobilienmarktfaktoren je mit eigener Gewichtung — zu granular für die flache
+`RegionKennzahlen`-Struktur, der Gesamtrating-Wert allein ist die
+entscheidungsrelevante Grösse), Baulandpreise (Zielgruppe für Bauland-Käufe ist die
+Schwester-App LandFinder, nicht HOME4efFINDER als Bestandsimmobilien-Tool), sowie die
+sehr granularen Bevölkerungs-/Alters-/Haushalts-/Sinus-Milieu-Zeitreihen (Umfang würde in
+keinem sinnvollen Verhältnis zum Nutzen für eine Rendite-Analyse-App stehen).
+
+Reine Erweiterung des bestehenden Schemas (`RegionKennzahlen`, Tool-Schema,
+System-Prompt, `KENNZAHLEN_NUMERIC_KEYS`) — alle neuen Felder optional, bestehende
+Reports/Extraktionen bleiben unverändert kompatibel. Anzeige ergänzt in
+`RegionKennzahlenView.tsx`. Kein Datenbankzugriff in dieser Remote-Session möglich
+(keine Supabase-/Anthropic-API-Zugangsdaten hier) — der Baden-Report selbst muss vom
+Auftraggeber weiterhin über die bestehende Upload-Funktion (Regionen-Seite → Baden
+anlegen/öffnen → Dokument hochladen) eingespielt werden, danach greift die erweiterte
+Extraktion automatisch.
+
 ## Bewusst weiterhin nicht gebaut
 
 - Mehrbenutzer-Login (nur die eine bekannte E-Mail-Adresse des Auftraggebers).

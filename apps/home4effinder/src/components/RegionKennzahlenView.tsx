@@ -38,6 +38,34 @@ function KennzahlenGrid({ kennzahlen }: { kennzahlen: RegionKennzahlen }) {
       {kennzahlen.eigentumswohnungsbestand !== undefined ? <Metric l="Eigentumswohnungsbestand" v={formatChf(kennzahlen.eigentumswohnungsbestand)} /> : null}
       {kennzahlen.einfamilienhausbestand !== undefined ? <Metric l="Einfamilienhausbestand" v={formatChf(kennzahlen.einfamilienhausbestand)} /> : null}
       {kennzahlen.neuErstellteWohnungenProJahr !== undefined ? <Metric l="Neu erstellte Wohnungen p.a." v={formatChf(kennzahlen.neuErstellteWohnungenProJahr)} /> : null}
+      {kennzahlen.standortMarktratingMietwohnungenGesamt !== undefined ? (
+        <Metric
+          l="Standort-/Marktrating Mietwohnungen"
+          v={`${kennzahlen.standortMarktratingMietwohnungenGesamt.toFixed(1)} / 5.0`}
+          hint="Wüest-Partner-Gesamtrating (Standortqualität), Skala 1 (extrem schlecht) bis 5 (exzellent)."
+        />
+      ) : null}
+      {kennzahlen.standortMarktratingEigentumswohnungenGesamt !== undefined ? (
+        <Metric
+          l="Standort-/Marktrating Eigentumswohnungen"
+          v={`${kennzahlen.standortMarktratingEigentumswohnungenGesamt.toFixed(1)} / 5.0`}
+          hint="Wüest-Partner-Gesamtrating (Standortqualität), Skala 1 (extrem schlecht) bis 5 (exzellent)."
+        />
+      ) : null}
+      {kennzahlen.erreichbareEinwohnerOev30Min !== undefined ? (
+        <Metric
+          l="Erreichbare Einwohner (ÖV, 30 Min.)"
+          v={formatChf(kennzahlen.erreichbareEinwohnerOev30Min)}
+          sub={kennzahlen.erreichbareBeschaeftigteOev30Min !== undefined ? `Beschäftigte: ${formatChf(kennzahlen.erreichbareBeschaeftigteOev30Min)}` : undefined}
+        />
+      ) : null}
+      {kennzahlen.erreichbareEinwohnerMiv30Min !== undefined ? (
+        <Metric
+          l="Erreichbare Einwohner (Auto, 30 Min.)"
+          v={formatChf(kennzahlen.erreichbareEinwohnerMiv30Min)}
+          sub={kennzahlen.erreichbareBeschaeftigteMiv30Min !== undefined ? `Beschäftigte: ${formatChf(kennzahlen.erreichbareBeschaeftigteMiv30Min)}` : undefined}
+        />
+      ) : null}
     </div>
   );
 }

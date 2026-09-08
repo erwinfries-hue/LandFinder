@@ -99,6 +99,29 @@ describe("parseRegionExtractionResponse", () => {
     expect(result.kantonKennzahlen).toBeUndefined();
   });
 
+  it("parst Standort-/Marktrating und Mobilitäts-Erreichbarkeitswerte", () => {
+    const json = JSON.stringify({
+      gemeinde: "Baden",
+      canton: "AG",
+      kennzahlen: {
+        standortMarktratingMietwohnungenGesamt: 4.7,
+        standortMarktratingEigentumswohnungenGesamt: 4.6,
+        erreichbareEinwohnerOev30Min: 813161,
+        erreichbareBeschaeftigteOev30Min: 782800,
+        erreichbareEinwohnerMiv30Min: 1709479,
+        erreichbareBeschaeftigteMiv30Min: 1267831,
+      },
+      preise: { mietwohnungen: [], eigentumswohnungen: [], einfamilienhaeuser: [] },
+    });
+    const result = parseRegionExtractionResponse(json);
+    expect(result.kennzahlen.standortMarktratingMietwohnungenGesamt).toBe(4.7);
+    expect(result.kennzahlen.standortMarktratingEigentumswohnungenGesamt).toBe(4.6);
+    expect(result.kennzahlen.erreichbareEinwohnerOev30Min).toBe(813161);
+    expect(result.kennzahlen.erreichbareBeschaeftigteOev30Min).toBe(782800);
+    expect(result.kennzahlen.erreichbareEinwohnerMiv30Min).toBe(1709479);
+    expect(result.kennzahlen.erreichbareBeschaeftigteMiv30Min).toBe(1267831);
+  });
+
   it("ignoriert ein ungültig formatiertes reportDatum statt einen falschen Wert zu übernehmen", () => {
     const json = JSON.stringify({
       gemeinde: "Wohlen",
